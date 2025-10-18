@@ -276,7 +276,6 @@ export default function Dashboard() {
   const getPermissions = () => {
     if (!employee?.rol) return {};
     const userRole = roles.find(r => r.id === employee?.rol);
-    console.log('getPermissions:', { employeeRole: employee?.rol, userRole, rolesLength: roles.length });
     return userRole?.permissions || {};
   };
 
