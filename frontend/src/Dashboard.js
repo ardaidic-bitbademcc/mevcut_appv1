@@ -1761,53 +1761,55 @@ export default function Dashboard() {
               </div>
             )}
 
-            {permissions.can_add_stock_unit && (
-              // Units Management
-              <div className="bg-white rounded-lg shadow p-6 mb-6">
-                  <h2 className="text-xl font-bold mb-4">📏 Birim Yönetimi</h2>
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
-                    <input 
-                      type="text" 
-                      placeholder="Birim Adı (ör: Kilogram)" 
-                      value={newStokBirim.ad} 
-                      onChange={(e) => setNewStokBirim({ ...newStokBirim, ad: e.target.value })} 
-                      className="px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500" 
-                    />
-                    <input 
-                      type="text" 
-                      placeholder="Kısaltma (ör: kg)" 
-                      value={newStokBirim.kisaltma} 
-                      onChange={(e) => setNewStokBirim({ ...newStokBirim, kisaltma: e.target.value })} 
-                      className="px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500" 
-                    />
-                    <button 
-                      onClick={addStokBirim} 
-                      className="px-6 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 font-semibold flex items-center justify-center gap-2"
-                    >
-                      <Plus className="w-4 h-4" /> Birim Ekle
-                    </button>
-                  </div>
-                  <div className="overflow-x-auto">
-                    <table className="w-full text-sm">
-                      <thead className="bg-gray-50 border-b">
-                        <tr>
-                          <th className="px-4 py-2 text-left">ID</th>
-                          <th className="px-4 py-2 text-left">Birim Adı</th>
-                          <th className="px-4 py-2 text-left">Kısaltma</th>
-                          <th className="px-4 py-2 text-left">İşlem</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {stokBirimler.map(birim => (
-                          <tr key={birim.id} className="border-b hover:bg-gray-50">
-                            <td className="px-4 py-2 font-bold text-indigo-600">{birim.id}</td>
-                            <td className="px-4 py-2 font-semibold">{birim.ad}</td>
-                            <td className="px-4 py-2">{birim.kisaltma}</td>
-                            <td className="px-4 py-2">
-                              <button 
-                                onClick={() => deleteStokBirim(birim.id)} 
-                                className="px-3 py-1 bg-red-500 text-white rounded text-xs hover:bg-red-600 font-semibold flex items-center gap-1"
-                              >
+            {/* Units Management */}
+            <div className="bg-white rounded-lg shadow p-6 mb-6">
+              <h2 className="text-xl font-bold mb-4">📏 Birim Yönetimi</h2>
+              {permissions.can_add_stock_unit && (
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+                  <input 
+                    type="text" 
+                    placeholder="Birim Adı (ör: Kilogram)" 
+                    value={newStokBirim.ad} 
+                    onChange={(e) => setNewStokBirim({ ...newStokBirim, ad: e.target.value })} 
+                    className="px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500" 
+                  />
+                  <input 
+                    type="text" 
+                    placeholder="Kısaltma (ör: kg)" 
+                    value={newStokBirim.kisaltma} 
+                    onChange={(e) => setNewStokBirim({ ...newStokBirim, kisaltma: e.target.value })} 
+                    className="px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500" 
+                  />
+                  <button 
+                    onClick={addStokBirim} 
+                    className="px-6 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 font-semibold flex items-center justify-center gap-2"
+                  >
+                    <Plus className="w-4 h-4" /> Birim Ekle
+                  </button>
+                </div>
+              )}
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead className="bg-gray-50 border-b">
+                    <tr>
+                      <th className="px-4 py-2 text-left">ID</th>
+                      <th className="px-4 py-2 text-left">Birim Adı</th>
+                      <th className="px-4 py-2 text-left">Kısaltma</th>
+                      {permissions.can_delete_stock_unit && <th className="px-4 py-2 text-left">İşlem</th>}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {stokBirimler.map(birim => (
+                      <tr key={birim.id} className="border-b hover:bg-gray-50">
+                        <td className="px-4 py-2 font-bold text-indigo-600">{birim.id}</td>
+                        <td className="px-4 py-2 font-semibold">{birim.ad}</td>
+                        <td className="px-4 py-2">{birim.kisaltma}</td>
+                        {permissions.can_delete_stock_unit && (
+                          <td className="px-4 py-2">
+                            <button 
+                              onClick={() => deleteStokBirim(birim.id)} 
+                              className="px-3 py-1 bg-red-500 text-white rounded text-xs hover:bg-red-600 font-semibold flex items-center gap-1"
+                            >
                                 <Trash2 className="w-3 h-3" /> Sil
                               </button>
                             </td>
