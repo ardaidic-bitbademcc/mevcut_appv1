@@ -118,6 +118,7 @@ class ShiftTypeCreate(BaseModel):
 class Attendance(BaseModel):
     model_config = ConfigDict(extra="ignore")
     id: int
+    company_id: int
     employee_id: str
     ad: str
     soyad: str
@@ -128,9 +129,11 @@ class Attendance(BaseModel):
     status: str
 
 class AttendanceCheckIn(BaseModel):
+    company_id: int
     employee_id: str
 
 class AttendanceCheckOut(BaseModel):
+    company_id: int
     employee_id: str
 
 # Leave Models
