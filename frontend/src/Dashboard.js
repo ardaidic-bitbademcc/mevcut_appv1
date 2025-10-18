@@ -45,14 +45,17 @@ export default function Dashboard() {
   const [showWeeklySchedule, setShowWeeklySchedule] = useState(false);
   const [weeklyScheduleEmployee, setWeeklyScheduleEmployee] = useState(null);
   const [weeklyScheduleData, setWeeklyScheduleData] = useState(null);
+  const [stokKategoriler, setStokKategoriler] = useState([]);
   const [stokBirimler, setStokBirimler] = useState([]);
   const [stokUrunler, setStokUrunler] = useState([]);
   const [stokDurum, setStokDurum] = useState([]);
+  const [newStokKategori, setNewStokKategori] = useState({ ad: '', renk: '#6B7280' });
   const [newStokBirim, setNewStokBirim] = useState({ ad: '', kisaltma: '' });
-  const [newStokUrun, setNewStokUrun] = useState({ ad: '', birim_id: '', kategori: 'malzeme', min_stok: 0 });
+  const [newStokUrun, setNewStokUrun] = useState({ ad: '', birim_id: '', kategori_id: '', min_stok: 0 });
   const [showStokSayimModal, setShowStokSayimModal] = useState(false);
   const [stokSayimData, setStokSayimData] = useState({});
   const [editingStokUrun, setEditingStokUrun] = useState(null);
+  const [editingStokKategori, setEditingStokKategori] = useState(null);
 
   // Fetch all data from backend
   const fetchData = async () => {
