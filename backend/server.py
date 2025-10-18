@@ -259,6 +259,13 @@ class LoginResponse(BaseModel):
     employee: Optional[Employee] = None
     message: str = ""
 
+# Register Models
+class RegisterRequest(BaseModel):
+    ad: str
+    soyad: str
+    email: str
+    employee_id: str
+
 # ==================== HELPER FUNCTIONS ====================
 
 async def get_next_id(collection_name: str) -> int:
