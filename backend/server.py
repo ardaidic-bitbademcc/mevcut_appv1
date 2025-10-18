@@ -144,7 +144,7 @@ class Task(BaseModel):
     id: int
     baslik: str
     aciklama: str
-    atanan_personel_id: Optional[int] = None
+    atanan_personel_ids: List[int] = []  # Multiple assignment
     olusturan_id: int
     durum: str = "beklemede"  # beklemede, devam_ediyor, tamamlandi
     puan: Optional[int] = None
@@ -154,7 +154,7 @@ class Task(BaseModel):
 class TaskCreate(BaseModel):
     baslik: str
     aciklama: str
-    atanan_personel_id: Optional[int] = None
+    atanan_personel_ids: List[int] = []  # Multiple assignment
 
 class TaskUpdate(BaseModel):
     baslik: Optional[str] = None
