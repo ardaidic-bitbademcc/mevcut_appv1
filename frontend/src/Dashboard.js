@@ -2050,62 +2050,6 @@ export default function Dashboard() {
                     </table>
                   </div>
                 </div>
-              </>
-            ) : (
-              // Stock Counter View (Kerem, Arda)
-              <div className="bg-white rounded-lg shadow p-6">
-                <h2 className="text-xl font-bold mb-4">📦 Stok Sayımı</h2>
-                <p className="text-gray-600 mb-6">Mevcut stok seviyelerini görebilir ve sayım yapabilirsiniz.</p>
-                <button 
-                  onClick={() => setShowStokSayimModal(true)}
-                  className="mb-6 px-6 py-3 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 font-semibold flex items-center gap-2"
-                >
-                  <Plus className="w-4 h-4" /> Yeni Sayım Yap
-                </button>
-                <div className="overflow-x-auto">
-                  <table className="w-full text-sm">
-                    <thead className="bg-gray-50 border-b">
-                      <tr>
-                        <th className="px-4 py-2 text-left">Ürün</th>
-                        <th className="px-4 py-2 text-left">Kategori</th>
-                        <th className="px-4 py-2 text-left">Mevcut Miktar</th>
-                        <th className="px-4 py-2 text-left">Min Stok</th>
-                        <th className="px-4 py-2 text-left">Durum</th>
-                        <th className="px-4 py-2 text-left">Son Sayım</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {stokDurum.map(item => (
-                        <tr key={item.urun.id} className={`border-b hover:bg-gray-50 ${item.durum === 'kritik' ? 'bg-red-50' : ''}`}>
-                          <td className="px-4 py-2 font-semibold">{item.urun.ad}</td>
-                          <td className="px-4 py-2">
-                            <span className={`px-2 py-1 rounded text-xs font-semibold ${
-                              item.urun.kategori === 'içecek' ? 'bg-blue-100 text-blue-700' : 
-                              item.urun.kategori === 'malzeme' ? 'bg-purple-100 text-purple-700' : 
-                              'bg-gray-100 text-gray-700'
-                            }`}>
-                              {item.urun.kategori}
-                            </span>
-                          </td>
-                          <td className="px-4 py-2 font-bold">{item.stok_miktar} {item.birim?.kisaltma}</td>
-                          <td className="px-4 py-2">{item.urun.min_stok} {item.birim?.kisaltma}</td>
-                          <td className="px-4 py-2">
-                            <span className={`px-2 py-1 rounded text-xs font-semibold ${
-                              item.durum === 'kritik' ? 'bg-red-500 text-white' : 'bg-green-100 text-green-700'
-                            }`}>
-                              {item.durum === 'kritik' ? '⚠️ KRİTİK' : '✅ Normal'}
-                            </span>
-                          </td>
-                          <td className="px-4 py-2 text-xs text-gray-600">
-                            {item.son_sayim ? item.son_sayim.tarih : 'Henüz sayım yok'}
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-            )}
 
             {/* Stock Count Modal */}
             {showStokSayimModal && (
