@@ -1045,6 +1045,7 @@ async def seed_initial_data():
     await db.tasks.delete_many({})
     await db.avans.delete_many({})
     await db.yemek_ucreti.delete_many({})
+    await db.stok_kategori.delete_many({})
     await db.stok_birim.delete_many({})
     await db.stok_urun.delete_many({})
     await db.stok_sayim.delete_many({})
