@@ -621,17 +621,39 @@ export default function Dashboard() {
       <div className="min-h-screen bg-gradient-to-br from-blue-600 to-indigo-700 flex items-center justify-center p-4">
         <div className="bg-white rounded-lg shadow-2xl p-8 w-full max-w-md">
           <h1 className="text-3xl font-bold text-gray-800 mb-2 text-center">İK Sistemi</h1>
-          <div className="space-y-4">
-            <input type="email" placeholder="E-mail" value={loginData.email} onChange={(e) => setLoginData({ ...loginData, email: e.target.value })} onKeyPress={(e) => e.key === 'Enter' && handleLogin()} className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500" />
-            <button onClick={handleLogin} className="w-full px-6 py-3 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 font-semibold">Giriş Yap</button>
-            <div className="mt-6 pt-6 border-t text-xs text-gray-500">
-              <p className="font-semibold mb-2">Demo Hesaplar:</p>
-              <p>• admin@example.com (Admin)</p>
-              <p>• sef@example.com (Şef)</p>
-              <p>• fatma@example.com (Personel)</p>
-              <p>• mehmet@example.com (Sistem Yöneticisi)</p>
-            </div>
-          </div>
+          
+          {!showRegister ? (
+            <>
+              <div className="space-y-4">
+                <input type="email" placeholder="E-mail" value={loginData.email} onChange={(e) => setLoginData({ ...loginData, email: e.target.value })} onKeyPress={(e) => e.key === 'Enter' && handleLogin()} className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+                <button onClick={handleLogin} className="w-full px-6 py-3 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 font-semibold">Giriş Yap</button>
+                <button onClick={() => setShowRegister(true)} className="w-full px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 font-semibold">Kayıt Ol</button>
+                <div className="mt-6 pt-6 border-t text-xs text-gray-500">
+                  <p className="font-semibold mb-2">Demo Hesaplar:</p>
+                  <p>• admin@example.com (Admin)</p>
+                  <p>• sef@example.com (Şef)</p>
+                  <p>• fatma@example.com (Personel)</p>
+                  <p>• mehmet@example.com (Sistem Yöneticisi)</p>
+                </div>
+              </div>
+            </>
+          ) : (
+            <>
+              <h2 className="text-xl font-semibold text-gray-700 mb-4 text-center">Yeni Kayıt</h2>
+              <div className="space-y-4">
+                <input type="text" placeholder="Ad *" value={registerData.ad} onChange={(e) => setRegisterData({ ...registerData, ad: e.target.value })} className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500" />
+                <input type="text" placeholder="Soyad *" value={registerData.soyad} onChange={(e) => setRegisterData({ ...registerData, soyad: e.target.value })} className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500" />
+                <input type="email" placeholder="E-mail *" value={registerData.email} onChange={(e) => setRegisterData({ ...registerData, email: e.target.value })} className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500" />
+                <input type="text" placeholder="Personel ID (4 haneli) *" maxLength="4" value={registerData.employee_id} onChange={(e) => {
+                  const value = e.target.value.replace(/\D/g, '');
+                  setRegisterData({ ...registerData, employee_id: value });
+                }} className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500" />
+                <p className="text-xs text-gray-500">* Pozisyon ve maaş bilgisi admin tarafından atanacaktır</p>
+                <button onClick={handleRegister} className="w-full px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 font-semibold">Kayıt Ol</button>
+                <button onClick={() => setShowRegister(false)} className="w-full px-6 py-3 bg-gray-500 text-white rounded-lg hover:bg-gray-600 font-semibold">Geri Dön</button>
+              </div>
+            </>
+          )}
         </div>
       </div>
     );
