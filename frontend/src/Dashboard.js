@@ -321,9 +321,11 @@ export default function Dashboard() {
         aciklama: newTask.aciklama,
         atanan_personel_ids: newTask.atanan_personel_ids,
         tekrarlayan: newTask.tekrarlayan,
-        tekrar_periyot: newTask.tekrarlayan ? newTask.tekrar_periyot : null
+        tekrar_periyot: newTask.tekrarlayan ? "özel" : null,
+        tekrar_sayi: newTask.tekrarlayan ? newTask.tekrar_sayi : null,
+        tekrar_birim: newTask.tekrarlayan ? newTask.tekrar_birim : null
       });
-      setNewTask({ baslik: '', aciklama: '', atanan_personel_ids: [], tekrarlayan: false, tekrar_periyot: 'aylik' });
+      setNewTask({ baslik: '', aciklama: '', atanan_personel_ids: [], tekrarlayan: false, tekrar_sayi: 1, tekrar_birim: 'gun' });
       alert('✅ Görev başarıyla oluşturuldu!');
       fetchData();
     } catch (error) {
