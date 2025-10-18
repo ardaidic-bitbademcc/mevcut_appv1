@@ -539,6 +539,13 @@ async def get_weekly_shift_calendar(employee_id: int, start_date: str):
         "shifts": shifts_data
     }
 
+@api_router.delete("/shift-calendar/{shift_id}")
+async def delete_shift_assignment(shift_id: int):
+    result = await db.shift_calendar.delete_one({"id": shift_id})
+    if result.deleted_count == 0:
+        raise HTTPException(status_code=404, detail="Vardiya bulunamadı")
+    return {"message": "Vardiya silindi"}
+
 # ==================== TASK ROUTES ====================
 
 @api_router.get("/tasks", response_model=List[Task])
