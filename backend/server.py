@@ -40,15 +40,17 @@ class CompanyCreate(BaseModel):
 class Employee(BaseModel):
     model_config = ConfigDict(extra="ignore")
     id: int
+    company_id: int
     ad: str
     soyad: str
     pozisyon: str
     maas_tabani: float
     rol: str
     email: str
-    employee_id: str
+    employee_id: str  # 4-digit ID unique within company
 
 class EmployeeCreate(BaseModel):
+    company_id: int
     ad: str
     soyad: str
     pozisyon: str
