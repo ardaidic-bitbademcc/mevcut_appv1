@@ -9,6 +9,8 @@ export default function Dashboard() {
   const [user, setUser] = useState(null);
   const [employee, setEmployee] = useState(null);
   const [loginData, setLoginData] = useState({ email: '' });
+  const [showRegister, setShowRegister] = useState(false);
+  const [registerData, setRegisterData] = useState({ ad: '', soyad: '', email: '', employee_id: '' });
   const [activeTab, setActiveTab] = useState('dashboard');
 
   const [employees, setEmployees] = useState([]);
