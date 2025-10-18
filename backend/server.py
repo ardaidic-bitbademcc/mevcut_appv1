@@ -1223,10 +1223,11 @@ async def seed_initial_data():
     employees = [
         {"id": 1, "company_id": 1, "ad": "Ahmet", "soyad": "Yılmaz", "pozisyon": "Yazılımcı", "maas_tabani": 15000, "rol": "admin", "email": "admin@example.com", "employee_id": "1001"},
         {"id": 2, "company_id": 1, "ad": "Fatma", "soyad": "Demir", "pozisyon": "Tasarımcı", "maas_tabani": 12000, "rol": "personel", "email": "fatma@example.com", "employee_id": "1002"},
-        {"id": 3, "ad": "Kerem", "soyad": "Ateş", "pozisyon": "Chef", "maas_tabani": 14000, "rol": "sef", "email": "sef@example.com", "employee_id": "1003"},
-        {"id": 4, "ad": "Ayşe", "soyad": "Kaya", "pozisyon": "Muhasebeci", "maas_tabani": 13000, "rol": "personel", "email": "ayse@example.com", "employee_id": "1004"},
-        {"id": 5, "ad": "Mehmet", "soyad": "Şahin", "pozisyon": "IT Yöneticisi", "maas_tabani": 16000, "rol": "sistem_yoneticisi", "email": "mehmet@example.com", "employee_id": "1005"},
-        {"id": 6, "ad": "Arda", "soyad": "Yıldız", "pozisyon": "Pazarlama Müdürü", "maas_tabani": 28000, "rol": "personel", "email": "arda@example.com", "employee_id": "2001"}
+        {"id": 3, "company_id": 1, "ad": "Kerem", "soyad": "Ateş", "pozisyon": "Chef", "maas_tabani": 14000, "rol": "sef", "email": "sef@example.com", "employee_id": "1003"},
+        {"id": 4, "company_id": 1, "ad": "Ayşe", "soyad": "Kaya", "pozisyon": "Muhasebeci", "maas_tabani": 13000, "rol": "personel", "email": "ayse@example.com", "employee_id": "1004"},
+        {"id": 5, "company_id": 1, "ad": "Mehmet", "soyad": "Şahin", "pozisyon": "IT Yöneticisi", "maas_tabani": 16000, "rol": "sistem_yoneticisi", "email": "mehmet@example.com", "employee_id": "1005"},
+        {"id": 6, "company_id": 1, "ad": "Arda", "soyad": "Yıldız", "pozisyon": "Pazarlama Müdürü", "maas_tabani": 28000, "rol": "personel", "email": "arda@example.com", "employee_id": "2001"},
+        {"id": 7, "company_id": 1, "ad": "Kiosk", "soyad": "Terminal", "pozisyon": "Kiosk System", "maas_tabani": 0, "rol": "kiosk", "email": "kiosk@example.com", "employee_id": "0000"}
     ]
     await db.employees.insert_many(employees)
     
