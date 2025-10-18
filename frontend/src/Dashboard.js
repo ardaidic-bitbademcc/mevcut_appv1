@@ -52,6 +52,7 @@ export default function Dashboard() {
   const [newStokUrun, setNewStokUrun] = useState({ ad: '', birim_id: '', kategori: 'malzeme', min_stok: 0 });
   const [showStokSayimModal, setShowStokSayimModal] = useState(false);
   const [stokSayimData, setStokSayimData] = useState({});
+  const [editingStokUrun, setEditingStokUrun] = useState(null);
 
   // Fetch all data from backend
   const fetchData = async () => {
