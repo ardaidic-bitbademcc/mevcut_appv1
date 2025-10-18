@@ -175,6 +175,17 @@ class StokBirimCreate(BaseModel):
     ad: str
     kisaltma: str
 
+# Stok Kategori Models
+class StokKategori(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+    id: int
+    ad: str  # içecek, malzeme, diğer, etc.
+    renk: str  # hex color code for UI
+
+class StokKategoriCreate(BaseModel):
+    ad: str
+    renk: str = "#6B7280"  # default gray color
+
 # Stok Ürün Models
 class StokUrun(BaseModel):
     model_config = ConfigDict(extra="ignore")
