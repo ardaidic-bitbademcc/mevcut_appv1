@@ -1368,6 +1368,7 @@ async def seed_initial_data():
     tasks = [
         {
             "id": 1,
+            "company_id": 1,
             "baslik": "Website Tasarımı",
             "aciklama": "Yeni kurumsal website tasarımı yapılacak",
             "atanan_personel_ids": [2],
@@ -1381,6 +1382,7 @@ async def seed_initial_data():
         },
         {
             "id": 2,
+            "company_id": 1,
             "baslik": "Yeni Menü Hazırlığı",
             "aciklama": "Bahar menüsü için yeni yemekler geliştirilecek",
             "atanan_personel_ids": [3],
@@ -1394,6 +1396,7 @@ async def seed_initial_data():
         },
         {
             "id": 3,
+            "company_id": 1,
             "baslik": "Aylık Stok Sayımı",
             "aciklama": "Depo ve mutfak stok sayımı yapılacak, eksik malzemeler listelenecek",
             "atanan_personel_ids": [3, 6],
