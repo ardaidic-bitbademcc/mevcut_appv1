@@ -152,6 +152,8 @@ class Task(BaseModel):
     tamamlanma_tarihi: Optional[str] = None
     tekrarlayan: bool = False
     tekrar_periyot: Optional[str] = None  # gunluk, haftalik, aylik
+    tekrar_sayi: Optional[int] = None  # 3 günde bir için 3
+    tekrar_birim: Optional[str] = None  # gun, hafta, ay
 
 class TaskCreate(BaseModel):
     baslik: str
@@ -159,6 +161,50 @@ class TaskCreate(BaseModel):
     atanan_personel_ids: List[int] = []  # Multiple assignment
     tekrarlayan: bool = False
     tekrar_periyot: Optional[str] = None
+    tekrar_sayi: Optional[int] = None
+    tekrar_birim: Optional[str] = None
+
+# Stok Birim Models
+class StokBirim(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+    id: int
+    ad: str  # kg, gram, adet, litre vs.
+    kisaltma: str  # kg, gr, adet, lt
+
+class StokBirimCreate(BaseModel):
+    ad: str
+    kisaltma: str
+
+# Stok Ürün Models
+class StokUrun(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+    id: int
+    ad: str
+    birim_id: int
+    kategori: str  # içecek, malzeme, diğer
+    min_stok: float  # minimum stok uyarı seviyesi
+
+class StokUrunCreate(BaseModel):
+    ad: str
+    birim_id: int
+    kategori: str
+    min_stok: float = 0
+
+# Stok Sayım Models
+class StokSayim(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+    id: int
+    urun_id: int
+    miktar: float
+    tarih: str
+    sayim_yapan_id: int
+    notlar: str = ""
+
+class StokSayimCreate(BaseModel):
+    urun_id: int
+    miktar: float
+    tarih: str
+    notlar: str = ""
 
 class TaskUpdate(BaseModel):
     baslik: Optional[str] = None
