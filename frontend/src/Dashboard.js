@@ -81,8 +81,90 @@ export default function Dashboard() {
   useEffect(() => {
     if (user) {
       fetchData();
+      if (activeTab === 'stok') {
+        fetchStokData();
+      }
     }
-  }, [user]);
+  }, [user, activeTab]);
+
+  const fetchStokData = async () => {
+    try {
+      const [birimRes, urunRes, durumRes] = await Promise.all([
+        axios.get(`${API}/stok-birim`),
+        axios.get(`${API}/stok-urun`),
+        axios.get(`${API}/stok-sayim/son-durum`)
+      ]);
+      setStokBirimler(birimRes.data);
+      setStokUrunler(urunRes.data);
+      setStokDurum(durumRes.data);
+    } catch (error) {
+      console.error('Stok verileri getirilemedi:', error);
+    }
+  };
+
+  const addStokBirim = async () => {
+    if (!newStokBirim.ad || !newStokBirim.kisaltma) {
+      alert('❌ Tüm alanları doldurunuz!');
+      return;
+    }
+    try {
+      await axios.post(`${API}/stok-birim`, newStokBirim);
+      setNewStokBirim({ ad: '', kisaltma: '' });
+      alert('✅ Birim eklendi!');
+      fetchStokData();
+    } catch (error) {
+      alert('❌ ' + (error.response?.data?.detail || error.message));
+    }
+  };
+
+  const addStokUrun = async () => {
+    if (!newStokUrun.ad || !newStokUrun.birim_id || !newStokUrun.kategori) {
+      alert('❌ Tüm alanları doldurunuz!');
+      return;
+    }
+    try {
+      await axios.post(`${API}/stok-urun`, {
+        ad: newStokUrun.ad,
+        birim_id: parseInt(newStokUrun.birim_id),
+        kategori: newStokUrun.kategori,
+        min_stok: parseFloat(newStokUrun.min_stok) || 0
+      });
+      setNewStokUrun({ ad: '', birim_id: '', kategori: 'malzeme', min_stok: 0 });
+      alert('✅ Ürün eklendi!');
+      fetchStokData();
+    } catch (error) {
+      alert('❌ ' + (error.response?.data?.detail || error.message));
+    }
+  };
+
+  const saveStokSayim = async () => {
+    const today = new Date().toISOString().split('T')[0];
+    const sayimlar = Object.entries(stokSayimData).filter(([_, miktar]) => miktar !== '');
+    
+    if (sayimlar.length === 0) {
+      alert('❌ En az bir ürün için miktar giriniz!');
+      return;
+    }
+
+    try {
+      await Promise.all(
+        sayimlar.map(([urun_id, miktar]) =>
+          axios.post(`${API}/stok-sayim?sayim_yapan_id=${employee.id}`, {
+            urun_id: parseInt(urun_id),
+            miktar: parseFloat(miktar),
+            tarih: today,
+            notlar: 'Sayım'
+          })
+        )
+      );
+      setStokSayimData({});
+      setShowStokSayimModal(false);
+      alert(`✅ ${sayimlar.length} ürün için sayım kaydedildi!`);
+      fetchStokData();
+    } catch (error) {
+      alert('❌ ' + (error.response?.data?.detail || error.message));
+    }
+  };
 
   useEffect(() => {
     if (user && activeTab === 'maas') {
