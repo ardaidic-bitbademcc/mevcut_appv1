@@ -329,9 +329,18 @@ export default function Dashboard() {
   };
 
   const kioskGiris = async () => {
+    if (!companyId) {
+      setKioskMessage('❌ Sistem hatası: Company ID bulunamadı');
+      setTimeout(() => setKioskMessage(''), 3000);
+      return;
+    }
     try {
-      const response = await axios.post(`${API}/attendance/check-in`, { employee_id: kioskEmployeeId });
-      setKioskMessage(`✅ Giriş Başarılı!\n${response.data.employee}\nID: ${kioskEmployeeId}`);
+      const response = await axios.post(`${API}/attendance/check-in`, { 
+        company_id: companyId, 
+        employee_id: kioskEmployeeId 
+      });
+      const employeeName = typeof response.data.employee === 'string' ? response.data.employee : 'Personel';
+      setKioskMessage(`✅ Giriş Başarılı!\n${employeeName}\nID: ${kioskEmployeeId}`);
       setTimeout(() => { setKioskMessage(''); setKioskEmployeeId(''); fetchData(); }, 2500);
     } catch (error) {
       setKioskMessage(`❌ ${error.response?.data?.detail || 'Hata oluştu'}`);
@@ -340,9 +349,19 @@ export default function Dashboard() {
   };
 
   const kioskCikis = async () => {
+    if (!companyId) {
+      setKioskMessage('❌ Sistem hatası: Company ID bulunamadı');
+      setTimeout(() => setKioskMessage(''), 3000);
+      return;
+    }
     try {
-      const response = await axios.post(`${API}/attendance/check-out`, { employee_id: kioskEmployeeId });
-      setKioskMessage(`✅ Çıkış Başarılı!\n${response.data.employee}\nÇalışılan: ${response.data.calisilan_saat}h`);
+      const response = await axios.post(`${API}/attendance/check-out`, { 
+        company_id: companyId, 
+        employee_id: kioskEmployeeId 
+      });
+      const employeeName = typeof response.data.employee === 'string' ? response.data.employee : 'Personel';
+      const hours = response.data.calisilan_saat || '0';
+      setKioskMessage(`✅ Çıkış Başarılı!\n${employeeName}\nÇalışılan: ${hours}h`);
       setTimeout(() => { setKioskMessage(''); setKioskEmployeeId(''); fetchData(); }, 2500);
     } catch (error) {
       setKioskMessage(`❌ ${error.response?.data?.detail || 'Hata oluştu'}`);
