@@ -635,21 +635,46 @@ async def calculate_salary(employee_id: int, ay: str):
 
 @api_router.get("/salary/all/{ay}")
 async def calculate_all_salaries(ay: str):
-    """Calculate salaries for all employees for a specific month"""
+    """Calculate detailed salaries for all employees for a specific month"""
     employees = await db.employees.find({}, {"_id": 0}).to_list(1000)
     
     salary_records = []
     for employee in employees:
         year, month = ay.split("-")
+        
+        # Get attendance records for the month
         attendance_records = await db.attendance.find({
             "employee_id": employee["employee_id"],
             "tarih": {"$regex": f"^{ay}"},
             "status": "cikis"
         }, {"_id": 0}).to_list(1000)
         
+        # Calculate total hours and days worked
         total_hours = sum(record.get("calisilan_saat", 0) for record in attendance_records)
+        calisilan_gun = len(attendance_records)
+        
+        # Base calculations
         temel_maas = employee.get("maas_tabani", 0)
-        toplam_maas = temel_maas
+        gunluk_maas = temel_maas / 30
+        saatlik_maas = gunluk_maas / 9  # 9 saat mesai
+        
+        # Calculate earned amount based on days worked
+        hakedilen_maas = gunluk_maas * calisilan_gun
+        
+        # Get yemek ücreti
+        yemek = await db.yemek_ucreti.find_one({"employee_id": employee["id"]})
+        gunluk_yemek = yemek.get("gunluk_ucret", 0) if yemek else 0
+        toplam_yemek = gunluk_yemek * calisilan_gun
+        
+        # Get avans for this month
+        avans_records = await db.avans.find({
+            "employee_id": employee["id"],
+            "tarih": {"$regex": f"^{ay}"}
+        }, {"_id": 0}).to_list(1000)
+        toplam_avans = sum(record.get("miktar", 0) for record in avans_records)
+        
+        # Final calculation
+        toplam_maas = hakedilen_maas + toplam_yemek - toplam_avans
         
         salary_records.append({
             "employee_id": employee["id"],
@@ -658,8 +683,15 @@ async def calculate_all_salaries(ay: str):
             "pozisyon": employee["pozisyon"],
             "ay": ay,
             "temel_maas": temel_maas,
+            "gunluk_maas": round(gunluk_maas, 2),
+            "saatlik_maas": round(saatlik_maas, 2),
+            "calisilan_gun": calisilan_gun,
             "calisilan_saat": round(total_hours, 2),
-            "toplam_maas": toplam_maas
+            "hakedilen_maas": round(hakedilen_maas, 2),
+            "gunluk_yemek_ucreti": gunluk_yemek,
+            "toplam_yemek": round(toplam_yemek, 2),
+            "toplam_avans": round(toplam_avans, 2),
+            "toplam_maas": round(toplam_maas, 2)
         })
     
     return salary_records
