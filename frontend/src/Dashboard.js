@@ -798,7 +798,7 @@ export default function Dashboard() {
     return calendar;
   };
 
-  if (!user) {
+  if (!user && activeTab !== 'kiosk') {
     return (
       <div className="min-h-screen bg-gradient-to-br from-blue-600 to-indigo-700 flex items-center justify-center p-4">
         <div className="bg-white rounded-lg shadow-2xl p-8 w-full max-w-md">
