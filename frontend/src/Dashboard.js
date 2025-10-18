@@ -19,6 +19,13 @@ export default function Dashboard() {
   const [shiftCalendar, setShiftCalendar] = useState([]);
   const [tasks, setTasks] = useState([]);
   const [salaryData, setSalaryData] = useState([]);
+  const [selectedEmployeeForDetail, setSelectedEmployeeForDetail] = useState(null);
+  const [avansData, setAvansData] = useState([]);
+  const [yemekUcretleri, setYemekUcretleri] = useState([]);
+  const [newAvans, setNewAvans] = useState({ employee_id: '', miktar: '', tarih: '', aciklama: '' });
+  const [showAvansModal, setShowAvansModal] = useState(false);
+  const [showYemekModal, setShowYemekModal] = useState(false);
+  const [yemekUpdate, setYemekUpdate] = useState({ employee_id: '', gunluk_ucret: '' });
 
   const [kioskEmployeeId, setKioskEmployeeId] = useState('');
   const [kioskMessage, setKioskMessage] = useState('');
