@@ -786,7 +786,8 @@ async def seed_initial_data():
         {"id": 2, "ad": "Fatma", "soyad": "Demir", "pozisyon": "Tasarımcı", "maas_tabani": 12000, "rol": "personel", "email": "fatma@example.com", "employee_id": "1002"},
         {"id": 3, "ad": "Kerem", "soyad": "Ateş", "pozisyon": "Chef", "maas_tabani": 14000, "rol": "sef", "email": "sef@example.com", "employee_id": "1003"},
         {"id": 4, "ad": "Ayşe", "soyad": "Kaya", "pozisyon": "Muhasebeci", "maas_tabani": 13000, "rol": "personel", "email": "ayse@example.com", "employee_id": "1004"},
-        {"id": 5, "ad": "Mehmet", "soyad": "Şahin", "pozisyon": "IT Yöneticisi", "maas_tabani": 16000, "rol": "sistem_yoneticisi", "email": "mehmet@example.com", "employee_id": "1005"}
+        {"id": 5, "ad": "Mehmet", "soyad": "Şahin", "pozisyon": "IT Yöneticisi", "maas_tabani": 16000, "rol": "sistem_yoneticisi", "email": "mehmet@example.com", "employee_id": "1005"},
+        {"id": 6, "ad": "Arda", "soyad": "Yıldız", "pozisyon": "Pazarlama Müdürü", "maas_tabani": 28000, "rol": "personel", "email": "arda@example.com", "employee_id": "2001"}
     ]
     await db.employees.insert_many(employees)
     
