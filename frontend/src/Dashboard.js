@@ -922,7 +922,7 @@ export default function Dashboard() {
 
             <div className="space-y-4">
               {tasks.map(task => {
-                const atananPersonel = employees.find(e => e.id === task.atanan_personel_id);
+                const atananPersoneller = employees.filter(e => task.atanan_personel_ids && task.atanan_personel_ids.includes(e.id));
                 return (
                   <div key={task.id} className="border-2 border-gray-200 rounded-lg p-4 hover:shadow-md transition">
                     <div className="flex justify-between items-start mb-2">
@@ -949,14 +949,20 @@ export default function Dashboard() {
                       <span className={`px-3 py-1 rounded-full text-xs font-semibold ${task.durum === 'beklemede' ? 'bg-yellow-100 text-yellow-800' : task.durum === 'devam_ediyor' ? 'bg-blue-100 text-blue-800' : 'bg-green-100 text-green-800'}`}>
                         {task.durum === 'beklemede' ? 'Beklemede' : task.durum === 'devam_ediyor' ? 'Devam Ediyor' : 'Tamamlandı'}
                       </span>
-                      {atananPersonel && (
-                        <span className="px-3 py-1 bg-purple-100 text-purple-800 rounded-full text-xs font-semibold">Atanan: {atananPersonel.ad} {atananPersonel.soyad}</span>
+                      {atananPersoneller.length > 0 && (
+                        <div className="flex flex-wrap gap-1">
+                          {atananPersoneller.map(person => (
+                            <span key={person.id} className="px-3 py-1 bg-purple-100 text-purple-800 rounded-full text-xs font-semibold">
+                              {person.ad} {person.soyad}
+                            </span>
+                          ))}
+                        </div>
                       )}
                       {task.puan && (
                         <span className="px-3 py-1 bg-orange-100 text-orange-800 rounded-full text-xs font-semibold">Puan: {task.puan} ⭐</span>
                       )}
                     </div>
-                    {task.atanan_personel_id === employee.id && task.durum !== 'tamamlandi' && (
+                    {task.atanan_personel_ids && task.atanan_personel_ids.includes(employee.id) && task.durum !== 'tamamlandi' && (
                       <div className="mt-3 flex gap-2">
                         {task.durum === 'beklemede' && (
                           <button onClick={() => updateTask(task.id, { durum: 'devam_ediyor' })} className="px-4 py-2 bg-blue-500 text-white rounded text-sm hover:bg-blue-600">Başlat</button>
