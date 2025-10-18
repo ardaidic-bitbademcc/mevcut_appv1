@@ -38,6 +38,10 @@ export default function Dashboard() {
   const [editData, setEditData] = useState({});
   const [newTask, setNewTask] = useState({ baslik: '', aciklama: '', atanan_personel_ids: [] });
   const [salaryMonth, setSalaryMonth] = useState(new Date().toISOString().slice(0, 7));
+  const [draggedEmployee, setDraggedEmployee] = useState(null);
+  const [showWeeklySchedule, setShowWeeklySchedule] = useState(false);
+  const [weeklyScheduleEmployee, setWeeklyScheduleEmployee] = useState(null);
+  const [weeklyScheduleData, setWeeklyScheduleData] = useState(null);
 
   // Fetch all data from backend
   const fetchData = async () => {
