@@ -1206,6 +1206,41 @@ async def seed_initial_data():
     ]
     await db.tasks.insert_many(tasks)
     
+    # Seed stok birimleri
+    stok_birimleri = [
+        {"id": 1, "ad": "Kilogram", "kisaltma": "kg"},
+        {"id": 2, "ad": "Gram", "kisaltma": "gr"},
+        {"id": 3, "ad": "Litre", "kisaltma": "lt"},
+        {"id": 4, "ad": "Adet", "kisaltma": "adet"},
+        {"id": 5, "ad": "Paket", "kisaltma": "paket"}
+    ]
+    await db.stok_birim.insert_many(stok_birimleri)
+    
+    # Seed stok ürünleri
+    stok_urunleri = [
+        {"id": 1, "ad": "Domates", "birim_id": 1, "kategori": "malzeme", "min_stok": 5.0},
+        {"id": 2, "ad": "Soğan", "birim_id": 1, "kategori": "malzeme", "min_stok": 3.0},
+        {"id": 3, "ad": "Coca Cola", "birim_id": 3, "kategori": "içecek", "min_stok": 10.0},
+        {"id": 4, "ad": "Ekmek", "birim_id": 4, "kategori": "malzeme", "min_stok": 20.0},
+        {"id": 5, "ad": "Süt", "birim_id": 3, "kategori": "malzeme", "min_stok": 5.0},
+        {"id": 6, "ad": "Yumurta", "birim_id": 4, "kategori": "malzeme", "min_stok": 30.0},
+        {"id": 7, "ad": "Çay", "birim_id": 5, "kategori": "içecek", "min_stok": 2.0}
+    ]
+    await db.stok_urun.insert_many(stok_urunleri)
+    
+    # Seed stok sayımları
+    today_str = datetime.now(timezone.utc).date().isoformat()
+    stok_sayimlari = [
+        {"id": 1, "urun_id": 1, "miktar": 8.5, "tarih": today_str, "sayim_yapan_id": 3, "notlar": "İlk sayım"},
+        {"id": 2, "urun_id": 2, "miktar": 4.2, "tarih": today_str, "sayim_yapan_id": 3, "notlar": "İlk sayım"},
+        {"id": 3, "urun_id": 3, "miktar": 15.0, "tarih": today_str, "sayim_yapan_id": 6, "notlar": "İlk sayım"},
+        {"id": 4, "urun_id": 4, "miktar": 25.0, "tarih": today_str, "sayim_yapan_id": 6, "notlar": "İlk sayım"},
+        {"id": 5, "urun_id": 5, "miktar": 6.5, "tarih": today_str, "sayim_yapan_id": 3, "notlar": "İlk sayım"},
+        {"id": 6, "urun_id": 6, "miktar": 45.0, "tarih": today_str, "sayim_yapan_id": 3, "notlar": "İlk sayım"},
+        {"id": 7, "urun_id": 7, "miktar": 1.0, "tarih": today_str, "sayim_yapan_id": 6, "notlar": "Kritik seviye - yenilenmeli"}
+    ]
+    await db.stok_sayim.insert_many(stok_sayimlari)
+    
     return {"message": "Demo veriler başarıyla yüklendi"}
 
 # Include router
