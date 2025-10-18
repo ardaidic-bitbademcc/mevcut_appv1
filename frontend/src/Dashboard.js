@@ -110,6 +110,28 @@ export default function Dashboard() {
     }
   };
 
+  const handleRegister = async () => {
+    if (!registerData.ad || !registerData.soyad || !registerData.email || !registerData.employee_id) {
+      alert('❌ Tüm alanları doldurunuz!');
+      return;
+    }
+    if (registerData.employee_id.length !== 4) {
+      alert('❌ Personel ID tam 4 haneli olmalıdır!');
+      return;
+    }
+    try {
+      const response = await axios.post(`${API}/register`, registerData);
+      if (response.data.success) {
+        alert('✅ Kayıt başarılı! Giriş yapabilirsiniz.');
+        setShowRegister(false);
+        setRegisterData({ ad: '', soyad: '', email: '', employee_id: '' });
+        setLoginData({ email: response.data.employee.email });
+      }
+    } catch (error) {
+      alert('❌ ' + (error.response?.data?.detail || error.message));
+    }
+  };
+
   const handleLogout = () => {
     setUser(null);
     setEmployee(null);
