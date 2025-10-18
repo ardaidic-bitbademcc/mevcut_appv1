@@ -1909,13 +1909,13 @@ export default function Dashboard() {
                                 </td>
                                 <td className="px-4 py-2">
                                   <select 
-                                    value={editingStokUrun.kategori} 
-                                    onChange={(e) => setEditingStokUrun({ ...editingStokUrun, kategori: e.target.value })} 
+                                    value={editingStokUrun.kategori_id} 
+                                    onChange={(e) => setEditingStokUrun({ ...editingStokUrun, kategori_id: e.target.value })} 
                                     className="w-full px-2 py-1 border rounded text-sm"
                                   >
-                                    <option value="malzeme">Malzeme</option>
-                                    <option value="içecek">İçecek</option>
-                                    <option value="diğer">Diğer</option>
+                                    {stokKategoriler.map(kategori => (
+                                      <option key={kategori.id} value={kategori.id}>{kategori.ad}</option>
+                                    ))}
                                   </select>
                                 </td>
                                 <td className="px-4 py-2">
