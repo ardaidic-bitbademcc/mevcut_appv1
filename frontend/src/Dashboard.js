@@ -307,9 +307,9 @@ export default function Dashboard() {
       await axios.post(`${API}/tasks?olusturan_id=${employee.id}`, {
         baslik: newTask.baslik,
         aciklama: newTask.aciklama,
-        atanan_personel_id: newTask.atanan_personel_id ? parseInt(newTask.atanan_personel_id) : null
+        atanan_personel_ids: newTask.atanan_personel_ids
       });
-      setNewTask({ baslik: '', aciklama: '', atanan_personel_id: '' });
+      setNewTask({ baslik: '', aciklama: '', atanan_personel_ids: [] });
       alert('✅ Görev başarıyla oluşturuldu!');
       fetchData();
     } catch (error) {
