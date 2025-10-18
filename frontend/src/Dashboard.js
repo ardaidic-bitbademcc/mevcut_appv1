@@ -884,7 +884,7 @@ export default function Dashboard() {
 
         {activeTab === 'dashboard' && permissions.view_dashboard && (
           <div>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
               <div className="bg-white rounded-lg shadow p-6 border-l-4 border-blue-500">
                 <p className="text-gray-600 text-sm">Toplam Personel</p>
                 <p className="text-3xl font-bold text-gray-800">{employees.length}</p>
@@ -896,11 +896,6 @@ export default function Dashboard() {
               <div className="bg-white rounded-lg shadow p-6 border-l-4 border-purple-500">
                 <p className="text-gray-600 text-sm">Çıkış Yapanlar</p>
                 <p className="text-3xl font-bold text-gray-800">{attendance.filter(a => a.tarih === new Date().toISOString().split('T')[0] && a.status === 'cikis').length}</p>
-              </div>
-              <div className="bg-white rounded-lg shadow p-6 border-l-4 border-orange-500 cursor-pointer hover:shadow-lg transition" onClick={() => setActiveTab('kiosk')}>
-                <p className="text-gray-600 text-sm">Kiosk</p>
-                <p className="text-3xl font-bold text-gray-800">🬠</p>
-                <p className="text-xs text-gray-500 mt-2">Giriş/Çıkış Sistemi</p>
               </div>
             </div>
             <div className="bg-white rounded-lg shadow p-6">
