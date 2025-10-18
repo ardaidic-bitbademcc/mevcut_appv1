@@ -970,8 +970,14 @@ export default function Dashboard() {
             )}
 
             <div className="space-y-4">
-              {tasks.map(task => {
+              {tasks.filter(task => {
+                // Admin ve Şef tüm görevleri görebilir
+                if (permissions.assign_tasks) return true;
+                // Personel sadece kendine atanan görevleri görebilir
+                return task.atanan_personel_ids && task.atanan_personel_ids.includes(employee.id);
+              }).map(task => {
                 const atananPersoneller = employees.filter(e => task.atanan_personel_ids && task.atanan_personel_ids.includes(e.id));
+                const isAssignedToMe = task.atanan_personel_ids && task.atanan_personel_ids.includes(employee.id);
                 return (
                   <div key={task.id} className="border-2 border-gray-200 rounded-lg p-4 hover:shadow-md transition">
                     <div className="flex justify-between items-start mb-2">
@@ -1001,8 +1007,8 @@ export default function Dashboard() {
                       {atananPersoneller.length > 0 && (
                         <div className="flex flex-wrap gap-1">
                           {atananPersoneller.map(person => (
-                            <span key={person.id} className="px-3 py-1 bg-purple-100 text-purple-800 rounded-full text-xs font-semibold">
-                              {person.ad} {person.soyad}
+                            <span key={person.id} className={`px-3 py-1 rounded-full text-xs font-semibold ${person.id === employee.id ? 'bg-green-100 text-green-800' : 'bg-purple-100 text-purple-800'}`}>
+                              {person.id === employee.id ? '👤 Sen' : `${person.ad} ${person.soyad}`}
                             </span>
                           ))}
                         </div>
@@ -1010,8 +1016,11 @@ export default function Dashboard() {
                       {task.puan && (
                         <span className="px-3 py-1 bg-orange-100 text-orange-800 rounded-full text-xs font-semibold">Puan: {task.puan} ⭐</span>
                       )}
+                      {task.tekrarlayan && (
+                        <span className="px-3 py-1 bg-indigo-100 text-indigo-800 rounded-full text-xs font-semibold">🔄 Tekrarlayan</span>
+                      )}
                     </div>
-                    {task.atanan_personel_ids && task.atanan_personel_ids.includes(employee.id) && task.durum !== 'tamamlandi' && (
+                    {isAssignedToMe && task.durum !== 'tamamlandi' && (
                       <div className="mt-3 flex gap-2">
                         {task.durum === 'beklemede' && (
                           <button onClick={() => updateTask(task.id, { durum: 'devam_ediyor' })} className="px-4 py-2 bg-blue-500 text-white rounded text-sm hover:bg-blue-600">Başlat</button>
@@ -1024,6 +1033,14 @@ export default function Dashboard() {
                   </div>
                 );
               })}
+              {tasks.filter(task => {
+                if (permissions.assign_tasks) return true;
+                return task.atanan_personel_ids && task.atanan_personel_ids.includes(employee.id);
+              }).length === 0 && (
+                <div className="text-center py-8 text-gray-500">
+                  <p>Henüz görev yok</p>
+                </div>
+              )}
             </div>
           </div>
         )}
