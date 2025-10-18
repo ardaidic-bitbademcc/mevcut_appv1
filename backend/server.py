@@ -1064,7 +1064,15 @@ async def seed_initial_data():
                 "view_salary": True,
                 "manage_roles": True,
                 "manage_shifts_types": True,
-                "edit_employees": True
+                "edit_employees": True,
+                "can_view_stock": True,
+                "can_add_stock_unit": True,
+                "can_delete_stock_unit": True,
+                "can_add_stock_product": True,
+                "can_edit_stock_product": True,
+                "can_delete_stock_product": True,
+                "can_perform_stock_count": True,
+                "can_manage_categories": True
             }
         },
         {
