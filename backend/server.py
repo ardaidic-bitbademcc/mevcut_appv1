@@ -1015,7 +1015,9 @@ async def seed_initial_data():
             "durum": "devam_ediyor",
             "puan": None,
             "olusturma_tarihi": (datetime.now(timezone.utc) - timedelta(days=2)).isoformat(),
-            "tamamlanma_tarihi": None
+            "tamamlanma_tarihi": None,
+            "tekrarlayan": False,
+            "tekrar_periyot": None
         },
         {
             "id": 2,
@@ -1026,7 +1028,22 @@ async def seed_initial_data():
             "durum": "beklemede",
             "puan": None,
             "olusturma_tarihi": datetime.now(timezone.utc).isoformat(),
-            "tamamlanma_tarihi": None
+            "tamamlanma_tarihi": None,
+            "tekrarlayan": False,
+            "tekrar_periyot": None
+        },
+        {
+            "id": 3,
+            "baslik": "Aylık Stok Sayımı",
+            "aciklama": "Depo ve mutfak stok sayımı yapılacak, eksik malzemeler listelenecek",
+            "atanan_personel_ids": [3, 6],
+            "olusturan_id": 1,
+            "durum": "beklemede",
+            "puan": None,
+            "olusturma_tarihi": datetime.now(timezone.utc).isoformat(),
+            "tamamlanma_tarihi": None,
+            "tekrarlayan": True,
+            "tekrar_periyot": "aylik"
         }
     ]
     await db.tasks.insert_many(tasks)
