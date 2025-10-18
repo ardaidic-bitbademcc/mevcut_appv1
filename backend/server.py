@@ -192,13 +192,13 @@ class StokUrun(BaseModel):
     id: int
     ad: str
     birim_id: int
-    kategori: str  # içecek, malzeme, diğer
+    kategori_id: int  # referans to stok_kategori
     min_stok: float  # minimum stok uyarı seviyesi
 
 class StokUrunCreate(BaseModel):
     ad: str
     birim_id: int
-    kategori: str
+    kategori_id: int
     min_stok: float = 0
 
 # Stok Sayım Models
