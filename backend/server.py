@@ -1339,6 +1339,15 @@ async def seed_initial_data():
     ]
     await db.tasks.insert_many(tasks)
     
+    # Seed stok kategorileri
+    stok_kategorileri = [
+        {"id": 1, "ad": "Malzeme", "renk": "#9333EA"},  # purple
+        {"id": 2, "ad": "İçecek", "renk": "#3B82F6"},   # blue
+        {"id": 3, "ad": "Temizlik", "renk": "#10B981"}, # green
+        {"id": 4, "ad": "Diğer", "renk": "#6B7280"}     # gray
+    ]
+    await db.stok_kategori.insert_many(stok_kategorileri)
+    
     # Seed stok birimleri
     stok_birimleri = [
         {"id": 1, "ad": "Kilogram", "kisaltma": "kg"},
@@ -1351,13 +1360,13 @@ async def seed_initial_data():
     
     # Seed stok ürünleri
     stok_urunleri = [
-        {"id": 1, "ad": "Domates", "birim_id": 1, "kategori": "malzeme", "min_stok": 5.0},
-        {"id": 2, "ad": "Soğan", "birim_id": 1, "kategori": "malzeme", "min_stok": 3.0},
-        {"id": 3, "ad": "Coca Cola", "birim_id": 3, "kategori": "içecek", "min_stok": 10.0},
-        {"id": 4, "ad": "Ekmek", "birim_id": 4, "kategori": "malzeme", "min_stok": 20.0},
-        {"id": 5, "ad": "Süt", "birim_id": 3, "kategori": "malzeme", "min_stok": 5.0},
-        {"id": 6, "ad": "Yumurta", "birim_id": 4, "kategori": "malzeme", "min_stok": 30.0},
-        {"id": 7, "ad": "Çay", "birim_id": 5, "kategori": "içecek", "min_stok": 2.0}
+        {"id": 1, "ad": "Domates", "birim_id": 1, "kategori_id": 1, "min_stok": 5.0},
+        {"id": 2, "ad": "Soğan", "birim_id": 1, "kategori_id": 1, "min_stok": 3.0},
+        {"id": 3, "ad": "Coca Cola", "birim_id": 3, "kategori_id": 2, "min_stok": 10.0},
+        {"id": 4, "ad": "Ekmek", "birim_id": 4, "kategori_id": 1, "min_stok": 20.0},
+        {"id": 5, "ad": "Süt", "birim_id": 3, "kategori_id": 1, "min_stok": 5.0},
+        {"id": 6, "ad": "Yumurta", "birim_id": 4, "kategori_id": 1, "min_stok": 30.0},
+        {"id": 7, "ad": "Çay", "birim_id": 5, "kategori_id": 2, "min_stok": 2.0}
     ]
     await db.stok_urun.insert_many(stok_urunleri)
     
