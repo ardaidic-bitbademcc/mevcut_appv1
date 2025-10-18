@@ -32,6 +32,7 @@ export default function Dashboard() {
   const [newLeave, setNewLeave] = useState({ employee_id: '', tarih: '', leave_type: 'izin', notlar: '' });
   const [selectedShiftMonth, setSelectedShiftMonth] = useState(new Date().toISOString().slice(0, 7));
   const [selectedShiftType, setSelectedShiftType] = useState('sabah');
+  const [selectedEmployeesForShift, setSelectedEmployeesForShift] = useState([]);
   const [newEmployee, setNewEmployee] = useState({ ad: '', soyad: '', pozisyon: '', maas_tabani: 0, rol: 'personel', email: '', employee_id: '' });
   const [newShiftType, setNewShiftType] = useState({ name: '', start: '', end: '', color: 'bg-blue-500' });
   const [editingEmployee, setEditingEmployee] = useState(null);
