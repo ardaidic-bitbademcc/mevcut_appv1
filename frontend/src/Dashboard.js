@@ -1,5 +1,9 @@
-import React, { useState } from 'react';
-import { LogOut, Plus, Trash2, Edit2 } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { LogOut, Plus, Trash2, Edit2, Check, X } from 'lucide-react';
+import axios from 'axios';
+
+const BACKEND_URL = process.env.REACT_APP_BACKEND_URL || 'http://localhost:8001';
+const API = `${BACKEND_URL}/api`;
 
 export default function Dashboard() {
   const [user, setUser] = useState(null);
@@ -7,96 +11,14 @@ export default function Dashboard() {
   const [loginData, setLoginData] = useState({ email: '' });
   const [activeTab, setActiveTab] = useState('dashboard');
 
-  const [employees, setEmployees] = useState([
-    { id: 1, ad: 'Ahmet', soyad: 'Yılmaz', pozisyon: 'Yazılımcı', maas_tabani: 15000, rol: 'admin', email: 'admin@example.com', employee_id: '1001' },
-    { id: 2, ad: 'Fatma', soyad: 'Demir', pozisyon: 'Tasarımcı', maas_tabani: 12000, rol: 'personel', email: 'fatma@example.com', employee_id: '1002' },
-    { id: 3, ad: 'Kerem', soyad: 'Ateş', pozisyon: 'Chef', maas_tabani: 14000, rol: 'sef', email: 'sef@example.com', employee_id: '1003' },
-  ]);
-
-  const [roles, setRoles] = useState([
-    {
-      id: 'admin',
-      name: 'Admin',
-      permissions: {
-        view_dashboard: true,
-        view_tasks: true,
-        assign_tasks: true,
-        rate_tasks: true,
-        manage_shifts: true,
-        manage_leave: true,
-        view_salary: true,
-        manage_roles: true,
-        manage_shifts_types: true,
-        edit_employees: true,
-      },
-    },
-    {
-      id: 'sistem_yoneticisi',
-      name: 'Sistem Yöneticisi',
-      permissions: {
-        view_dashboard: true,
-        view_tasks: true,
-        assign_tasks: false,
-        rate_tasks: false,
-        manage_shifts: true,
-        manage_leave: true,
-        view_salary: false,
-        manage_roles: false,
-        manage_shifts_types: true,
-        edit_employees: false,
-      },
-    },
-    {
-      id: 'sef',
-      name: 'Şef',
-      permissions: {
-        view_dashboard: true,
-        view_tasks: true,
-        assign_tasks: true,
-        rate_tasks: true,
-        manage_shifts: false,
-        manage_leave: false,
-        view_salary: false,
-        manage_roles: false,
-        manage_shifts_types: false,
-        edit_employees: false,
-      },
-    },
-    {
-      id: 'personel',
-      name: 'Personel',
-      permissions: {
-        view_dashboard: true,
-        view_tasks: true,
-        assign_tasks: false,
-        rate_tasks: false,
-        manage_shifts: false,
-        manage_leave: false,
-        view_salary: false,
-        manage_roles: false,
-        manage_shifts_types: false,
-        edit_employees: false,
-      },
-    },
-  ]);
-
-  const [shiftTypes, setShiftTypes] = useState([
-    { id: 'sabah', name: '🌅 Sabah (09:00-18:00)', start: '09:00', end: '18:00', color: 'bg-yellow-500' },
-    { id: 'ogle_sonra', name: '☀️ Öğleden Sonra (13:00-22:00)', start: '13:00', end: '22:00', color: 'bg-orange-500' },
-    { id: 'gece', name: '🌙 Gece (22:00-07:00)', start: '22:00', end: '07:00', color: 'bg-indigo-600' },
-  ]);
-
-  const [attendance, setAttendance] = useState([
-    { id: 1, employee_id: '1001', ad: 'Ahmet', soyad: 'Yılmaz', tarih: new Date().toISOString().split('T')[0], giris_saati: new Date(Date.now() - 5 * 60 * 60 * 1000).toISOString(), cikis_saati: null, calisilan_saat: 0, status: 'giris' },
-  ]);
-
-  const [leaveRecords, setLeaveRecords] = useState([
-    { id: 1, employee_id: 1, tarih: '2025-02-15', leave_type: 'izin', notlar: 'Kişisel işler' },
-  ]);
-
-  const [shiftCalendar, setShiftCalendar] = useState([
-    { id: 1, employee_id: 1, tarih: '2025-02-15', shift_type: 'sabah' },
-  ]);
+  const [employees, setEmployees] = useState([]);
+  const [roles, setRoles] = useState([]);
+  const [shiftTypes, setShiftTypes] = useState([]);
+  const [attendance, setAttendance] = useState([]);
+  const [leaveRecords, setLeaveRecords] = useState([]);
+  const [shiftCalendar, setShiftCalendar] = useState([]);
+  const [tasks, setTasks] = useState([]);
+  const [salaryData, setSalaryData] = useState([]);
 
   const [kioskEmployeeId, setKioskEmployeeId] = useState('');
   const [kioskMessage, setKioskMessage] = useState('');
@@ -107,18 +29,63 @@ export default function Dashboard() {
   const [newShiftType, setNewShiftType] = useState({ name: '', start: '', end: '', color: 'bg-blue-500' });
   const [editingEmployee, setEditingEmployee] = useState(null);
   const [editData, setEditData] = useState({});
+  const [newTask, setNewTask] = useState({ baslik: '', aciklama: '', atanan_personel_id: '' });
+  const [salaryMonth, setSalaryMonth] = useState(new Date().toISOString().slice(0, 7));
+
+  // Fetch all data from backend
+  const fetchData = async () => {
+    try {
+      const [empRes, roleRes, shiftTypeRes, attendanceRes, leaveRes, shiftCalRes, taskRes] = await Promise.all([
+        axios.get(`${API}/employees`),
+        axios.get(`${API}/roles`),
+        axios.get(`${API}/shift-types`),
+        axios.get(`${API}/attendance`),
+        axios.get(`${API}/leave-records`),
+        axios.get(`${API}/shift-calendar`),
+        axios.get(`${API}/tasks`)
+      ]);
+      setEmployees(empRes.data);
+      setRoles(roleRes.data);
+      setShiftTypes(shiftTypeRes.data);
+      setAttendance(attendanceRes.data);
+      setLeaveRecords(leaveRes.data);
+      setShiftCalendar(shiftCalRes.data);
+      setTasks(taskRes.data);
+    } catch (error) {
+      console.error('Error fetching data:', error);
+      alert('Veri yüklenirken hata oluştu: ' + (error.response?.data?.detail || error.message));
+    }
+  };
+
+  useEffect(() => {
+    if (user) {
+      fetchData();
+    }
+  }, [user]);
+
+  useEffect(() => {
+    if (user && activeTab === 'maas') {
+      fetchSalaryData();
+    }
+  }, [salaryMonth, activeTab, user]);
 
   const getPermissions = () => {
     const userRole = roles.find(r => r.id === employee?.rol);
     return userRole?.permissions || {};
   };
 
-  const handleLogin = () => {
-    const foundEmployee = employees.find(e => e.email === loginData.email);
-    if (foundEmployee) {
-      setUser({ id: foundEmployee.id, email: foundEmployee.email });
-      setEmployee(foundEmployee);
-      setLoginData({ email: '' });
+  const handleLogin = async () => {
+    try {
+      const response = await axios.post(`${API}/login`, { email: loginData.email });
+      if (response.data.success) {
+        setUser({ id: response.data.employee.id, email: response.data.employee.email });
+        setEmployee(response.data.employee);
+        setLoginData({ email: '' });
+      } else {
+        alert(response.data.message);
+      }
+    } catch (error) {
+      alert('Giriş yapılamadı: ' + (error.response?.data?.detail || error.message));
     }
   };
 
@@ -128,59 +95,26 @@ export default function Dashboard() {
     setActiveTab('dashboard');
   };
 
-  const kioskGiris = () => {
-    const empId = kioskEmployeeId;
-    const emp = employees.find(e => e.employee_id === empId);
-    if (!emp) {
-      setKioskMessage('❌ ID Bulunamadı!');
+  const kioskGiris = async () => {
+    try {
+      const response = await axios.post(`${API}/attendance/check-in`, { employee_id: kioskEmployeeId });
+      setKioskMessage(`✅ Giriş Başarılı!\n${response.data.employee}\nID: ${kioskEmployeeId}`);
+      setTimeout(() => { setKioskMessage(''); setKioskEmployeeId(''); fetchData(); }, 2500);
+    } catch (error) {
+      setKioskMessage(`❌ ${error.response?.data?.detail || 'Hata oluştu'}`);
       setTimeout(() => { setKioskMessage(''); setKioskEmployeeId(''); }, 3000);
-      return;
     }
-    const bugun = new Date().toISOString().split('T')[0];
-    const bugunKayit = attendance.find(a => a.employee_id === empId && a.tarih === bugun && !a.cikis_saati);
-    if (bugunKayit) {
-      setKioskMessage('⚠️ Zaten giriş yapılmış!');
-      setTimeout(() => { setKioskMessage(''); setKioskEmployeeId(''); }, 3000);
-      return;
-    }
-    const newRecord = {
-      id: Math.max(...attendance.map(a => a.id), 0) + 1,
-      employee_id: empId,
-      ad: emp.ad,
-      soyad: emp.soyad,
-      tarih: bugun,
-      giris_saati: new Date().toISOString(),
-      cikis_saati: null,
-      calisilan_saat: 0,
-      status: 'giris',
-    };
-    setAttendance([...attendance, newRecord]);
-    setKioskMessage(`✅ Giriş Başarılı!\n${emp.ad} ${emp.soyad}\nID: ${empId}`);
-    setTimeout(() => { setKioskMessage(''); setKioskEmployeeId(''); }, 2500);
   };
 
-  const kioskCikis = () => {
-    const empId = kioskEmployeeId;
-    const emp = employees.find(e => e.employee_id === empId);
-    if (!emp) {
-      setKioskMessage('❌ ID Bulunamadı!');
+  const kioskCikis = async () => {
+    try {
+      const response = await axios.post(`${API}/attendance/check-out`, { employee_id: kioskEmployeeId });
+      setKioskMessage(`✅ Çıkış Başarılı!\n${response.data.employee}\nÇalışılan: ${response.data.calisilan_saat}h`);
+      setTimeout(() => { setKioskMessage(''); setKioskEmployeeId(''); fetchData(); }, 2500);
+    } catch (error) {
+      setKioskMessage(`❌ ${error.response?.data?.detail || 'Hata oluştu'}`);
       setTimeout(() => { setKioskMessage(''); setKioskEmployeeId(''); }, 3000);
-      return;
     }
-    const simdiki = new Date().toISOString();
-    const sonGirisKayit = attendance.find(a => a.employee_id === empId && a.status === 'giris' && !a.cikis_saati);
-    if (!sonGirisKayit) {
-      setKioskMessage('❌ Giriş kaydı bulunamadı!');
-      setTimeout(() => { setKioskMessage(''); setKioskEmployeeId(''); }, 3000);
-      return;
-    }
-    const giris = new Date(sonGirisKayit.giris_saati);
-    const cikis = new Date(simdiki);
-    let calisilanSaat = (cikis - giris) / (1000 * 60 * 60);
-    const updatedAttendance = attendance.map(a => a.id === sonGirisKayit.id ? { ...a, cikis_saati: simdiki, calisilan_saat: parseFloat(calisilanSaat.toFixed(2)), status: 'cikis' } : a);
-    setAttendance(updatedAttendance);
-    setKioskMessage(`✅ Çıkış Başarılı!\n${emp.ad} ${emp.soyad}\nÇalışılan: ${calisilanSaat.toFixed(2)}h`);
-    setTimeout(() => { setKioskMessage(''); setKioskEmployeeId(''); }, 2500);
   };
 
   const addNumpadDigit = (digit) => {
@@ -191,64 +125,80 @@ export default function Dashboard() {
     setKioskEmployeeId('');
   };
 
-  const addLeave = () => {
-    if (newLeave.employee_id && newLeave.tarih) {
-      const leave = { id: Math.max(...leaveRecords.map(l => l.id), 0) + 1, employee_id: parseInt(newLeave.employee_id), tarih: newLeave.tarih, leave_type: newLeave.leave_type, notlar: newLeave.notlar };
-      setLeaveRecords([...leaveRecords, leave]);
-      setNewLeave({ employee_id: '', tarih: '', leave_type: 'izin', notlar: '' });
-      alert('✅ İzin kaydı başarıyla eklendi!');
-    }
-  };
-
-  const deleteLeave = (id) => {
-    setLeaveRecords(leaveRecords.filter(l => l.id !== id));
-  };
-
-  const addShiftType = () => {
-    if (newShiftType.name && newShiftType.start && newShiftType.end) {
-      const shiftType = {
-        id: `shift_${Date.now()}`,
-        name: newShiftType.name,
-        start: newShiftType.start,
-        end: newShiftType.end,
-        color: newShiftType.color,
-      };
-      setShiftTypes([...shiftTypes, shiftType]);
-      setNewShiftType({ name: '', start: '', end: '', color: 'bg-blue-500' });
-      alert('✅ Vardiya türü eklendi!');
-    }
-  };
-
-  const deleteShiftType = (id) => {
-    if (shiftCalendar.some(s => s.shift_type === id)) {
-      alert('❌ Bu vardiya türünde atanmış vardiyalar var!');
+  const addLeave = async () => {
+    if (!newLeave.employee_id || !newLeave.tarih) {
+      alert('❌ Personel ve tarih seçiniz!');
       return;
     }
-    setShiftTypes(shiftTypes.filter(s => s.id !== id));
+    try {
+      await axios.post(`${API}/leave-records`, {
+        employee_id: parseInt(newLeave.employee_id),
+        tarih: newLeave.tarih,
+        leave_type: newLeave.leave_type,
+        notlar: newLeave.notlar
+      });
+      setNewLeave({ employee_id: '', tarih: '', leave_type: 'izin', notlar: '' });
+      alert('✅ İzin kaydı başarıyla eklendi!');
+      fetchData();
+    } catch (error) {
+      alert('❌ Hata: ' + (error.response?.data?.detail || error.message));
+    }
   };
 
-  const addEmployee = () => {
+  const deleteLeave = async (id) => {
+    try {
+      await axios.delete(`${API}/leave-records/${id}`);
+      fetchData();
+    } catch (error) {
+      alert('❌ Silme hatası: ' + (error.response?.data?.detail || error.message));
+    }
+  };
+
+  const addShiftType = async () => {
+    if (!newShiftType.name || !newShiftType.start || !newShiftType.end) {
+      alert('❌ Tüm alanları doldurunuz!');
+      return;
+    }
+    try {
+      await axios.post(`${API}/shift-types`, newShiftType);
+      setNewShiftType({ name: '', start: '', end: '', color: 'bg-blue-500' });
+      alert('✅ Vardiya türü eklendi!');
+      fetchData();
+    } catch (error) {
+      alert('❌ Hata: ' + (error.response?.data?.detail || error.message));
+    }
+  };
+
+  const deleteShiftType = async (id) => {
+    try {
+      await axios.delete(`${API}/shift-types/${id}`);
+      fetchData();
+    } catch (error) {
+      alert('❌ ' + (error.response?.data?.detail || error.message));
+    }
+  };
+
+  const addEmployee = async () => {
     if (!newEmployee.ad || !newEmployee.soyad || !newEmployee.pozisyon || !newEmployee.email || !newEmployee.employee_id) {
       alert('❌ Tüm alanları doldurunuz!');
       return;
     }
-    if (employees.some(e => e.employee_id === newEmployee.employee_id)) {
-      alert('❌ Bu ID zaten kullanılıyor!');
-      return;
+    try {
+      await axios.post(`${API}/employees`, {
+        ad: newEmployee.ad,
+        soyad: newEmployee.soyad,
+        pozisyon: newEmployee.pozisyon,
+        maas_tabani: parseFloat(newEmployee.maas_tabani),
+        rol: newEmployee.rol,
+        email: newEmployee.email,
+        employee_id: newEmployee.employee_id
+      });
+      setNewEmployee({ ad: '', soyad: '', pozisyon: '', maas_tabani: 0, rol: 'personel', email: '', employee_id: '' });
+      alert('✅ Personel başarıyla eklendi!');
+      fetchData();
+    } catch (error) {
+      alert('❌ ' + (error.response?.data?.detail || error.message));
     }
-    const employee = {
-      id: Math.max(...employees.map(e => e.id), 0) + 1,
-      ad: newEmployee.ad,
-      soyad: newEmployee.soyad,
-      pozisyon: newEmployee.pozisyon,
-      maas_tabani: parseFloat(newEmployee.maas_tabani),
-      rol: newEmployee.rol,
-      email: newEmployee.email,
-      employee_id: newEmployee.employee_id,
-    };
-    setEmployees([...employees, employee]);
-    setNewEmployee({ ad: '', soyad: '', pozisyon: '', maas_tabani: 0, rol: 'personel', email: '', employee_id: '' });
-    alert('✅ Personel başarıyla eklendi!');
   };
 
   const startEditEmployee = (emp) => {
@@ -256,22 +206,173 @@ export default function Dashboard() {
     setEditData({ ...emp });
   };
 
-  const saveEmployee = () => {
+  const saveEmployee = async () => {
     if (!editData.ad || !editData.soyad || !editData.pozisyon || !editData.email || !editData.employee_id) {
       alert('❌ Tüm alanları doldurunuz!');
       return;
     }
-    if (employees.some(e => e.id !== editingEmployee && e.employee_id === editData.employee_id)) {
-      alert('❌ Bu ID zaten kullanılıyor!');
-      return;
+    try {
+      await axios.put(`${API}/employees/${editingEmployee}`, {
+        ad: editData.ad,
+        soyad: editData.soyad,
+        pozisyon: editData.pozisyon,
+        maas_tabani: parseFloat(editData.maas_tabani),
+        rol: editData.rol,
+        email: editData.email,
+        employee_id: editData.employee_id
+      });
+      setEditingEmployee(null);
+      alert('✅ Personel bilgileri güncellendi!');
+      fetchData();
+    } catch (error) {
+      alert('❌ ' + (error.response?.data?.detail || error.message));
     }
-    setEmployees(employees.map(e => e.id === editingEmployee ? { ...e, ad: editData.ad, soyad: editData.soyad, pozisyon: editData.pozisyon, maas_tabani: parseFloat(editData.maas_tabani), rol: editData.rol, email: editData.email, employee_id: editData.employee_id } : e));
-    setEditingEmployee(null);
-    alert('✅ Personel bilgileri güncellendi!');
   };
 
-  const updateRolePermission = (roleId, permission, value) => {
-    setRoles(roles.map(r => r.id === roleId ? { ...r, permissions: { ...r.permissions, [permission]: value } } : r));
+  const deleteEmployee = async (id) => {
+    if (window.confirm('Silmek istediğinizden emin misiniz?')) {
+      try {
+        await axios.delete(`${API}/employees/${id}`);
+        fetchData();
+      } catch (error) {
+        alert('❌ Silme hatası: ' + (error.response?.data?.detail || error.message));
+      }
+    }
+  };
+
+  const updateRolePermission = async (roleId, permission, value) => {
+    const role = roles.find(r => r.id === roleId);
+    if (!role) return;
+    
+    const updatedPermissions = { ...role.permissions, [permission]: value };
+    try {
+      await axios.put(`${API}/roles/${roleId}`, { permissions: updatedPermissions });
+      fetchData();
+    } catch (error) {
+      alert('❌ Güncelleme hatası: ' + (error.response?.data?.detail || error.message));
+    }
+  };
+
+  const addShiftToCalendar = async (employeeId, tarih) => {
+    try {
+      await axios.post(`${API}/shift-calendar`, {
+        employee_id: employeeId,
+        tarih: tarih,
+        shift_type: selectedShiftType
+      });
+      fetchData();
+    } catch (error) {
+      alert('❌ ' + (error.response?.data?.detail || error.message));
+    }
+  };
+
+  const removeShiftFromCalendar = async (shiftId) => {
+    try {
+      await axios.delete(`${API}/shift-calendar/${shiftId}`);
+      fetchData();
+    } catch (error) {
+      alert('❌ Silme hatası: ' + (error.response?.data?.detail || error.message));
+    }
+  };
+
+  const addTask = async () => {
+    if (!newTask.baslik || !newTask.aciklama) {
+      alert('❌ Başlık ve açıklama zorunludur!');
+      return;
+    }
+    try {
+      await axios.post(`${API}/tasks?olusturan_id=${employee.id}`, {
+        baslik: newTask.baslik,
+        aciklama: newTask.aciklama,
+        atanan_personel_id: newTask.atanan_personel_id ? parseInt(newTask.atanan_personel_id) : null
+      });
+      setNewTask({ baslik: '', aciklama: '', atanan_personel_id: '' });
+      alert('✅ Görev başarıyla oluşturuldu!');
+      fetchData();
+    } catch (error) {
+      alert('❌ Hata: ' + (error.response?.data?.detail || error.message));
+    }
+  };
+
+  const updateTask = async (taskId, updates) => {
+    try {
+      await axios.put(`${API}/tasks/${taskId}`, updates);
+      fetchData();
+    } catch (error) {
+      alert('❌ Güncelleme hatası: ' + (error.response?.data?.detail || error.message));
+    }
+  };
+
+  const deleteTask = async (taskId) => {
+    if (window.confirm('Bu görevi silmek istediğinizden emin misiniz?')) {
+      try {
+        await axios.delete(`${API}/tasks/${taskId}`);
+        fetchData();
+      } catch (error) {
+        alert('❌ Silme hatası: ' + (error.response?.data?.detail || error.message));
+      }
+    }
+  };
+
+  const fetchSalaryData = async () => {
+    try {
+      const response = await axios.get(`${API}/salary/all/${salaryMonth}`);
+      setSalaryData(response.data);
+    } catch (error) {
+      alert('❌ Maaş verileri getirilemedi: ' + (error.response?.data?.detail || error.message));
+    }
+  };
+
+  const renderShiftCalendar = () => {
+    const [year, month] = selectedShiftMonth.split('-').map(Number);
+    const daysInMonth = new Date(year, month, 0).getDate();
+    const firstDay = new Date(year, month - 1, 1).getDay();
+    
+    const calendar = [];
+    let week = [];
+    
+    for (let i = 0; i < firstDay; i++) {
+      week.push(<div key={`empty-${i}`} className="h-24 bg-gray-50"></div>);
+    }
+    
+    for (let day = 1; day <= daysInMonth; day++) {
+      const date = `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+      const shiftsOnDate = shiftCalendar.filter(s => s.tarih === date);
+      
+      week.push(
+        <div key={day} className="h-24 border border-gray-200 p-1 bg-white overflow-y-auto">
+          <div className="text-xs font-semibold text-gray-600 mb-1">{day}</div>
+          <div className="space-y-1">
+            {shiftsOnDate.map(shift => {
+              const emp = employees.find(e => e.id === shift.employee_id);
+              const shiftType = shiftTypes.find(st => st.id === shift.shift_type);
+              return (
+                <div key={shift.id} className={`text-xs p-1 rounded ${shiftType?.color || 'bg-gray-300'} text-white flex justify-between items-center`}>
+                  <span className="truncate">{emp?.ad}</span>
+                  <button onClick={() => removeShiftFromCalendar(shift.id)} className="text-white hover:text-red-200">
+                    <X className="w-3 h-3" />
+                  </button>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      );
+      
+      if (week.length === 7) {
+        calendar.push(<div key={`week-${calendar.length}`} className="grid grid-cols-7 gap-0">{week}</div>);
+        week = [];
+      }
+    }
+    
+    while (week.length > 0 && week.length < 7) {
+      week.push(<div key={`empty-end-${week.length}`} className="h-24 bg-gray-50"></div>);
+    }
+    if (week.length > 0) {
+      calendar.push(<div key={`week-${calendar.length}`} className="grid grid-cols-7 gap-0">{week}</div>);
+    }
+    
+    return calendar;
   };
 
   if (!user) {
@@ -287,6 +388,7 @@ export default function Dashboard() {
               <p>• admin@example.com (Admin)</p>
               <p>• sef@example.com (Şef)</p>
               <p>• fatma@example.com (Personel)</p>
+              <p>• mehmet@example.com (Sistem Yöneticisi)</p>
             </div>
           </div>
         </div>
@@ -406,69 +508,3 @@ export default function Dashboard() {
             </div>
           </div>
         )}
-
-        {activeTab === 'personel' && employee?.rol === 'admin' && (
-          <div>
-            <div className="bg-white rounded-lg shadow p-6 mb-6">
-              <h2 className="text-xl font-bold mb-4">➕ Yeni Personel Ekle</h2>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <input type="text" placeholder="Ad" value={newEmployee.ad} onChange={(e) => setNewEmployee({ ...newEmployee, ad: e.target.value })} className="px-4 py-2 border rounded-lg" />
-                <input type="text" placeholder="Soyad" value={newEmployee.soyad} onChange={(e) => setNewEmployee({ ...newEmployee, soyad: e.target.value })} className="px-4 py-2 border rounded-lg" />
-                <input type="email" placeholder="E-mail" value={newEmployee.email} onChange={(e) => setNewEmployee({ ...newEmployee, email: e.target.value })} className="px-4 py-2 border rounded-lg" />
-                <input type="text" placeholder="Personel ID" value={newEmployee.employee_id} onChange={(e) => setNewEmployee({ ...newEmployee, employee_id: e.target.value })} className="px-4 py-2 border rounded-lg" />
-                <input type="text" placeholder="Pozisyon" value={newEmployee.pozisyon} onChange={(e) => setNewEmployee({ ...newEmployee, pozisyon: e.target.value })} className="px-4 py-2 border rounded-lg" />
-                <input type="number" placeholder="Maaş (₺)" value={newEmployee.maas_tabani} onChange={(e) => setNewEmployee({ ...newEmployee, maas_tabani: e.target.value })} className="px-4 py-2 border rounded-lg" />
-                <select value={newEmployee.rol} onChange={(e) => setNewEmployee({ ...newEmployee, rol: e.target.value })} className="px-4 py-2 border rounded-lg">
-                  {roles.map(role => (
-                    <option key={role.id} value={role.id}>{role.name}</option>
-                  ))}
-                </select>
-              </div>
-              <button onClick={addEmployee} className="mt-4 w-full px-6 py-3 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 font-semibold">Personel Ekle</button>
-            </div>
-
-            <div className="bg-white rounded-lg shadow p-6">
-              <h2 className="text-xl font-bold mb-4">📋 Personel Listesi</h2>
-              <div className="overflow-x-auto">
-                <table className="w-full text-sm">
-                  <thead className="bg-gray-50 border-b">
-                    <tr>
-                      <th className="px-4 py-2 text-left">ID</th>
-                      <th className="px-4 py-2 text-left">Ad Soyad</th>
-                      <th className="px-4 py-2 text-left">E-mail</th>
-                      <th className="px-4 py-2 text-left">Pozisyon</th>
-                      <th className="px-4 py-2 text-left">Maaş</th>
-                      <th className="px-4 py-2 text-left">Rol</th>
-                      <th className="px-4 py-2 text-left">İşlemler</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {employees.map(emp => (
-                      <tr key={emp.id} className="border-b hover:bg-gray-50">
-                        <td className="px-4 py-2 font-bold text-indigo-600">{emp.employee_id}</td>
-                        <td className="px-4 py-2 font-semibold">{emp.ad} {emp.soyad}</td>
-                        <td className="px-4 py-2">{emp.email}</td>
-                        <td className="px-4 py-2">{emp.pozisyon}</td>
-                        <td className="px-4 py-2">₺{emp.maas_tabani.toLocaleString('tr-TR')}</td>
-                        <td className="px-4 py-2"><span className="px-2 py-1 bg-indigo-100 text-indigo-700 rounded text-xs font-semibold">{roles.find(r => r.id === emp.rol)?.name}</span></td>
-                        <td className="px-4 py-2">
-                          <button onClick={() => startEditEmployee(emp)} className="px-3 py-1 bg-blue-500 text-white rounded text-xs hover:bg-blue-600 mr-2">Düzenle</button>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          </div>
-        )}
-
-        <div className="mt-8 p-4 bg-yellow-50 rounded-lg border border-yellow-200">
-          <p className="text-sm text-gray-700">
-            <strong>Not:</strong> Bu frontend şu anda local state ile çalışıyor. Backend API'ye bağlamak için devam etmemi ister misiniz?
-          </p>
-        </div>
-      </div>
-    </div>
-  );
-}
