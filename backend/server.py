@@ -823,6 +823,113 @@ async def calculate_all_salaries(ay: str):
     
     return salary_records
 
+# ==================== STOK BİRİM ROUTES ====================
+
+@api_router.get("/stok-birim", response_model=List[StokBirim])
+async def get_stok_birimleri():
+    birimler = await db.stok_birim.find({}, {"_id": 0}).to_list(100)
+    return birimler
+
+@api_router.post("/stok-birim", response_model=StokBirim)
+async def create_stok_birim(birim: StokBirimCreate):
+    new_id = await get_next_id("stok_birim")
+    birim_dict = birim.model_dump()
+    birim_dict["id"] = new_id
+    
+    await db.stok_birim.insert_one(birim_dict)
+    return StokBirim(**birim_dict)
+
+@api_router.delete("/stok-birim/{birim_id}")
+async def delete_stok_birim(birim_id: int):
+    # Check if in use
+    in_use = await db.stok_urun.find_one({"birim_id": birim_id})
+    if in_use:
+        raise HTTPException(status_code=400, detail="Bu birim kullanımda, silinemez")
+    
+    result = await db.stok_birim.delete_one({"id": birim_id})
+    if result.deleted_count == 0:
+        raise HTTPException(status_code=404, detail="Birim bulunamadı")
+    return {"message": "Birim silindi"}
+
+# ==================== STOK ÜRÜN ROUTES ====================
+
+@api_router.get("/stok-urun", response_model=List[StokUrun])
+async def get_stok_urunleri():
+    urunler = await db.stok_urun.find({}, {"_id": 0}).to_list(1000)
+    return urunler
+
+@api_router.post("/stok-urun", response_model=StokUrun)
+async def create_stok_urun(urun: StokUrunCreate):
+    new_id = await get_next_id("stok_urun")
+    urun_dict = urun.model_dump()
+    urun_dict["id"] = new_id
+    
+    await db.stok_urun.insert_one(urun_dict)
+    return StokUrun(**urun_dict)
+
+@api_router.put("/stok-urun/{urun_id}", response_model=StokUrun)
+async def update_stok_urun(urun_id: int, urun: StokUrunCreate):
+    existing = await db.stok_urun.find_one({"id": urun_id})
+    if not existing:
+        raise HTTPException(status_code=404, detail="Ürün bulunamadı")
+    
+    await db.stok_urun.update_one({"id": urun_id}, {"$set": urun.model_dump()})
+    updated = await db.stok_urun.find_one({"id": urun_id}, {"_id": 0})
+    return StokUrun(**updated)
+
+@api_router.delete("/stok-urun/{urun_id}")
+async def delete_stok_urun(urun_id: int):
+    result = await db.stok_urun.delete_one({"id": urun_id})
+    if result.deleted_count == 0:
+        raise HTTPException(status_code=404, detail="Ürün bulunamadı")
+    return {"message": "Ürün silindi"}
+
+# ==================== STOK SAYIM ROUTES ====================
+
+@api_router.get("/stok-sayim")
+async def get_stok_sayimlari():
+    sayimlar = await db.stok_sayim.find({}, {"_id": 0}).sort("id", -1).to_list(1000)
+    return sayimlar
+
+@api_router.get("/stok-sayim/son-durum")
+async def get_son_stok_durumu():
+    """Her ürün için en son sayımı getir"""
+    urunler = await db.stok_urun.find({}, {"_id": 0}).to_list(1000)
+    birimler = await db.stok_birim.find({}, {"_id": 0}).to_list(100)
+    
+    result = []
+    for urun in urunler:
+        # En son sayımı bul
+        son_sayim = await db.stok_sayim.find_one(
+            {"urun_id": urun["id"]},
+            {"_id": 0},
+            sort=[("tarih", -1), ("id", -1)]
+        )
+        
+        birim = next((b for b in birimler if b["id"] == urun["birim_id"]), None)
+        
+        result.append({
+            "urun": urun,
+            "birim": birim,
+            "son_sayim": son_sayim,
+            "stok_miktar": son_sayim["miktar"] if son_sayim else 0,
+            "durum": "kritik" if son_sayim and son_sayim["miktar"] <= urun["min_stok"] else "normal"
+        })
+    
+    return result
+
+@api_router.post("/stok-sayim")
+async def create_stok_sayim(sayim: StokSayimCreate, sayim_yapan_id: int):
+    new_id = await get_next_id("stok_sayim")
+    sayim_dict = sayim.model_dump()
+    sayim_dict.update({
+        "id": new_id,
+        "sayim_yapan_id": sayim_yapan_id
+    })
+    
+    await db.stok_sayim.insert_one(sayim_dict)
+    return StokSayim(**sayim_dict)
+
 # ==================== SEED DATA ROUTE ====================
 
 @api_router.post("/seed-data")
