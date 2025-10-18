@@ -282,6 +282,40 @@ async def login(request: LoginRequest):
         return LoginResponse(success=True, employee=Employee(**employee))
     return LoginResponse(success=False, message="Kullanıcı bulunamadı")
 
+@api_router.post("/register", response_model=LoginResponse)
+async def register(request: RegisterRequest):
+    # Check if email already exists
+    existing_email = await db.employees.find_one({"email": request.email})
+    if existing_email:
+        raise HTTPException(status_code=400, detail="Bu e-mail zaten kullanılıyor")
+    
+    # Check if employee_id already exists
+    existing_id = await db.employees.find_one({"employee_id": request.employee_id})
+    if existing_id:
+        raise HTTPException(status_code=400, detail="Bu personel ID zaten kullanılıyor")
+    
+    # Validate employee_id (4 digits)
+    if len(request.employee_id) != 4 or not request.employee_id.isdigit():
+        raise HTTPException(status_code=400, detail="Personel ID 4 haneli rakam olmalıdır")
+    
+    # Create new employee with default values
+    new_id = await get_next_id("employees")
+    employee_dict = {
+        "id": new_id,
+        "ad": request.ad,
+        "soyad": request.soyad,
+        "email": request.email,
+        "employee_id": request.employee_id,
+        "pozisyon": "Belirlenmedi",  # Admin tarafından atanacak
+        "maas_tabani": 0.0,  # Admin tarafından belirlenecek
+        "rol": "personel"  # Varsayılan rol
+    }
+    
+    await db.employees.insert_one(employee_dict)
+    new_employee = Employee(**employee_dict)
+    
+    return LoginResponse(success=True, employee=new_employee, message="Kayıt başarılı")
+
 # ==================== EMPLOYEE ROUTES ====================
 
 @api_router.get("/employees", response_model=List[Employee])
