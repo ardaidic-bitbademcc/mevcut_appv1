@@ -1250,6 +1250,7 @@ async def seed_initial_data():
     attendance = [
         {
             "id": 1,
+            "company_id": 1,
             "employee_id": "1001",
             "ad": "Ahmet",
             "soyad": "Yılmaz",
