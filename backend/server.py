@@ -462,12 +462,82 @@ async def create_shift_assignment(shift: ShiftCalendarCreate):
     await db.shift_calendar.insert_one(shift_dict)
     return ShiftCalendar(**shift_dict)
 
-@api_router.delete("/shift-calendar/{shift_id}")
-async def delete_shift_assignment(shift_id: int):
-    result = await db.shift_calendar.delete_one({"id": shift_id})
-    if result.deleted_count == 0:
-        raise HTTPException(status_code=404, detail="Vardiya bulunamadı")
-    return {"message": "Vardiya silindi"}
+@api_router.get("/shift-calendar/weekly/{employee_id}")
+async def get_weekly_shift_calendar(employee_id: int, start_date: str):
+    """Get weekly shift calendar for an employee with team members"""
+    # Parse start_date
+    from datetime import datetime, timedelta
+    start = datetime.fromisoformat(start_date)
+    
+    # Get 7 days from start_date
+    shifts_data = []
+    for i in range(7):
+        current_date = (start + timedelta(days=i)).date().isoformat()
+        
+        # Get employee's shift for this day
+        employee_shift = await db.shift_calendar.find_one({
+            "employee_id": employee_id,
+            "tarih": current_date
+        }, {"_id": 0})
+        
+        # Get leave record
+        leave = await db.leave_records.find_one({
+            "employee_id": employee_id,
+            "tarih": current_date
+        }, {"_id": 0})
+        
+        if leave:
+            shifts_data.append({
+                "tarih": current_date,
+                "type": "izin",
+                "shift_type": None,
+                "team_members": []
+            })
+        elif employee_shift:
+            # Get all shifts for this day and shift type
+            shift_type = employee_shift["shift_type"]
+            all_shifts = await db.shift_calendar.find({
+                "tarih": current_date,
+                "shift_type": shift_type
+            }, {"_id": 0}).to_list(100)
+            
+            # Get employee details for team members
+            team_members = []
+            for shift in all_shifts:
+                if shift["employee_id"] != employee_id:
+                    emp = await db.employees.find_one({"id": shift["employee_id"]}, {"_id": 0})
+                    if emp:
+                        team_members.append({
+                            "ad": emp["ad"],
+                            "soyad": emp["soyad"],
+                            "pozisyon": emp.get("pozisyon", "")
+                        })
+            
+            # Get shift type details
+            shift_type_detail = await db.shift_types.find_one({"id": shift_type}, {"_id": 0})
+            
+            shifts_data.append({
+                "tarih": current_date,
+                "type": "vardiya",
+                "shift_type": shift_type_detail,
+                "team_members": team_members
+            })
+        else:
+            shifts_data.append({
+                "tarih": current_date,
+                "type": "bos",
+                "shift_type": None,
+                "team_members": []
+            })
+    
+    # Get employee info
+    employee = await db.employees.find_one({"id": employee_id}, {"_id": 0})
+    
+    return {
+        "employee": employee,
+        "start_date": start_date,
+        "shifts": shifts_data
+    }
 
 # ==================== TASK ROUTES ====================
 
