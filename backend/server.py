@@ -884,6 +884,44 @@ async def calculate_all_salaries(ay: str):
     
     return salary_records
 
+# ==================== STOK KATEGORİ ROUTES ====================
+
+@api_router.get("/stok-kategori", response_model=List[StokKategori])
+async def get_stok_kategorileri():
+    kategoriler = await db.stok_kategori.find({}, {"_id": 0}).to_list(100)
+    return kategoriler
+
+@api_router.post("/stok-kategori", response_model=StokKategori)
+async def create_stok_kategori(kategori: StokKategoriCreate):
+    new_id = await get_next_id("stok_kategori")
+    kategori_dict = kategori.model_dump()
+    kategori_dict["id"] = new_id
+    
+    await db.stok_kategori.insert_one(kategori_dict)
+    return StokKategori(**kategori_dict)
+
+@api_router.put("/stok-kategori/{kategori_id}", response_model=StokKategori)
+async def update_stok_kategori(kategori_id: int, kategori: StokKategoriCreate):
+    existing = await db.stok_kategori.find_one({"id": kategori_id})
+    if not existing:
+        raise HTTPException(status_code=404, detail="Kategori bulunamadı")
+    
+    await db.stok_kategori.update_one({"id": kategori_id}, {"$set": kategori.model_dump()})
+    updated = await db.stok_kategori.find_one({"id": kategori_id}, {"_id": 0})
+    return StokKategori(**updated)
+
+@api_router.delete("/stok-kategori/{kategori_id}")
+async def delete_stok_kategori(kategori_id: int):
+    # Check if in use
+    in_use = await db.stok_urun.find_one({"kategori_id": kategori_id})
+    if in_use:
+        raise HTTPException(status_code=400, detail="Bu kategori kullanımda, silinemez")
+    
+    result = await db.stok_kategori.delete_one({"id": kategori_id})
+    if result.deleted_count == 0:
+        raise HTTPException(status_code=404, detail="Kategori bulunamadı")
+    return {"message": "Kategori silindi"}
+
 # ==================== STOK BİRİM ROUTES ====================
 
 @api_router.get("/stok-birim", response_model=List[StokBirim])
