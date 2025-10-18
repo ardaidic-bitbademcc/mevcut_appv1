@@ -1823,41 +1823,43 @@ export default function Dashboard() {
 
             {/* Products Management */}
             <div className="bg-white rounded-lg shadow p-6 mb-6">
-                  <h2 className="text-xl font-bold mb-4">📦 Ürün Yönetimi</h2>
-                  <div className="grid grid-cols-1 md:grid-cols-5 gap-4 mb-4">
-                    <input 
-                      type="text" 
-                      placeholder="Ürün Adı" 
-                      value={newStokUrun.ad} 
-                      onChange={(e) => setNewStokUrun({ ...newStokUrun, ad: e.target.value })} 
-                      className="px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500" 
-                    />
-                    <select 
-                      value={newStokUrun.birim_id} 
-                      onChange={(e) => setNewStokUrun({ ...newStokUrun, birim_id: e.target.value })} 
-                      className="px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                    >
-                      <option value="">Birim Seçin</option>
-                      {stokBirimler.map(birim => (
-                        <option key={birim.id} value={birim.id}>{birim.ad} ({birim.kisaltma})</option>
-                      ))}
-                    </select>
-                    <select 
-                      value={newStokUrun.kategori} 
-                      onChange={(e) => setNewStokUrun({ ...newStokUrun, kategori: e.target.value })} 
-                      className="px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                    >
-                      <option value="malzeme">Malzeme</option>
-                      <option value="içecek">İçecek</option>
-                      <option value="diğer">Diğer</option>
-                    </select>
-                    <input 
-                      type="number" 
-                      placeholder="Min Stok" 
-                      value={newStokUrun.min_stok} 
-                      onChange={(e) => setNewStokUrun({ ...newStokUrun, min_stok: e.target.value })} 
-                      className="px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500" 
-                    />
+              <h2 className="text-xl font-bold mb-4">📦 Ürün Yönetimi</h2>
+              {permissions.can_add_stock_product && (
+                <div className="grid grid-cols-1 md:grid-cols-5 gap-4 mb-4">
+                  <input 
+                    type="text" 
+                    placeholder="Ürün Adı" 
+                    value={newStokUrun.ad} 
+                    onChange={(e) => setNewStokUrun({ ...newStokUrun, ad: e.target.value })} 
+                    className="px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500" 
+                  />
+                  <select 
+                    value={newStokUrun.birim_id} 
+                    onChange={(e) => setNewStokUrun({ ...newStokUrun, birim_id: e.target.value })} 
+                    className="px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  >
+                    <option value="">Birim Seçin</option>
+                    {stokBirimler.map(birim => (
+                      <option key={birim.id} value={birim.id}>{birim.ad} ({birim.kisaltma})</option>
+                    ))}
+                  </select>
+                  <select 
+                    value={newStokUrun.kategori_id} 
+                    onChange={(e) => setNewStokUrun({ ...newStokUrun, kategori_id: e.target.value })} 
+                    className="px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  >
+                    <option value="">Kategori Seçin</option>
+                    {stokKategoriler.map(kategori => (
+                      <option key={kategori.id} value={kategori.id}>{kategori.ad}</option>
+                    ))}
+                  </select>
+                  <input 
+                    type="number" 
+                    placeholder="Min Stok" 
+                    value={newStokUrun.min_stok} 
+                    onChange={(e) => setNewStokUrun({ ...newStokUrun, min_stok: e.target.value })} 
+                    className="px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500" 
+                  />
                     <button 
                       onClick={addStokUrun} 
                       className="px-6 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 font-semibold flex items-center justify-center gap-2"
