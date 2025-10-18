@@ -140,12 +140,14 @@ class AttendanceCheckOut(BaseModel):
 class LeaveRecord(BaseModel):
     model_config = ConfigDict(extra="ignore")
     id: int
+    company_id: int
     employee_id: int
     tarih: str
     leave_type: str
     notlar: str
 
 class LeaveRecordCreate(BaseModel):
+    company_id: int
     employee_id: int
     tarih: str
     leave_type: str
@@ -155,11 +157,13 @@ class LeaveRecordCreate(BaseModel):
 class ShiftCalendar(BaseModel):
     model_config = ConfigDict(extra="ignore")
     id: int
+    company_id: int
     employee_id: int
     tarih: str
     shift_type: str
 
 class ShiftCalendarCreate(BaseModel):
+    company_id: int
     employee_id: int
     tarih: str
     shift_type: str
