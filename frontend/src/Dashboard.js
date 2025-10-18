@@ -2002,7 +2002,7 @@ export default function Dashboard() {
                           <th className="px-4 py-2 text-left">Min Stok</th>
                           <th className="px-4 py-2 text-left">Durum</th>
                           <th className="px-4 py-2 text-left">Son Sayım</th>
-                          <th className="px-4 py-2 text-left">İşlem</th>
+                          {permissions.can_perform_stock_count && <th className="px-4 py-2 text-left">İşlem</th>}
                         </tr>
                       </thead>
                       <tbody>
