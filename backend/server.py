@@ -66,6 +66,15 @@ class RolePermissions(BaseModel):
     manage_roles: bool = False
     manage_shifts_types: bool = False
     edit_employees: bool = False
+    # Stok İzinleri
+    can_view_stock: bool = False
+    can_add_stock_unit: bool = False
+    can_delete_stock_unit: bool = False
+    can_add_stock_product: bool = False
+    can_edit_stock_product: bool = False
+    can_delete_stock_product: bool = False
+    can_perform_stock_count: bool = False
+    can_manage_categories: bool = False
 
 class Role(BaseModel):
     model_config = ConfigDict(extra="ignore")
