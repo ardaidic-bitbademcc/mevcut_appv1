@@ -93,11 +93,13 @@ export default function Dashboard() {
 
   const fetchStokData = async () => {
     try {
-      const [birimRes, urunRes, durumRes] = await Promise.all([
+      const [kategoriRes, birimRes, urunRes, durumRes] = await Promise.all([
+        axios.get(`${API}/stok-kategori`),
         axios.get(`${API}/stok-birim`),
         axios.get(`${API}/stok-urun`),
         axios.get(`${API}/stok-sayim/son-durum`)
       ]);
+      setStokKategoriler(kategoriRes.data);
       setStokBirimler(birimRes.data);
       setStokUrunler(urunRes.data);
       setStokDurum(durumRes.data);
