@@ -24,6 +24,18 @@ api_router = APIRouter(prefix="/api")
 
 # ==================== MODELS ====================
 
+# Company Models
+class Company(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+    id: int
+    name: str
+    domain: str  # example.com
+    created_at: str
+
+class CompanyCreate(BaseModel):
+    name: str
+    domain: str
+
 # Employee Models
 class Employee(BaseModel):
     model_config = ConfigDict(extra="ignore")
