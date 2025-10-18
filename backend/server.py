@@ -633,7 +633,7 @@ async def calculate_salary(employee_id: int, ay: str):
     
     return SalaryRecord(**salary_record)
 
-@api_router.get("/salary/all/{ay}")
+@api_router.get("/salary-all/{ay}")
 async def calculate_all_salaries(ay: str):
     """Calculate detailed salaries for all employees for a specific month"""
     employees = await db.employees.find({}, {"_id": 0}).to_list(1000)
