@@ -1074,6 +1074,7 @@ async def seed_initial_data():
     """Initialize database with demo data"""
     
     # Clear existing data
+    await db.companies.delete_many({})
     await db.employees.delete_many({})
     await db.roles.delete_many({})
     await db.shift_types.delete_many({})
