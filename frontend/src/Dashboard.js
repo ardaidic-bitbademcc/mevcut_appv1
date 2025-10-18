@@ -842,6 +842,40 @@ export default function Dashboard() {
     );
   }
 
+  // Kiosk page - accessible without login
+  if (!user && activeTab === 'kiosk') {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center p-4">
+        <div className="bg-white rounded-lg shadow p-8 max-w-md w-full">
+          <div className="flex justify-between items-center mb-6">
+            <h1 className="text-4xl font-bold text-center flex-1">🬠KIOSK</h1>
+            <button onClick={() => setActiveTab('dashboard')} className="px-4 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 font-semibold text-sm">← Geri</button>
+          </div>
+          {kioskMessage ? (
+            <div className={`mb-8 p-6 rounded-xl text-lg font-bold whitespace-pre-line text-center ${kioskMessage.includes('✅') ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>{kioskMessage}</div>
+          ) : (
+            <>
+              <div className="mb-6">
+                <input type="text" placeholder="4 Haneli ID" value={kioskEmployeeId} readOnly className="w-full px-4 py-3 text-3xl text-center border-2 border-indigo-300 rounded-lg bg-white font-bold" />
+              </div>
+              <div className="grid grid-cols-3 gap-2 mb-6">
+                {[1, 2, 3, 4, 5, 6, 7, 8, 9].map(num => (
+                  <button key={num} onClick={() => addNumpadDigit(num.toString())} className="px-4 py-4 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 font-bold text-xl">{num}</button>
+                ))}
+                <button onClick={() => addNumpadDigit('0')} className="col-span-2 px-4 py-4 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 font-bold text-xl">0</button>
+                <button onClick={clearNumpad} className="px-4 py-4 bg-red-500 text-white rounded-lg hover:bg-red-600 font-bold text-xl">C</button>
+              </div>
+              <div className="space-y-3">
+                <button onClick={kioskGiris} className="w-full px-8 py-4 bg-green-600 text-white rounded-lg hover:bg-green-700 font-bold text-xl">✅ GİRİŞ</button>
+                <button onClick={kioskCikis} className="w-full px-8 py-4 bg-red-600 text-white rounded-lg hover:bg-red-700 font-bold text-xl">🚪 ÇIKIŞ</button>
+              </div>
+            </>
+          )}
+        </div>
+      </div>
+    );
+  }
+
   const permissions = getPermissions();
   const currentRole = roles.find(r => r.id === employee?.rol);
 
