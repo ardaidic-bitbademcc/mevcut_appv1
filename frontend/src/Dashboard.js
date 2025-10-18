@@ -219,6 +219,14 @@ export default function Dashboard() {
       alert('❌ Tüm alanları doldurunuz!');
       return;
     }
+    if (editData.employee_id.length !== 4) {
+      alert('❌ Personel ID tam 4 haneli olmalıdır!');
+      return;
+    }
+    if (!/^\d{4}$/.test(editData.employee_id)) {
+      alert('❌ Personel ID sadece rakam olmalıdır!');
+      return;
+    }
     try {
       await axios.put(`${API}/employees/${editingEmployee}`, {
         ad: editData.ad,
