@@ -2031,17 +2031,19 @@ export default function Dashboard() {
                             <td className="px-4 py-2 text-xs text-gray-600">
                               {item.son_sayim ? item.son_sayim.tarih : 'Henüz sayım yok'}
                             </td>
-                            <td className="px-4 py-2">
-                              <button 
-                                onClick={() => {
-                                  setStokSayimData({ [item.urun.id]: item.stok_miktar });
-                                  setShowStokSayimModal(true);
-                                }}
-                                className="px-3 py-1 bg-indigo-500 text-white rounded text-xs hover:bg-indigo-600 font-semibold"
-                              >
-                                Sayım Yap
-                              </button>
-                            </td>
+                            {permissions.can_perform_stock_count && (
+                              <td className="px-4 py-2">
+                                <button 
+                                  onClick={() => {
+                                    setStokSayimData({ [item.urun.id]: item.stok_miktar });
+                                    setShowStokSayimModal(true);
+                                  }}
+                                  className="px-3 py-1 bg-indigo-500 text-white rounded text-xs hover:bg-indigo-600 font-semibold"
+                                >
+                                  Sayım Yap
+                                </button>
+                              </td>
+                            )}
                           </tr>
                         ))}
                       </tbody>
