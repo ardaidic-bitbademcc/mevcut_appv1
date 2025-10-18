@@ -532,6 +532,7 @@ export default function Dashboard() {
     for (let day = 1; day <= daysInMonth; day++) {
       const date = `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
       const shiftsOnDate = shiftCalendar.filter(s => s.tarih === date);
+      const leavesOnDate = leaveRecords.filter(l => l.tarih === date);
       
       week.push(
         <div key={day} className="h-24 border border-gray-200 p-1 bg-white overflow-y-auto">
@@ -544,6 +545,17 @@ export default function Dashboard() {
                 <div key={shift.id} className={`text-xs p-1 rounded ${shiftType?.color || 'bg-gray-300'} text-white flex justify-between items-center`}>
                   <span className="truncate">{emp?.ad}</span>
                   <button onClick={() => removeShiftFromCalendar(shift.id)} className="text-white hover:text-red-200">
+                    <X className="w-3 h-3" />
+                  </button>
+                </div>
+              );
+            })}
+            {leavesOnDate.map(leave => {
+              const emp = employees.find(e => e.id === leave.employee_id);
+              return (
+                <div key={`leave-${leave.id}`} className="text-xs p-1 rounded bg-red-500 text-white flex justify-between items-center">
+                  <span className="truncate">🏖️ {emp?.ad}</span>
+                  <button onClick={() => deleteLeave(leave.id)} className="text-white hover:text-red-200">
                     <X className="w-3 h-3" />
                   </button>
                 </div>
