@@ -1274,6 +1274,7 @@ async def seed_initial_data():
         },
         {
             "id": 3,
+            "company_id": 1,
             "employee_id": "2001",
             "ad": "Arda",
             "soyad": "Yıldız",
@@ -1285,6 +1286,7 @@ async def seed_initial_data():
         },
         {
             "id": 4,
+            "company_id": 1,
             "employee_id": "2001",
             "ad": "Arda",
             "soyad": "Yıldız",
@@ -1296,6 +1298,7 @@ async def seed_initial_data():
         },
         {
             "id": 5,
+            "company_id": 1,
             "employee_id": "2001",
             "ad": "Arda",
             "soyad": "Yıldız",
@@ -1307,6 +1310,7 @@ async def seed_initial_data():
         },
         {
             "id": 6,
+            "company_id": 1,
             "employee_id": "2001",
             "ad": "Arda",
             "soyad": "Yıldız",
