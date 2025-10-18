@@ -506,7 +506,7 @@ export default function Dashboard() {
               ) : (
                 <>
                   <div className="mb-6">
-                    <input type="text" placeholder="Personel ID" value={kioskEmployeeId} readOnly className="w-full px-4 py-3 text-3xl text-center border-2 border-indigo-300 rounded-lg bg-white font-bold" />
+                    <input type="text" placeholder="4 Haneli ID" value={kioskEmployeeId} readOnly className="w-full px-4 py-3 text-3xl text-center border-2 border-indigo-300 rounded-lg bg-white font-bold" />
                   </div>
                   <div className="grid grid-cols-3 gap-2 mb-6">
                     {[1, 2, 3, 4, 5, 6, 7, 8, 9].map(num => (
