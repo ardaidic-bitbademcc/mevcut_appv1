@@ -174,6 +174,32 @@ class SalaryRecord(BaseModel):
     toplam_maas: float
     hesaplama_tarihi: str
 
+# Avans Models
+class Avans(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+    id: int
+    employee_id: int
+    miktar: float
+    tarih: str
+    aciklama: str
+    olusturan_id: int
+
+class AvansCreate(BaseModel):
+    employee_id: int
+    miktar: float
+    tarih: str
+    aciklama: str = ""
+
+# Yemek Ücreti Models
+class YemekUcreti(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+    id: int
+    employee_id: int
+    gunluk_ucret: float
+
+class YemekUcretiUpdate(BaseModel):
+    gunluk_ucret: float
+
 # Login Models
 class LoginRequest(BaseModel):
     email: str
