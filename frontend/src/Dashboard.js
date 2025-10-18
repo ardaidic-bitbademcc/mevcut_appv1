@@ -1810,18 +1810,19 @@ export default function Dashboard() {
                               onClick={() => deleteStokBirim(birim.id)} 
                               className="px-3 py-1 bg-red-500 text-white rounded text-xs hover:bg-red-600 font-semibold flex items-center gap-1"
                             >
-                                <Trash2 className="w-3 h-3" /> Sil
-                              </button>
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                </div>
+                              <Trash2 className="w-3 h-3" /> Sil
+                            </button>
+                          </td>
+                        )}
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
 
-                {/* Products Management */}
-                <div className="bg-white rounded-lg shadow p-6 mb-6">
+            {/* Products Management */}
+            <div className="bg-white rounded-lg shadow p-6 mb-6">
                   <h2 className="text-xl font-bold mb-4">📦 Ürün Yönetimi</h2>
                   <div className="grid grid-cols-1 md:grid-cols-5 gap-4 mb-4">
                     <input 
