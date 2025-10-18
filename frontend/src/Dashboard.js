@@ -1035,6 +1035,43 @@ export default function Dashboard() {
                       <input type="checkbox" checked={role.permissions.manage_shifts_types} onChange={(e) => updateRolePermission(role.id, 'manage_shifts_types', e.target.checked)} className="w-4 h-4" />
                       <span>Vardiya Türü Yönetimi</span>
                     </label>
+                    
+                    {/* Stok İzinleri */}
+                    <div className="col-span-full mt-4 mb-2">
+                      <h4 className="font-bold text-indigo-600">📦 Stok Modülü İzinleri</h4>
+                    </div>
+                    <label className="flex items-center gap-2">
+                      <input type="checkbox" checked={role.permissions.can_view_stock} onChange={(e) => updateRolePermission(role.id, 'can_view_stock', e.target.checked)} className="w-4 h-4" />
+                      <span>Stok Görüntüleme</span>
+                    </label>
+                    <label className="flex items-center gap-2">
+                      <input type="checkbox" checked={role.permissions.can_add_stock_unit} onChange={(e) => updateRolePermission(role.id, 'can_add_stock_unit', e.target.checked)} className="w-4 h-4" />
+                      <span>Birim Ekleyebilir</span>
+                    </label>
+                    <label className="flex items-center gap-2">
+                      <input type="checkbox" checked={role.permissions.can_delete_stock_unit} onChange={(e) => updateRolePermission(role.id, 'can_delete_stock_unit', e.target.checked)} className="w-4 h-4" />
+                      <span>Birim Silebilir</span>
+                    </label>
+                    <label className="flex items-center gap-2">
+                      <input type="checkbox" checked={role.permissions.can_add_stock_product} onChange={(e) => updateRolePermission(role.id, 'can_add_stock_product', e.target.checked)} className="w-4 h-4" />
+                      <span>Ürün Ekleyebilir</span>
+                    </label>
+                    <label className="flex items-center gap-2">
+                      <input type="checkbox" checked={role.permissions.can_edit_stock_product} onChange={(e) => updateRolePermission(role.id, 'can_edit_stock_product', e.target.checked)} className="w-4 h-4" />
+                      <span>Ürün Düzenleyebilir</span>
+                    </label>
+                    <label className="flex items-center gap-2">
+                      <input type="checkbox" checked={role.permissions.can_delete_stock_product} onChange={(e) => updateRolePermission(role.id, 'can_delete_stock_product', e.target.checked)} className="w-4 h-4" />
+                      <span>Ürün Silebilir</span>
+                    </label>
+                    <label className="flex items-center gap-2">
+                      <input type="checkbox" checked={role.permissions.can_perform_stock_count} onChange={(e) => updateRolePermission(role.id, 'can_perform_stock_count', e.target.checked)} className="w-4 h-4" />
+                      <span>Sayım Yapabilir</span>
+                    </label>
+                    <label className="flex items-center gap-2">
+                      <input type="checkbox" checked={role.permissions.can_manage_categories} onChange={(e) => updateRolePermission(role.id, 'can_manage_categories', e.target.checked)} className="w-4 h-4" />
+                      <span>Kategori Yönetebilir</span>
+                    </label>
                   </div>
                 </div>
               ))}
