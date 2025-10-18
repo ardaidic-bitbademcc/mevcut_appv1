@@ -172,6 +172,7 @@ class ShiftCalendarCreate(BaseModel):
 class Task(BaseModel):
     model_config = ConfigDict(extra="ignore")
     id: int
+    company_id: int
     baslik: str
     aciklama: str
     atanan_personel_ids: List[int] = []  # Multiple assignment
@@ -186,6 +187,7 @@ class Task(BaseModel):
     tekrar_birim: Optional[str] = None  # gun, hafta, ay
 
 class TaskCreate(BaseModel):
+    company_id: int
     baslik: str
     aciklama: str
     atanan_personel_ids: List[int] = []  # Multiple assignment
