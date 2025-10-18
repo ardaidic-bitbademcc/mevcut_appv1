@@ -200,10 +200,12 @@ class TaskCreate(BaseModel):
 class StokBirim(BaseModel):
     model_config = ConfigDict(extra="ignore")
     id: int
+    company_id: int
     ad: str  # kg, gram, adet, litre vs.
     kisaltma: str  # kg, gr, adet, lt
 
 class StokBirimCreate(BaseModel):
+    company_id: int
     ad: str
     kisaltma: str
 
@@ -211,10 +213,12 @@ class StokBirimCreate(BaseModel):
 class StokKategori(BaseModel):
     model_config = ConfigDict(extra="ignore")
     id: int
+    company_id: int
     ad: str  # içecek, malzeme, diğer, etc.
     renk: str  # hex color code for UI
 
 class StokKategoriCreate(BaseModel):
+    company_id: int
     ad: str
     renk: str = "#6B7280"  # default gray color
 
@@ -222,12 +226,14 @@ class StokKategoriCreate(BaseModel):
 class StokUrun(BaseModel):
     model_config = ConfigDict(extra="ignore")
     id: int
+    company_id: int
     ad: str
     birim_id: int
     kategori_id: int  # referans to stok_kategori
     min_stok: float  # minimum stok uyarı seviyesi
 
 class StokUrunCreate(BaseModel):
+    company_id: int
     ad: str
     birim_id: int
     kategori_id: int
@@ -237,6 +243,7 @@ class StokUrunCreate(BaseModel):
 class StokSayim(BaseModel):
     model_config = ConfigDict(extra="ignore")
     id: int
+    company_id: int
     urun_id: int
     miktar: float
     tarih: str
@@ -244,6 +251,7 @@ class StokSayim(BaseModel):
     notlar: str = ""
 
 class StokSayimCreate(BaseModel):
+    company_id: int
     urun_id: int
     miktar: float
     tarih: str
