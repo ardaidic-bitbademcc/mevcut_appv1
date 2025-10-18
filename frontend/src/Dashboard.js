@@ -36,7 +36,7 @@ export default function Dashboard() {
   const [newShiftType, setNewShiftType] = useState({ name: '', start: '', end: '', color: 'bg-blue-500' });
   const [editingEmployee, setEditingEmployee] = useState(null);
   const [editData, setEditData] = useState({});
-  const [newTask, setNewTask] = useState({ baslik: '', aciklama: '', atanan_personel_id: '' });
+  const [newTask, setNewTask] = useState({ baslik: '', aciklama: '', atanan_personel_ids: [] });
   const [salaryMonth, setSalaryMonth] = useState(new Date().toISOString().slice(0, 7));
 
   // Fetch all data from backend
