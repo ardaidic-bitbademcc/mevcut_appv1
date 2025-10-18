@@ -517,6 +517,86 @@ async def delete_task(task_id: int):
         raise HTTPException(status_code=404, detail="Görev bulunamadı")
     return {"message": "Görev silindi"}
 
+# ==================== AVANS ROUTES ====================
+
+@api_router.get("/avans", response_model=List[Avans])
+async def get_all_avans():
+    avans_list = await db.avans.find({}, {"_id": 0}).sort("id", -1).to_list(1000)
+    return avans_list
+
+@api_router.get("/avans/employee/{employee_id}", response_model=List[Avans])
+async def get_employee_avans(employee_id: int):
+    avans_list = await db.avans.find({"employee_id": employee_id}, {"_id": 0}).sort("id", -1).to_list(1000)
+    return avans_list
+
+@api_router.post("/avans", response_model=Avans)
+async def create_avans(avans: AvansCreate, olusturan_id: int):
+    # Check if employee exists
+    employee = await db.employees.find_one({"id": avans.employee_id})
+    if not employee:
+        raise HTTPException(status_code=404, detail="Personel bulunamadı")
+    
+    new_id = await get_next_id("avans")
+    avans_dict = avans.model_dump()
+    avans_dict.update({
+        "id": new_id,
+        "olusturan_id": olusturan_id
+    })
+    
+    await db.avans.insert_one(avans_dict)
+    return Avans(**avans_dict)
+
+@api_router.delete("/avans/{avans_id}")
+async def delete_avans(avans_id: int):
+    result = await db.avans.delete_one({"id": avans_id})
+    if result.deleted_count == 0:
+        raise HTTPException(status_code=404, detail="Avans kaydı bulunamadı")
+    return {"message": "Avans kaydı silindi"}
+
+# ==================== YEMEK ÜCRETİ ROUTES ====================
+
+@api_router.get("/yemek-ucreti", response_model=List[YemekUcreti])
+async def get_all_yemek_ucreti():
+    yemek_list = await db.yemek_ucreti.find({}, {"_id": 0}).to_list(1000)
+    return yemek_list
+
+@api_router.get("/yemek-ucreti/employee/{employee_id}")
+async def get_employee_yemek_ucreti(employee_id: int):
+    yemek = await db.yemek_ucreti.find_one({"employee_id": employee_id}, {"_id": 0})
+    if not yemek:
+        # Return default 0 if not found
+        return {"id": 0, "employee_id": employee_id, "gunluk_ucret": 0}
+    return yemek
+
+@api_router.post("/yemek-ucreti")
+async def create_or_update_yemek_ucreti(employee_id: int, gunluk_ucret: float):
+    # Check if employee exists
+    employee = await db.employees.find_one({"id": employee_id})
+    if not employee:
+        raise HTTPException(status_code=404, detail="Personel bulunamadı")
+    
+    # Check if already exists
+    existing = await db.yemek_ucreti.find_one({"employee_id": employee_id})
+    
+    if existing:
+        # Update
+        await db.yemek_ucreti.update_one(
+            {"employee_id": employee_id},
+            {"$set": {"gunluk_ucret": gunluk_ucret}}
+        )
+        updated = await db.yemek_ucreti.find_one({"employee_id": employee_id}, {"_id": 0})
+        return updated
+    else:
+        # Create new
+        new_id = await get_next_id("yemek_ucreti")
+        yemek_dict = {
+            "id": new_id,
+            "employee_id": employee_id,
+            "gunluk_ucret": gunluk_ucret
+        }
+        await db.yemek_ucreti.insert_one(yemek_dict)
+        return yemek_dict
+
 # ==================== SALARY ROUTES ====================
 
 @api_router.get("/salary/{employee_id}/{ay}")
