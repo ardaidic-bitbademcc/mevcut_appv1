@@ -324,6 +324,7 @@ export default function Dashboard() {
   const handleLogout = () => {
     setUser(null);
     setEmployee(null);
+    setCompanyId(null);
     setActiveTab('dashboard');
   };
 
