@@ -159,7 +159,7 @@ class TaskCreate(BaseModel):
 class TaskUpdate(BaseModel):
     baslik: Optional[str] = None
     aciklama: Optional[str] = None
-    atanan_personel_id: Optional[int] = None
+    atanan_personel_ids: Optional[List[int]] = None
     durum: Optional[str] = None
     puan: Optional[int] = None
 
