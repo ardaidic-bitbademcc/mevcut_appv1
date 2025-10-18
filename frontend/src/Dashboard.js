@@ -189,8 +189,6 @@ export default function Dashboard() {
     }
   };
 
-  const [editingStokUrun, setEditingStokUrun] = useState(null);
-  
   const startEditStokUrun = (urun) => {
     setEditingStokUrun({ ...urun });
   };
