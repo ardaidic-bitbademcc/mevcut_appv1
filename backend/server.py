@@ -1201,7 +1201,9 @@ async def seed_initial_data():
             "olusturma_tarihi": datetime.now(timezone.utc).isoformat(),
             "tamamlanma_tarihi": None,
             "tekrarlayan": True,
-            "tekrar_periyot": "aylik"
+            "tekrar_periyot": "özel",
+            "tekrar_sayi": 1,
+            "tekrar_birim": "ay"
         }
     ]
     await db.tasks.insert_many(tasks)
