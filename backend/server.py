@@ -1339,9 +1339,9 @@ async def seed_initial_data():
     
     # Seed some leave records
     leave_records = [
-        {"id": 1, "employee_id": 2, "tarih": "2025-02-15", "leave_type": "izin", "notlar": "Kişisel işler"},
-        {"id": 2, "employee_id": 4, "tarih": "2025-02-20", "leave_type": "hastalik", "notlar": "Grip"},
-        {"id": 3, "employee_id": 4, "tarih": "2025-10-25", "leave_type": "izin", "notlar": "Haftalık izin"}
+        {"id": 1, "company_id": 1, "employee_id": 2, "tarih": "2025-02-15", "leave_type": "izin", "notlar": "Kişisel işler"},
+        {"id": 2, "company_id": 1, "employee_id": 4, "tarih": "2025-02-20", "leave_type": "hastalik", "notlar": "Grip"},
+        {"id": 3, "company_id": 1, "employee_id": 4, "tarih": "2025-10-25", "leave_type": "izin", "notlar": "Haftalık izin"}
     ]
     await db.leave_records.insert_many(leave_records)
     
