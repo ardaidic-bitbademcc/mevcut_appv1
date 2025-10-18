@@ -875,12 +875,9 @@ export default function Dashboard() {
             <button onClick={() => setActiveTab('vardiya_turleri')} className={`px-6 py-2 rounded-lg font-semibold transition ${activeTab === 'vardiya_turleri' ? 'bg-indigo-600 text-white' : 'text-gray-700 hover:bg-gray-100'}`}>⚙️ Vardiya Türleri</button>
           )}
           {employee?.rol === 'admin' && (
-            <button onClick={() => setActiveTab('kiosk')} className={`px-6 py-2 rounded-lg font-semibold transition ${activeTab === 'kiosk' ? 'bg-indigo-600 text-white' : 'text-gray-700 hover:bg-gray-100'}`}>🬠Kiosk</button>
-          )}
-          {employee?.rol === 'admin' && (
             <button onClick={() => setActiveTab('personel')} className={`px-6 py-2 rounded-lg font-semibold transition ${activeTab === 'personel' ? 'bg-indigo-600 text-white' : 'text-gray-700 hover:bg-gray-100'}`}>👥 Personel</button>
           )}
-          {(employee?.rol === 'admin' || [3, 6].includes(employee?.id)) && (
+          {permissions.can_view_stock && (
             <button onClick={() => setActiveTab('stok')} className={`px-6 py-2 rounded-lg font-semibold transition ${activeTab === 'stok' ? 'bg-indigo-600 text-white' : 'text-gray-700 hover:bg-gray-100'}`}>📦 Stok</button>
           )}
         </div>
