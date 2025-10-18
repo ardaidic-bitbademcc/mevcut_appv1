@@ -995,6 +995,7 @@ async def get_son_stok_durumu():
     """Her ürün için en son sayımı getir"""
     urunler = await db.stok_urun.find({}, {"_id": 0}).to_list(1000)
     birimler = await db.stok_birim.find({}, {"_id": 0}).to_list(100)
+    kategoriler = await db.stok_kategori.find({}, {"_id": 0}).to_list(100)
     
     result = []
     for urun in urunler:
@@ -1006,10 +1007,12 @@ async def get_son_stok_durumu():
         )
         
         birim = next((b for b in birimler if b["id"] == urun["birim_id"]), None)
+        kategori = next((k for k in kategoriler if k["id"] == urun["kategori_id"]), None)
         
         result.append({
             "urun": urun,
             "birim": birim,
+            "kategori": kategori,
             "son_sayim": son_sayim,
             "stok_miktar": son_sayim["miktar"] if son_sayim else 0,
             "durum": "kritik" if son_sayim and son_sayim["miktar"] <= urun["min_stok"] else "normal"
