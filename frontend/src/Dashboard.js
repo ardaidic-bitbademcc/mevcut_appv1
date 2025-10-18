@@ -312,9 +312,11 @@ export default function Dashboard() {
       await axios.post(`${API}/tasks?olusturan_id=${employee.id}`, {
         baslik: newTask.baslik,
         aciklama: newTask.aciklama,
-        atanan_personel_ids: newTask.atanan_personel_ids
+        atanan_personel_ids: newTask.atanan_personel_ids,
+        tekrarlayan: newTask.tekrarlayan,
+        tekrar_periyot: newTask.tekrarlayan ? newTask.tekrar_periyot : null
       });
-      setNewTask({ baslik: '', aciklama: '', atanan_personel_ids: [] });
+      setNewTask({ baslik: '', aciklama: '', atanan_personel_ids: [], tekrarlayan: false, tekrar_periyot: 'aylik' });
       alert('✅ Görev başarıyla oluşturuldu!');
       fetchData();
     } catch (error) {
