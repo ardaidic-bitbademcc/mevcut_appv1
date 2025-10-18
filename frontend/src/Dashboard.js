@@ -37,7 +37,7 @@ export default function Dashboard() {
   const [newShiftType, setNewShiftType] = useState({ name: '', start: '', end: '', color: 'bg-blue-500' });
   const [editingEmployee, setEditingEmployee] = useState(null);
   const [editData, setEditData] = useState({});
-  const [newTask, setNewTask] = useState({ baslik: '', aciklama: '', atanan_personel_ids: [], tekrarlayan: false, tekrar_periyot: 'aylik' });
+  const [newTask, setNewTask] = useState({ baslik: '', aciklama: '', atanan_personel_ids: [], tekrarlayan: false, tekrar_sayi: 1, tekrar_birim: 'gun' });
   const [salaryMonth, setSalaryMonth] = useState(new Date().toISOString().slice(0, 7));
   const [draggedEmployee, setDraggedEmployee] = useState(null);
   const [showWeeklySchedule, setShowWeeklySchedule] = useState(false);
