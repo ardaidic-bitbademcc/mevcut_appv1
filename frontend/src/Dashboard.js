@@ -966,6 +966,27 @@ export default function Dashboard() {
                       <p className="text-sm text-green-600 mt-2">✓ {newTask.atanan_personel_ids.length} personel seçildi</p>
                     )}
                   </div>
+                  <div>
+                    <label className="flex items-center gap-2 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={newTask.tekrarlayan}
+                        onChange={(e) => setNewTask({ ...newTask, tekrarlayan: e.target.checked })}
+                        className="w-4 h-4"
+                      />
+                      <span className="font-semibold">🔄 Tekrarlayan Görev</span>
+                    </label>
+                    {newTask.tekrarlayan && (
+                      <div className="mt-2">
+                        <select value={newTask.tekrar_periyot} onChange={(e) => setNewTask({ ...newTask, tekrar_periyot: e.target.value })} className="w-full px-4 py-2 border rounded-lg">
+                          <option value="gunluk">Her Gün</option>
+                          <option value="haftalik">Her Hafta</option>
+                          <option value="aylik">Her Ay</option>
+                        </select>
+                        <p className="text-xs text-gray-600 mt-1">Bu görev seçilen periyotta otomatik olarak tekrar oluşturulacak</p>
+                      </div>
+                    )}
+                  </div>
                   <button onClick={addTask} className="w-full px-6 py-3 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 font-semibold flex items-center justify-center gap-2"><Plus className="w-4 h-4" /> Görev Oluştur</button>
                 </div>
               </div>
