@@ -802,6 +802,9 @@ async def seed_initial_data():
     # Seed some attendance records
     today = datetime.now(timezone.utc).date().isoformat()
     yesterday = (datetime.now(timezone.utc).date() - timedelta(days=1)).isoformat()
+    two_days_ago = (datetime.now(timezone.utc).date() - timedelta(days=2)).isoformat()
+    three_days_ago = (datetime.now(timezone.utc).date() - timedelta(days=3)).isoformat()
+    four_days_ago = (datetime.now(timezone.utc).date() - timedelta(days=4)).isoformat()
     
     attendance = [
         {
@@ -825,9 +828,73 @@ async def seed_initial_data():
             "cikis_saati": (datetime.now(timezone.utc) - timedelta(days=1)).replace(hour=18, minute=0).isoformat(),
             "calisilan_saat": 9.0,
             "status": "cikis"
+        },
+        {
+            "id": 3,
+            "employee_id": "2001",
+            "ad": "Arda",
+            "soyad": "Yıldız",
+            "tarih": yesterday,
+            "giris_saati": (datetime.now(timezone.utc) - timedelta(days=1)).replace(hour=9, minute=0).isoformat(),
+            "cikis_saati": (datetime.now(timezone.utc) - timedelta(days=1)).replace(hour=18, minute=30).isoformat(),
+            "calisilan_saat": 9.5,
+            "status": "cikis"
+        },
+        {
+            "id": 4,
+            "employee_id": "2001",
+            "ad": "Arda",
+            "soyad": "Yıldız",
+            "tarih": two_days_ago,
+            "giris_saati": (datetime.now(timezone.utc) - timedelta(days=2)).replace(hour=9, minute=0).isoformat(),
+            "cikis_saati": (datetime.now(timezone.utc) - timedelta(days=2)).replace(hour=18, minute=0).isoformat(),
+            "calisilan_saat": 9.0,
+            "status": "cikis"
+        },
+        {
+            "id": 5,
+            "employee_id": "2001",
+            "ad": "Arda",
+            "soyad": "Yıldız",
+            "tarih": three_days_ago,
+            "giris_saati": (datetime.now(timezone.utc) - timedelta(days=3)).replace(hour=9, minute=0).isoformat(),
+            "cikis_saati": (datetime.now(timezone.utc) - timedelta(days=3)).replace(hour=19, minute=0).isoformat(),
+            "calisilan_saat": 10.0,
+            "status": "cikis"
+        },
+        {
+            "id": 6,
+            "employee_id": "2001",
+            "ad": "Arda",
+            "soyad": "Yıldız",
+            "tarih": four_days_ago,
+            "giris_saati": (datetime.now(timezone.utc) - timedelta(days=4)).replace(hour=9, minute=0).isoformat(),
+            "cikis_saati": (datetime.now(timezone.utc) - timedelta(days=4)).replace(hour=18, minute=15).isoformat(),
+            "calisilan_saat": 9.25,
+            "status": "cikis"
         }
     ]
     await db.attendance.insert_many(attendance)
+    
+    # Seed yemek ücretleri
+    yemek_ucretleri = [
+        {"id": 1, "employee_id": 1, "gunluk_ucret": 150},
+        {"id": 2, "employee_id": 2, "gunluk_ucret": 150},
+        {"id": 3, "employee_id": 3, "gunluk_ucret": 180},
+        {"id": 4, "employee_id": 4, "gunluk_ucret": 150},
+        {"id": 5, "employee_id": 5, "gunluk_ucret": 180},
+        {"id": 6, "employee_id": 6, "gunluk_ucret": 202}
+    ]
+    await db.yemek_ucreti.insert_many(yemek_ucretleri)
+    
+    # Seed avans kayıtları (Arda için örnek)
+    current_month = datetime.now(timezone.utc).date().isoformat()[:7]
+    avans_list = [
+        {"id": 1, "employee_id": 6, "miktar": 5000, "tarih": f"{current_month}-05", "aciklama": "Kira ödemesi için avans", "olusturan_id": 1},
+        {"id": 2, "employee_id": 6, "miktar": 2000, "tarih": f"{current_month}-15", "aciklama": "Acil ihtiyaç", "olusturan_id": 1},
+        {"id": 3, "employee_id": 2, "miktar": 1500, "tarih": f"{current_month}-10", "aciklama": "Avans talebi", "olusturan_id": 1}
+    ]
+    await db.avans.insert_many(avans_list)
     
     # Seed some leave records
     leave_records = [
