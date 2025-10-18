@@ -2010,13 +2010,14 @@ export default function Dashboard() {
                           <tr key={item.urun.id} className={`border-b hover:bg-gray-50 ${item.durum === 'kritik' ? 'bg-red-50' : ''}`}>
                             <td className="px-4 py-2 font-semibold">{item.urun.ad}</td>
                             <td className="px-4 py-2">
-                              <span className={`px-2 py-1 rounded text-xs font-semibold ${
-                                item.urun.kategori === 'içecek' ? 'bg-blue-100 text-blue-700' : 
-                                item.urun.kategori === 'malzeme' ? 'bg-purple-100 text-purple-700' : 
-                                'bg-gray-100 text-gray-700'
-                              }`}>
-                                {item.urun.kategori}
-                              </span>
+                              {item.kategori ? (
+                                <span 
+                                  className="px-2 py-1 rounded text-xs font-semibold text-white"
+                                  style={{backgroundColor: item.kategori.renk}}
+                                >
+                                  {item.kategori.ad}
+                                </span>
+                              ) : <span className="text-gray-400">-</span>}
                             </td>
                             <td className="px-4 py-2 font-bold">{item.stok_miktar} {item.birim?.kisaltma}</td>
                             <td className="px-4 py-2">{item.urun.min_stok} {item.birim?.kisaltma}</td>
