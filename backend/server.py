@@ -1411,32 +1411,32 @@ async def seed_initial_data():
     
     # Seed stok kategorileri
     stok_kategorileri = [
-        {"id": 1, "ad": "Malzeme", "renk": "#9333EA"},  # purple
-        {"id": 2, "ad": "İçecek", "renk": "#3B82F6"},   # blue
-        {"id": 3, "ad": "Temizlik", "renk": "#10B981"}, # green
-        {"id": 4, "ad": "Diğer", "renk": "#6B7280"}     # gray
+        {"id": 1, "company_id": 1, "ad": "Malzeme", "renk": "#9333EA"},  # purple
+        {"id": 2, "company_id": 1, "ad": "İçecek", "renk": "#3B82F6"},   # blue
+        {"id": 3, "company_id": 1, "ad": "Temizlik", "renk": "#10B981"}, # green
+        {"id": 4, "company_id": 1, "ad": "Diğer", "renk": "#6B7280"}     # gray
     ]
     await db.stok_kategori.insert_many(stok_kategorileri)
     
     # Seed stok birimleri
     stok_birimleri = [
-        {"id": 1, "ad": "Kilogram", "kisaltma": "kg"},
-        {"id": 2, "ad": "Gram", "kisaltma": "gr"},
-        {"id": 3, "ad": "Litre", "kisaltma": "lt"},
-        {"id": 4, "ad": "Adet", "kisaltma": "adet"},
-        {"id": 5, "ad": "Paket", "kisaltma": "paket"}
+        {"id": 1, "company_id": 1, "ad": "Kilogram", "kisaltma": "kg"},
+        {"id": 2, "company_id": 1, "ad": "Gram", "kisaltma": "gr"},
+        {"id": 3, "company_id": 1, "ad": "Litre", "kisaltma": "lt"},
+        {"id": 4, "company_id": 1, "ad": "Adet", "kisaltma": "adet"},
+        {"id": 5, "company_id": 1, "ad": "Paket", "kisaltma": "paket"}
     ]
     await db.stok_birim.insert_many(stok_birimleri)
     
     # Seed stok ürünleri
     stok_urunleri = [
-        {"id": 1, "ad": "Domates", "birim_id": 1, "kategori_id": 1, "min_stok": 5.0},
-        {"id": 2, "ad": "Soğan", "birim_id": 1, "kategori_id": 1, "min_stok": 3.0},
-        {"id": 3, "ad": "Coca Cola", "birim_id": 3, "kategori_id": 2, "min_stok": 10.0},
-        {"id": 4, "ad": "Ekmek", "birim_id": 4, "kategori_id": 1, "min_stok": 20.0},
-        {"id": 5, "ad": "Süt", "birim_id": 3, "kategori_id": 1, "min_stok": 5.0},
-        {"id": 6, "ad": "Yumurta", "birim_id": 4, "kategori_id": 1, "min_stok": 30.0},
-        {"id": 7, "ad": "Çay", "birim_id": 5, "kategori_id": 2, "min_stok": 2.0}
+        {"id": 1, "company_id": 1, "ad": "Domates", "birim_id": 1, "kategori_id": 1, "min_stok": 5.0},
+        {"id": 2, "company_id": 1, "ad": "Soğan", "birim_id": 1, "kategori_id": 1, "min_stok": 3.0},
+        {"id": 3, "company_id": 1, "ad": "Coca Cola", "birim_id": 3, "kategori_id": 2, "min_stok": 10.0},
+        {"id": 4, "company_id": 1, "ad": "Ekmek", "birim_id": 4, "kategori_id": 1, "min_stok": 20.0},
+        {"id": 5, "company_id": 1, "ad": "Süt", "birim_id": 3, "kategori_id": 1, "min_stok": 5.0},
+        {"id": 6, "company_id": 1, "ad": "Yumurta", "birim_id": 4, "kategori_id": 1, "min_stok": 30.0},
+        {"id": 7, "company_id": 1, "ad": "Çay", "birim_id": 5, "kategori_id": 2, "min_stok": 2.0}
     ]
     await db.stok_urun.insert_many(stok_urunleri)
     
