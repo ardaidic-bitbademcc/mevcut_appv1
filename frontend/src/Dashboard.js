@@ -890,12 +890,31 @@ export default function Dashboard() {
                 <div className="space-y-4">
                   <input type="text" placeholder="Görev Başlığı" value={newTask.baslik} onChange={(e) => setNewTask({ ...newTask, baslik: e.target.value })} className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500" />
                   <textarea placeholder="Görev Açıklaması" value={newTask.aciklama} onChange={(e) => setNewTask({ ...newTask, aciklama: e.target.value })} className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500" rows="3" />
-                  <select value={newTask.atanan_personel_id} onChange={(e) => setNewTask({ ...newTask, atanan_personel_id: e.target.value })} className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500">
-                    <option value="">Personel Ata (opsiyonel)</option>
-                    {employees.map(emp => (
-                      <option key={emp.id} value={emp.id}>{emp.ad} {emp.soyad}</option>
-                    ))}
-                  </select>
+                  <div>
+                    <label className="block font-semibold mb-2">Personel Seç (Birden fazla seçebilirsiniz):</label>
+                    <div className="grid grid-cols-2 gap-2 max-h-40 overflow-y-auto border rounded-lg p-3 bg-gray-50">
+                      {employees.map(emp => (
+                        <label key={emp.id} className="flex items-center gap-2 cursor-pointer hover:bg-white p-2 rounded">
+                          <input
+                            type="checkbox"
+                            checked={newTask.atanan_personel_ids.includes(emp.id)}
+                            onChange={(e) => {
+                              if (e.target.checked) {
+                                setNewTask({ ...newTask, atanan_personel_ids: [...newTask.atanan_personel_ids, emp.id] });
+                              } else {
+                                setNewTask({ ...newTask, atanan_personel_ids: newTask.atanan_personel_ids.filter(id => id !== emp.id) });
+                              }
+                            }}
+                            className="w-4 h-4"
+                          />
+                          <span className="text-sm">{emp.ad} {emp.soyad}</span>
+                        </label>
+                      ))}
+                    </div>
+                    {newTask.atanan_personel_ids.length > 0 && (
+                      <p className="text-sm text-green-600 mt-2">✓ {newTask.atanan_personel_ids.length} personel seçildi</p>
+                    )}
+                  </div>
                   <button onClick={addTask} className="w-full px-6 py-3 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 font-semibold flex items-center justify-center gap-2"><Plus className="w-4 h-4" /> Görev Oluştur</button>
                 </div>
               </div>
