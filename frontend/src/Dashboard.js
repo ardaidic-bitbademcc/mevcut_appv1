@@ -1652,13 +1652,118 @@ export default function Dashboard() {
           </div>
         )}
 
-        {activeTab === 'stok' && (employee?.rol === 'admin' || [3, 6].includes(employee?.id)) && (
+        {activeTab === 'stok' && permissions.can_view_stock && (
           <div>
-            {employee?.rol === 'admin' ? (
-              // Admin View - Full Stock Management
-              <>
-                {/* Units Management */}
-                <div className="bg-white rounded-lg shadow p-6 mb-6">
+            {permissions.can_manage_categories && (
+              // Category Management
+              <div className="bg-white rounded-lg shadow p-6 mb-6">
+                <h2 className="text-xl font-bold mb-4">🏷️ Kategori Yönetimi</h2>
+                <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-4">
+                  <input 
+                    type="text" 
+                    placeholder="Kategori Adı (ör: Sebze)" 
+                    value={newStokKategori.ad} 
+                    onChange={(e) => setNewStokKategori({ ...newStokKategori, ad: e.target.value })} 
+                    className="px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500" 
+                  />
+                  <input 
+                    type="color" 
+                    value={newStokKategori.renk} 
+                    onChange={(e) => setNewStokKategori({ ...newStokKategori, renk: e.target.value })} 
+                    className="px-2 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 h-11" 
+                    title="Kategori Rengi"
+                  />
+                  <button 
+                    onClick={addStokKategori} 
+                    className="px-6 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 font-semibold flex items-center justify-center gap-2"
+                  >
+                    <Plus className="w-4 h-4" /> Kategori Ekle
+                  </button>
+                </div>
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead className="bg-gray-50 border-b">
+                      <tr>
+                        <th className="px-4 py-2 text-left">ID</th>
+                        <th className="px-4 py-2 text-left">Kategori Adı</th>
+                        <th className="px-4 py-2 text-left">Renk</th>
+                        <th className="px-4 py-2 text-left">İşlemler</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {stokKategoriler.map(kategori => (
+                        <tr key={kategori.id} className="border-b hover:bg-gray-50">
+                          {editingStokKategori?.id === kategori.id ? (
+                            <>
+                              <td className="px-4 py-2 font-bold text-indigo-600">{kategori.id}</td>
+                              <td className="px-4 py-2">
+                                <input 
+                                  type="text" 
+                                  value={editingStokKategori.ad} 
+                                  onChange={(e) => setEditingStokKategori({ ...editingStokKategori, ad: e.target.value })} 
+                                  className="w-full px-2 py-1 border rounded text-sm"
+                                />
+                              </td>
+                              <td className="px-4 py-2">
+                                <input 
+                                  type="color" 
+                                  value={editingStokKategori.renk} 
+                                  onChange={(e) => setEditingStokKategori({ ...editingStokKategori, renk: e.target.value })} 
+                                  className="w-16 h-8 border rounded"
+                                />
+                              </td>
+                              <td className="px-4 py-2 flex gap-2">
+                                <button 
+                                  onClick={updateStokKategori} 
+                                  className="px-3 py-1 bg-green-500 text-white rounded text-xs hover:bg-green-600 font-semibold"
+                                >
+                                  Kaydet
+                                </button>
+                                <button 
+                                  onClick={() => setEditingStokKategori(null)} 
+                                  className="px-3 py-1 bg-gray-500 text-white rounded text-xs hover:bg-gray-600 font-semibold"
+                                >
+                                  İptal
+                                </button>
+                              </td>
+                            </>
+                          ) : (
+                            <>
+                              <td className="px-4 py-2 font-bold text-indigo-600">{kategori.id}</td>
+                              <td className="px-4 py-2 font-semibold">{kategori.ad}</td>
+                              <td className="px-4 py-2">
+                                <div className="flex items-center gap-2">
+                                  <div style={{backgroundColor: kategori.renk}} className="w-8 h-8 rounded border"></div>
+                                  <span className="text-xs text-gray-600">{kategori.renk}</span>
+                                </div>
+                              </td>
+                              <td className="px-4 py-2 flex gap-2">
+                                <button 
+                                  onClick={() => startEditStokKategori(kategori)} 
+                                  className="px-3 py-1 bg-blue-500 text-white rounded text-xs hover:bg-blue-600 font-semibold flex items-center gap-1"
+                                >
+                                  <Edit2 className="w-3 h-3" /> Düzenle
+                                </button>
+                                <button 
+                                  onClick={() => deleteStokKategori(kategori.id)} 
+                                  className="px-3 py-1 bg-red-500 text-white rounded text-xs hover:bg-red-600 font-semibold flex items-center gap-1"
+                                >
+                                  <Trash2 className="w-3 h-3" /> Sil
+                                </button>
+                              </td>
+                            </>
+                          )}
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
+
+            {permissions.can_add_stock_unit && (
+              // Units Management
+              <div className="bg-white rounded-lg shadow p-6 mb-6">
                   <h2 className="text-xl font-bold mb-4">📏 Birim Yönetimi</h2>
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
                     <input 
