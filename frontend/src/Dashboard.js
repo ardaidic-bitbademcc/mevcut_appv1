@@ -183,6 +183,14 @@ export default function Dashboard() {
       alert('❌ Tüm alanları doldurunuz!');
       return;
     }
+    if (newEmployee.employee_id.length !== 4) {
+      alert('❌ Personel ID tam 4 haneli olmalıdır!');
+      return;
+    }
+    if (!/^\d{4}$/.test(newEmployee.employee_id)) {
+      alert('❌ Personel ID sadece rakam olmalıdır!');
+      return;
+    }
     try {
       await axios.post(`${API}/employees`, {
         ad: newEmployee.ad,
