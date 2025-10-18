@@ -1947,29 +1947,39 @@ export default function Dashboard() {
                                 <td className="px-4 py-2 font-semibold">{urun.ad}</td>
                                 <td className="px-4 py-2">{stokBirimler.find(b => b.id === urun.birim_id)?.kisaltma}</td>
                                 <td className="px-4 py-2">
-                                  <span className={`px-2 py-1 rounded text-xs font-semibold ${
-                                    urun.kategori === 'içecek' ? 'bg-blue-100 text-blue-700' : 
-                                    urun.kategori === 'malzeme' ? 'bg-purple-100 text-purple-700' : 
-                                    'bg-gray-100 text-gray-700'
-                                  }`}>
-                                    {urun.kategori}
-                                  </span>
+                                  {(() => {
+                                    const kategori = stokKategoriler.find(k => k.id === urun.kategori_id);
+                                    return kategori ? (
+                                      <span 
+                                        className="px-2 py-1 rounded text-xs font-semibold text-white"
+                                        style={{backgroundColor: kategori.renk}}
+                                      >
+                                        {kategori.ad}
+                                      </span>
+                                    ) : <span className="text-gray-400">-</span>;
+                                  })()}
                                 </td>
                                 <td className="px-4 py-2">{urun.min_stok}</td>
-                                <td className="px-4 py-2 flex gap-2">
-                                  <button 
-                                    onClick={() => startEditStokUrun(urun)} 
-                                    className="px-3 py-1 bg-blue-500 text-white rounded text-xs hover:bg-blue-600 font-semibold flex items-center gap-1"
-                                  >
-                                    <Edit2 className="w-3 h-3" /> Düzenle
-                                  </button>
-                                  <button 
-                                    onClick={() => deleteStokUrun(urun.id)} 
-                                    className="px-3 py-1 bg-red-500 text-white rounded text-xs hover:bg-red-600 font-semibold flex items-center gap-1"
-                                  >
-                                    <Trash2 className="w-3 h-3" /> Sil
-                                  </button>
-                                </td>
+                                {(permissions.can_edit_stock_product || permissions.can_delete_stock_product) && (
+                                  <td className="px-4 py-2 flex gap-2">
+                                    {permissions.can_edit_stock_product && (
+                                      <button 
+                                        onClick={() => startEditStokUrun(urun)} 
+                                        className="px-3 py-1 bg-blue-500 text-white rounded text-xs hover:bg-blue-600 font-semibold flex items-center gap-1"
+                                      >
+                                        <Edit2 className="w-3 h-3" /> Düzenle
+                                      </button>
+                                    )}
+                                    {permissions.can_delete_stock_product && (
+                                      <button 
+                                        onClick={() => deleteStokUrun(urun.id)} 
+                                        className="px-3 py-1 bg-red-500 text-white rounded text-xs hover:bg-red-600 font-semibold flex items-center gap-1"
+                                      >
+                                        <Trash2 className="w-3 h-3" /> Sil
+                                      </button>
+                                    )}
+                                  </td>
+                                )}
                               </>
                             )}
                           </tr>
