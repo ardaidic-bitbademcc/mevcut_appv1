@@ -284,7 +284,13 @@ export default function Dashboard() {
       if (response.data.success) {
         setUser({ id: response.data.employee.id, email: response.data.employee.email });
         setEmployee(response.data.employee);
+        setCompanyId(response.data.employee.company_id);
         setLoginData({ email: '' });
+        
+        // If kiosk user, set activeTab to kiosk
+        if (response.data.employee.rol === 'kiosk') {
+          setActiveTab('kiosk');
+        }
       } else {
         alert(response.data.message);
       }
