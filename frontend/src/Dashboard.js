@@ -819,23 +819,59 @@ export default function Dashboard() {
 
                   <div className="mt-6 bg-blue-50 p-4 rounded-lg border border-blue-200">
                     <h3 className="font-bold mb-3">Vardiya Atama</h3>
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                      <select className="px-4 py-2 border rounded-lg" id="shift-employee-select">
-                        <option value="">Personel Seç</option>
-                        {employees.map(emp => (
-                          <option key={emp.id} value={emp.id}>{emp.ad} {emp.soyad}</option>
-                        ))}
-                      </select>
-                      <input type="date" className="px-4 py-2 border rounded-lg" id="shift-date-input" />
+                    <div className="space-y-4">
+                      <div>
+                        <label className="block font-semibold mb-2">Personel Seç (Birden fazla seçebilirsiniz):</label>
+                        <div className="grid grid-cols-2 gap-2 max-h-40 overflow-y-auto border rounded-lg p-3 bg-white">
+                          {employees.map(emp => (
+                            <label key={emp.id} className="flex items-center gap-2 cursor-pointer hover:bg-gray-50 p-2 rounded">
+                              <input
+                                type="checkbox"
+                                checked={selectedEmployeesForShift.includes(emp.id)}
+                                onChange={(e) => {
+                                  if (e.target.checked) {
+                                    setSelectedEmployeesForShift([...selectedEmployeesForShift, emp.id]);
+                                  } else {
+                                    setSelectedEmployeesForShift(selectedEmployeesForShift.filter(id => id !== emp.id));
+                                  }
+                                }}
+                                className="w-4 h-4"
+                              />
+                              <span className="text-sm">{emp.ad} {emp.soyad}</span>
+                            </label>
+                          ))}
+                        </div>
+                        {selectedEmployeesForShift.length > 0 && (
+                          <p className="text-sm text-green-600 mt-2">✓ {selectedEmployeesForShift.length} personel seçildi</p>
+                        )}
+                      </div>
+                      
+                      <input type="date" className="w-full px-4 py-2 border rounded-lg" id="shift-date-input" />
+                      
                       <button onClick={() => {
-                        const empId = document.getElementById('shift-employee-select').value;
                         const date = document.getElementById('shift-date-input').value;
-                        if (empId && date) {
-                          addShiftToCalendar(parseInt(empId), date);
-                        } else {
-                          alert('❌ Personel ve tarih seçiniz!');
+                        if (selectedEmployeesForShift.length === 0) {
+                          alert('❌ En az bir personel seçiniz!');
+                          return;
                         }
-                      }} className="px-6 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 font-semibold">Vardiya Ata</button>
+                        if (!date) {
+                          alert('❌ Tarih seçiniz!');
+                          return;
+                        }
+                        
+                        // Assign shift to all selected employees
+                        Promise.all(selectedEmployeesForShift.map(empId => addShiftToCalendar(empId, date)))
+                          .then(() => {
+                            setSelectedEmployeesForShift([]);
+                            document.getElementById('shift-date-input').value = '';
+                            alert(`✅ ${selectedEmployeesForShift.length} personele vardiya atandı!`);
+                          })
+                          .catch(err => {
+                            alert('❌ Hata: ' + err.message);
+                          });
+                      }} className="w-full px-6 py-3 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 font-semibold">
+                        Seçili Personellere Vardiya Ata ({selectedEmployeesForShift.length})
+                      </button>
                     </div>
                   </div>
                 </>
