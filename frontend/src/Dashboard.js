@@ -1860,25 +1860,28 @@ export default function Dashboard() {
                     onChange={(e) => setNewStokUrun({ ...newStokUrun, min_stok: e.target.value })} 
                     className="px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500" 
                   />
-                    <button 
-                      onClick={addStokUrun} 
-                      className="px-6 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 font-semibold flex items-center justify-center gap-2"
-                    >
-                      <Plus className="w-4 h-4" /> Ürün Ekle
-                    </button>
-                  </div>
-                  <div className="overflow-x-auto">
-                    <table className="w-full text-sm">
-                      <thead className="bg-gray-50 border-b">
-                        <tr>
-                          <th className="px-4 py-2 text-left">ID</th>
-                          <th className="px-4 py-2 text-left">Ürün Adı</th>
-                          <th className="px-4 py-2 text-left">Birim</th>
-                          <th className="px-4 py-2 text-left">Kategori</th>
-                          <th className="px-4 py-2 text-left">Min Stok</th>
-                          <th className="px-4 py-2 text-left">İşlemler</th>
-                        </tr>
-                      </thead>
+                  <button 
+                    onClick={addStokUrun} 
+                    className="px-6 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 font-semibold flex items-center justify-center gap-2"
+                  >
+                    <Plus className="w-4 h-4" /> Ürün Ekle
+                  </button>
+                </div>
+              )}
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead className="bg-gray-50 border-b">
+                    <tr>
+                      <th className="px-4 py-2 text-left">ID</th>
+                      <th className="px-4 py-2 text-left">Ürün Adı</th>
+                      <th className="px-4 py-2 text-left">Birim</th>
+                      <th className="px-4 py-2 text-left">Kategori</th>
+                      <th className="px-4 py-2 text-left">Min Stok</th>
+                      {(permissions.can_edit_stock_product || permissions.can_delete_stock_product) && (
+                        <th className="px-4 py-2 text-left">İşlemler</th>
+                      )}
+                    </tr>
+                  </thead>
                       <tbody>
                         {stokUrunler.map(urun => (
                           <tr key={urun.id} className="border-b hover:bg-gray-50">
