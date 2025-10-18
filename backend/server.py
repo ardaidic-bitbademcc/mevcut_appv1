@@ -976,9 +976,29 @@ async def seed_initial_data():
     # Seed some leave records
     leave_records = [
         {"id": 1, "employee_id": 2, "tarih": "2025-02-15", "leave_type": "izin", "notlar": "Kişisel işler"},
-        {"id": 2, "employee_id": 4, "tarih": "2025-02-20", "leave_type": "hastalik", "notlar": "Grip"}
+        {"id": 2, "employee_id": 4, "tarih": "2025-02-20", "leave_type": "hastalik", "notlar": "Grip"},
+        {"id": 3, "employee_id": 4, "tarih": "2025-10-25", "leave_type": "izin", "notlar": "Haftalık izin"}
     ]
     await db.leave_records.insert_many(leave_records)
+    
+    # Seed shift calendar (Ayşe Kaya için örnek - 20-24 Ekim öğleden sonra, 26 Ekim sabah)
+    shift_calendar_records = [
+        {"id": 1, "employee_id": 1, "tarih": "2025-10-20", "shift_type": "sabah"},
+        {"id": 2, "employee_id": 4, "tarih": "2025-10-20", "shift_type": "ogle_sonra"},
+        {"id": 3, "employee_id": 3, "tarih": "2025-10-20", "shift_type": "ogle_sonra"},
+        {"id": 4, "employee_id": 4, "tarih": "2025-10-21", "shift_type": "ogle_sonra"},
+        {"id": 5, "employee_id": 2, "tarih": "2025-10-21", "shift_type": "ogle_sonra"},
+        {"id": 6, "employee_id": 4, "tarih": "2025-10-22", "shift_type": "ogle_sonra"},
+        {"id": 7, "employee_id": 5, "tarih": "2025-10-22", "shift_type": "ogle_sonra"},
+        {"id": 8, "employee_id": 4, "tarih": "2025-10-23", "shift_type": "ogle_sonra"},
+        {"id": 9, "employee_id": 1, "tarih": "2025-10-23", "shift_type": "ogle_sonra"},
+        {"id": 10, "employee_id": 4, "tarih": "2025-10-24", "shift_type": "ogle_sonra"},
+        {"id": 11, "employee_id": 6, "tarih": "2025-10-24", "shift_type": "ogle_sonra"},
+        {"id": 12, "employee_id": 4, "tarih": "2025-10-26", "shift_type": "sabah"},
+        {"id": 13, "employee_id": 2, "tarih": "2025-10-26", "shift_type": "sabah"},
+        {"id": 14, "employee_id": 3, "tarih": "2025-10-26", "shift_type": "sabah"}
+    ]
+    await db.shift_calendar.insert_many(shift_calendar_records)
     
     # Seed some tasks
     tasks = [
