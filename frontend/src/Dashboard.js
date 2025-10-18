@@ -118,7 +118,7 @@ export default function Dashboard() {
   };
 
   const addNumpadDigit = (digit) => {
-    setKioskEmployeeId(prev => (prev + digit).slice(0, 10));
+    setKioskEmployeeId(prev => (prev + digit).slice(0, 4));
   };
 
   const clearNumpad = () => {
