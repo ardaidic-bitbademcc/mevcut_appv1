@@ -984,13 +984,25 @@ export default function Dashboard() {
                       <span className="font-semibold">🔄 Tekrarlayan Görev</span>
                     </label>
                     {newTask.tekrarlayan && (
-                      <div className="mt-2">
-                        <select value={newTask.tekrar_periyot} onChange={(e) => setNewTask({ ...newTask, tekrar_periyot: e.target.value })} className="w-full px-4 py-2 border rounded-lg">
-                          <option value="gunluk">Her Gün</option>
-                          <option value="haftalik">Her Hafta</option>
-                          <option value="aylik">Her Ay</option>
-                        </select>
-                        <p className="text-xs text-gray-600 mt-1">Bu görev seçilen periyotta otomatik olarak tekrar oluşturulacak</p>
+                      <div className="mt-2 space-y-3">
+                        <div className="flex gap-2 items-center">
+                          <input
+                            type="number"
+                            min="1"
+                            value={newTask.tekrar_sayi}
+                            onChange={(e) => setNewTask({ ...newTask, tekrar_sayi: parseInt(e.target.value) || 1 })}
+                            className="w-20 px-3 py-2 border rounded-lg"
+                          />
+                          <select value={newTask.tekrar_birim} onChange={(e) => setNewTask({ ...newTask, tekrar_birim: e.target.value })} className="flex-1 px-4 py-2 border rounded-lg">
+                            <option value="gun">Gün</option>
+                            <option value="hafta">Hafta</option>
+                            <option value="ay">Ay</option>
+                          </select>
+                          <span className="text-sm text-gray-600">de bir</span>
+                        </div>
+                        <p className="text-xs text-gray-600">
+                          Örnek: <span className="font-semibold">{newTask.tekrar_sayi} {newTask.tekrar_birim === 'gun' ? 'günde' : newTask.tekrar_birim === 'hafta' ? 'haftada' : 'ayda'} bir</span> tekrar edilecek
+                        </p>
                       </div>
                     )}
                   </div>
