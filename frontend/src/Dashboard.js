@@ -339,10 +339,66 @@ export default function Dashboard() {
 
   const fetchSalaryData = async () => {
     try {
-      const response = await axios.get(`${API}/salary/all/${salaryMonth}`);
+      const response = await axios.get(`${API}/salary-all/${salaryMonth}`);
       setSalaryData(response.data);
+      
+      // Also fetch avans data
+      const avansRes = await axios.get(`${API}/avans`);
+      setAvansData(avansRes.data);
+      
+      // Fetch yemek ücretleri
+      const yemekRes = await axios.get(`${API}/yemek-ucreti`);
+      setYemekUcretleri(yemekRes.data);
     } catch (error) {
       alert('❌ Maaş verileri getirilemedi: ' + (error.response?.data?.detail || error.message));
+    }
+  };
+
+  const addAvans = async () => {
+    if (!newAvans.employee_id || !newAvans.miktar || !newAvans.tarih) {
+      alert('❌ Tüm alanları doldurunuz!');
+      return;
+    }
+    try {
+      await axios.post(`${API}/avans?olusturan_id=${employee.id}`, {
+        employee_id: parseInt(newAvans.employee_id),
+        miktar: parseFloat(newAvans.miktar),
+        tarih: newAvans.tarih,
+        aciklama: newAvans.aciklama
+      });
+      setNewAvans({ employee_id: '', miktar: '', tarih: '', aciklama: '' });
+      setShowAvansModal(false);
+      alert('✅ Avans kaydı başarıyla eklendi!');
+      fetchSalaryData();
+    } catch (error) {
+      alert('❌ Hata: ' + (error.response?.data?.detail || error.message));
+    }
+  };
+
+  const deleteAvans = async (avansId) => {
+    if (window.confirm('Bu avans kaydını silmek istediğinizden emin misiniz?')) {
+      try {
+        await axios.delete(`${API}/avans/${avansId}`);
+        fetchSalaryData();
+      } catch (error) {
+        alert('❌ Silme hatası: ' + (error.response?.data?.detail || error.message));
+      }
+    }
+  };
+
+  const updateYemekUcreti = async () => {
+    if (!yemekUpdate.employee_id || !yemekUpdate.gunluk_ucret) {
+      alert('❌ Tüm alanları doldurunuz!');
+      return;
+    }
+    try {
+      await axios.post(`${API}/yemek-ucreti?employee_id=${yemekUpdate.employee_id}&gunluk_ucret=${yemekUpdate.gunluk_ucret}`);
+      setYemekUpdate({ employee_id: '', gunluk_ucret: '' });
+      setShowYemekModal(false);
+      alert('✅ Yemek ücreti güncellendi!');
+      fetchSalaryData();
+    } catch (error) {
+      alert('❌ Hata: ' + (error.response?.data?.detail || error.message));
     }
   };
 
