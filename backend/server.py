@@ -944,6 +944,11 @@ async def seed_initial_data():
     await db.leave_records.delete_many({})
     await db.shift_calendar.delete_many({})
     await db.tasks.delete_many({})
+    await db.avans.delete_many({})
+    await db.yemek_ucreti.delete_many({})
+    await db.stok_birim.delete_many({})
+    await db.stok_urun.delete_many({})
+    await db.stok_sayim.delete_many({})
     
     # Seed Roles
     roles = [
