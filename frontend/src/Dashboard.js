@@ -166,6 +166,54 @@ export default function Dashboard() {
     }
   };
 
+  const deleteStokBirim = async (birimId) => {
+    if (!window.confirm('Bu birimi silmek istediğinizden emin misiniz?')) return;
+    try {
+      await axios.delete(`${API}/stok-birim/${birimId}`);
+      alert('✅ Birim silindi!');
+      fetchStokData();
+    } catch (error) {
+      alert('❌ ' + (error.response?.data?.detail || error.message));
+    }
+  };
+
+  const deleteStokUrun = async (urunId) => {
+    if (!window.confirm('Bu ürünü silmek istediğinizden emin misiniz?')) return;
+    try {
+      await axios.delete(`${API}/stok-urun/${urunId}`);
+      alert('✅ Ürün silindi!');
+      fetchStokData();
+    } catch (error) {
+      alert('❌ ' + (error.response?.data?.detail || error.message));
+    }
+  };
+
+  const [editingStokUrun, setEditingStokUrun] = useState(null);
+  
+  const startEditStokUrun = (urun) => {
+    setEditingStokUrun({ ...urun });
+  };
+
+  const updateStokUrun = async () => {
+    if (!editingStokUrun.ad || !editingStokUrun.birim_id || !editingStokUrun.kategori) {
+      alert('❌ Tüm alanları doldurunuz!');
+      return;
+    }
+    try {
+      await axios.put(`${API}/stok-urun/${editingStokUrun.id}`, {
+        ad: editingStokUrun.ad,
+        birim_id: parseInt(editingStokUrun.birim_id),
+        kategori: editingStokUrun.kategori,
+        min_stok: parseFloat(editingStokUrun.min_stok) || 0
+      });
+      setEditingStokUrun(null);
+      alert('✅ Ürün güncellendi!');
+      fetchStokData();
+    } catch (error) {
+      alert('❌ ' + (error.response?.data?.detail || error.message));
+    }
+  };
+
   useEffect(() => {
     if (user && activeTab === 'maas') {
       fetchSalaryData();
