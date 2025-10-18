@@ -279,6 +279,7 @@ class SalaryRecord(BaseModel):
 class Avans(BaseModel):
     model_config = ConfigDict(extra="ignore")
     id: int
+    company_id: int
     employee_id: int
     miktar: float
     tarih: str
@@ -286,6 +287,7 @@ class Avans(BaseModel):
     olusturan_id: int
 
 class AvansCreate(BaseModel):
+    company_id: int
     employee_id: int
     miktar: float
     tarih: str
@@ -295,10 +297,12 @@ class AvansCreate(BaseModel):
 class YemekUcreti(BaseModel):
     model_config = ConfigDict(extra="ignore")
     id: int
+    company_id: int
     employee_id: int
     gunluk_ucret: float
 
 class YemekUcretiUpdate(BaseModel):
+    company_id: int
     gunluk_ucret: float
 
 # Login Models
