@@ -70,11 +70,6 @@ export default function Dashboard() {
         axios.get(`${API}/shift-calendar`),
         axios.get(`${API}/tasks`)
       ]);
-      console.log('fetchData results:', { 
-        employees: empRes.data.length, 
-        roles: roleRes.data.length,
-        rolesData: roleRes.data
-      });
       setEmployees(empRes.data);
       setRoles(roleRes.data);
       setShiftTypes(shiftTypeRes.data);
