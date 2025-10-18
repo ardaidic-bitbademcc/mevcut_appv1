@@ -150,11 +150,15 @@ class Task(BaseModel):
     puan: Optional[int] = None
     olusturma_tarihi: str
     tamamlanma_tarihi: Optional[str] = None
+    tekrarlayan: bool = False
+    tekrar_periyot: Optional[str] = None  # gunluk, haftalik, aylik
 
 class TaskCreate(BaseModel):
     baslik: str
     aciklama: str
     atanan_personel_ids: List[int] = []  # Multiple assignment
+    tekrarlayan: bool = False
+    tekrar_periyot: Optional[str] = None
 
 class TaskUpdate(BaseModel):
     baslik: Optional[str] = None
