@@ -123,8 +123,56 @@ export default function Dashboard() {
     }
   };
 
+  const addStokKategori = async () => {
+    if (!newStokKategori.ad) {
+      alert('❌ Kategori adı giriniz!');
+      return;
+    }
+    try {
+      await axios.post(`${API}/stok-kategori`, newStokKategori);
+      setNewStokKategori({ ad: '', renk: '#6B7280' });
+      alert('✅ Kategori eklendi!');
+      fetchStokData();
+    } catch (error) {
+      alert('❌ ' + (error.response?.data?.detail || error.message));
+    }
+  };
+
+  const deleteStokKategori = async (kategoriId) => {
+    if (!window.confirm('Bu kategoriyi silmek istediğinizden emin misiniz?')) return;
+    try {
+      await axios.delete(`${API}/stok-kategori/${kategoriId}`);
+      alert('✅ Kategori silindi!');
+      fetchStokData();
+    } catch (error) {
+      alert('❌ ' + (error.response?.data?.detail || error.message));
+    }
+  };
+
+  const startEditStokKategori = (kategori) => {
+    setEditingStokKategori({ ...kategori });
+  };
+
+  const updateStokKategori = async () => {
+    if (!editingStokKategori.ad) {
+      alert('❌ Kategori adı giriniz!');
+      return;
+    }
+    try {
+      await axios.put(`${API}/stok-kategori/${editingStokKategori.id}`, {
+        ad: editingStokKategori.ad,
+        renk: editingStokKategori.renk
+      });
+      setEditingStokKategori(null);
+      alert('✅ Kategori güncellendi!');
+      fetchStokData();
+    } catch (error) {
+      alert('❌ ' + (error.response?.data?.detail || error.message));
+    }
+  };
+
   const addStokUrun = async () => {
-    if (!newStokUrun.ad || !newStokUrun.birim_id || !newStokUrun.kategori) {
+    if (!newStokUrun.ad || !newStokUrun.birim_id || !newStokUrun.kategori_id) {
       alert('❌ Tüm alanları doldurunuz!');
       return;
     }
@@ -132,10 +180,10 @@ export default function Dashboard() {
       await axios.post(`${API}/stok-urun`, {
         ad: newStokUrun.ad,
         birim_id: parseInt(newStokUrun.birim_id),
-        kategori: newStokUrun.kategori,
+        kategori_id: parseInt(newStokUrun.kategori_id),
         min_stok: parseFloat(newStokUrun.min_stok) || 0
       });
-      setNewStokUrun({ ad: '', birim_id: '', kategori: 'malzeme', min_stok: 0 });
+      setNewStokUrun({ ad: '', birim_id: '', kategori_id: '', min_stok: 0 });
       alert('✅ Ürün eklendi!');
       fetchStokData();
     } catch (error) {
