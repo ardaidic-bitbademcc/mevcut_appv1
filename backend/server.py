@@ -1262,6 +1262,7 @@ async def seed_initial_data():
         },
         {
             "id": 2,
+            "company_id": 1,
             "employee_id": "1002",
             "ad": "Fatma",
             "soyad": "Demir",
