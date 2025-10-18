@@ -358,6 +358,116 @@ export default function Dashboard() {
     }
   };
 
+  const handleDragStart = (emp) => {
+    setDraggedEmployee(emp);
+  };
+
+  const handleDragOver = (e) => {
+    e.preventDefault();
+  };
+
+  const handleDrop = async (date) => {
+    if (!draggedEmployee) return;
+    await addShiftToCalendar(draggedEmployee.id, date);
+    setDraggedEmployee(null);
+  };
+
+  const fetchWeeklySchedule = async (employeeId, startDate) => {
+    try {
+      const response = await axios.get(`${API}/shift-calendar/weekly/${employeeId}?start_date=${startDate}`);
+      setWeeklyScheduleData(response.data);
+      setShowWeeklySchedule(true);
+    } catch (error) {
+      alert('❌ Haftalık program getirilemedi: ' + (error.response?.data?.detail || error.message));
+    }
+  };
+
+  const generatePDF = async () => {
+    if (!weeklyScheduleData) return;
+    
+    const { jsPDF } = await import('jspdf');
+    const doc = new jsPDF();
+    
+    const employee = weeklyScheduleData.employee;
+    let yPos = 20;
+    
+    // Header
+    doc.setFontSize(18);
+    doc.text(`Haftalık Vardiya Programı`, 105, yPos, { align: 'center' });
+    yPos += 10;
+    
+    doc.setFontSize(14);
+    doc.text(`${employee.ad} ${employee.soyad} - ${employee.pozisyon}`, 105, yPos, { align: 'center' });
+    yPos += 5;
+    
+    doc.setFontSize(10);
+    doc.text(`Personel ID: ${employee.employee_id}`, 105, yPos, { align: 'center' });
+    yPos += 10;
+    
+    // Draw line
+    doc.setLineWidth(0.5);
+    doc.line(20, yPos, 190, yPos);
+    yPos += 10;
+    
+    // Shifts
+    const dayNames = ['Pazar', 'Pazartesi', 'Salı', 'Çarşamba', 'Perşembe', 'Cuma', 'Cumartesi'];
+    
+    weeklyScheduleData.shifts.forEach((shift, idx) => {
+      const date = new Date(shift.tarih);
+      const dayName = dayNames[date.getDay()];
+      const dateStr = `${date.getDate()}.${date.getMonth() + 1}.${date.getFullYear()}`;
+      
+      doc.setFontSize(12);
+      doc.setFont(undefined, 'bold');
+      doc.text(`${dayName}, ${dateStr}`, 20, yPos);
+      yPos += 6;
+      
+      doc.setFont(undefined, 'normal');
+      doc.setFontSize(10);
+      
+      if (shift.type === 'izin') {
+        doc.setTextColor(255, 0, 0);
+        doc.text('🏖️ İZİNLİ', 20, yPos);
+        doc.setTextColor(0, 0, 0);
+        yPos += 5;
+      } else if (shift.type === 'vardiya') {
+        doc.setTextColor(0, 128, 0);
+        doc.text(`⏰ ${shift.shift_type.name}`, 20, yPos);
+        doc.setTextColor(0, 0, 0);
+        yPos += 5;
+        
+        if (shift.team_members.length > 0) {
+          doc.setFontSize(9);
+          doc.text('Ekip Arkadaşları:', 25, yPos);
+          yPos += 4;
+          shift.team_members.forEach(member => {
+            doc.text(`• ${member.ad} ${member.soyad} (${member.pozisyon})`, 30, yPos);
+            yPos += 4;
+          });
+        }
+      } else {
+        doc.setTextColor(128, 128, 128);
+        doc.text('Vardiya atanmamış', 20, yPos);
+        doc.setTextColor(0, 0, 0);
+        yPos += 5;
+      }
+      
+      yPos += 5;
+      
+      if (yPos > 270) {
+        doc.addPage();
+        yPos = 20;
+      }
+    });
+    
+    // Footer
+    doc.setFontSize(8);
+    doc.setTextColor(128, 128, 128);
+    doc.text(`Oluşturulma: ${new Date().toLocaleString('tr-TR')}`, 105, 285, { align: 'center' });
+    
+    doc.save(`vardiya_${employee.ad}_${employee.soyad}_${weeklyScheduleData.start_date}.pdf`);
+  };
+
   const addAvans = async () => {
     if (!newAvans.employee_id || !newAvans.miktar || !newAvans.tarih) {
       alert('❌ Tüm alanları doldurunuz!');
