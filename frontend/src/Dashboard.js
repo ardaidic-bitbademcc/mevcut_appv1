@@ -247,7 +247,7 @@ export default function Dashboard() {
   };
 
   const updateStokUrun = async () => {
-    if (!editingStokUrun.ad || !editingStokUrun.birim_id || !editingStokUrun.kategori) {
+    if (!editingStokUrun.ad || !editingStokUrun.birim_id || !editingStokUrun.kategori_id) {
       alert('❌ Tüm alanları doldurunuz!');
       return;
     }
@@ -255,7 +255,7 @@ export default function Dashboard() {
       await axios.put(`${API}/stok-urun/${editingStokUrun.id}`, {
         ad: editingStokUrun.ad,
         birim_id: parseInt(editingStokUrun.birim_id),
-        kategori: editingStokUrun.kategori,
+        kategori_id: parseInt(editingStokUrun.kategori_id),
         min_stok: parseFloat(editingStokUrun.min_stok) || 0
       });
       setEditingStokUrun(null);
