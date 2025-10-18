@@ -369,10 +369,16 @@ export default function Dashboard() {
       const employeeName = typeof response.data.employee === 'string' ? response.data.employee : 'Personel';
       const hours = response.data.calisilan_saat || '0';
       setKioskMessage(`✅ Çıkış Başarılı!\n${employeeName}\nÇalışılan: ${hours}h`);
-      setTimeout(() => { setKioskMessage(''); setKioskEmployeeId(''); fetchData(); }, 2500);
+      setTimeout(() => { 
+        setKioskMessage(''); 
+        setKioskEmployeeId(''); 
+      }, 2500);
     } catch (error) {
       setKioskMessage(`❌ ${error.response?.data?.detail || 'Hata oluştu'}`);
-      setTimeout(() => { setKioskMessage(''); setKioskEmployeeId(''); }, 3000);
+      setTimeout(() => { 
+        setKioskMessage(''); 
+        setKioskEmployeeId(''); 
+      }, 3000);
     }
   };
 
