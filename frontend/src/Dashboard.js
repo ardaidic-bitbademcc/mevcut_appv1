@@ -817,12 +817,12 @@ export default function Dashboard() {
                 <input type="email" placeholder="E-mail" value={loginData.email} onChange={(e) => setLoginData({ ...loginData, email: e.target.value })} onKeyPress={(e) => e.key === 'Enter' && handleLogin()} className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500" />
                 <button onClick={handleLogin} className="w-full px-6 py-3 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 font-semibold">Giriş Yap</button>
                 <button onClick={() => setShowRegister(true)} className="w-full px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 font-semibold">Kayıt Ol</button>
-                <button onClick={() => setActiveTab('kiosk')} className="w-full px-6 py-3 bg-orange-600 text-white rounded-lg hover:bg-orange-700 font-semibold flex items-center justify-center gap-2">🬠Kiosk Giriş/Çıkış</button>
                 <div className="mt-6 pt-6 border-t text-xs text-gray-500">
                   <p className="font-semibold mb-2">Demo Hesaplar:</p>
                   <p>• admin@example.com (Admin)</p>
                   <p>• sef@example.com (Şef)</p>
                   <p>• fatma@example.com (Personel)</p>
+                  <p>• kiosk@example.com (Kiosk Terminal)</p>
                   <p>• mehmet@example.com (Sistem Yöneticisi)</p>
                 </div>
               </div>
