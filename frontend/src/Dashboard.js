@@ -855,7 +855,10 @@ export default function Dashboard() {
                         {editingEmployee === emp.id ? (
                           <>
                             <td className="px-4 py-2">
-                              <input type="text" value={editData.employee_id} onChange={(e) => setEditData({ ...editData, employee_id: e.target.value })} className="w-full px-2 py-1 border rounded" />
+                              <input type="text" maxLength="4" value={editData.employee_id} onChange={(e) => {
+                                const value = e.target.value.replace(/\D/g, '');
+                                setEditData({ ...editData, employee_id: value });
+                              }} className="w-full px-2 py-1 border rounded" />
                             </td>
                             <td className="px-4 py-2">
                               <input type="text" value={editData.ad} onChange={(e) => setEditData({ ...editData, ad: e.target.value })} className="w-full px-2 py-1 border rounded mb-1" />
