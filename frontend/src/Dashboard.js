@@ -840,24 +840,16 @@ export default function Dashboard() {
 
   if (!user) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-blue-600 to-indigo-700 flex items-center justify-center p-4">
+      <div className="min-h-screen flex items-center justify-center p-4" style={{background: '#F8FAFF'}}>
         <div className="bg-white rounded-lg shadow-2xl p-8 w-full max-w-md">
-          <h1 className="text-3xl font-bold text-gray-800 mb-2 text-center">İK Sistemi</h1>
+          <h1 className="text-3xl font-bold mb-6 text-center" style={{color: '#101318'}}>Mevcut</h1>
           
           {!showRegister ? (
             <>
               <div className="space-y-4">
-                <input type="email" placeholder="E-mail" value={loginData.email} onChange={(e) => setLoginData({ ...loginData, email: e.target.value })} onKeyPress={(e) => e.key === 'Enter' && handleLogin()} className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500" />
-                <button onClick={handleLogin} className="w-full px-6 py-3 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 font-semibold">Giriş Yap</button>
-                <button onClick={() => setShowRegister(true)} className="w-full px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 font-semibold">Kayıt Ol</button>
-                <div className="mt-6 pt-6 border-t text-xs text-gray-500">
-                  <p className="font-semibold mb-2">Demo Hesaplar:</p>
-                  <p>• admin@example.com (Admin)</p>
-                  <p>• sef@example.com (Şef)</p>
-                  <p>• fatma@example.com (Personel)</p>
-                  <p>• kiosk@example.com (Kiosk Terminal)</p>
-                  <p>• mehmet@example.com (Sistem Yöneticisi)</p>
-                </div>
+                <input type="email" placeholder="E-mail" value={loginData.email} onChange={(e) => setLoginData({ ...loginData, email: e.target.value })} onKeyPress={(e) => e.key === 'Enter' && handleLogin()} className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2" style={{borderColor: '#2042FF'}} />
+                <button onClick={handleLogin} className="w-full px-6 py-3 text-white rounded-lg font-semibold transition-colors" style={{backgroundColor: '#2042FF'}} onMouseEnter={(e) => e.target.style.backgroundColor = '#1632CC'} onMouseLeave={(e) => e.target.style.backgroundColor = '#2042FF'}>Giriş Yap</button>
+                <button onClick={() => setShowRegister(true)} className="w-full px-6 py-3 rounded-lg font-semibold transition-colors" style={{backgroundColor: '#A6FF3D', color: '#101318'}} onMouseEnter={(e) => e.target.style.backgroundColor = '#95E635'} onMouseLeave={(e) => e.target.style.backgroundColor = '#A6FF3D'}>Kayıt Ol</button>
               </div>
             </>
           ) : (
