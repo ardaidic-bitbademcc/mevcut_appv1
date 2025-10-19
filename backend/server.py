@@ -1325,12 +1325,12 @@ async def seed_initial_data():
     
     # Seed yemek ücretleri
     yemek_ucretleri = [
-        {"id": 1, "employee_id": 1, "gunluk_ucret": 150},
-        {"id": 2, "employee_id": 2, "gunluk_ucret": 150},
-        {"id": 3, "employee_id": 3, "gunluk_ucret": 180},
-        {"id": 4, "employee_id": 4, "gunluk_ucret": 150},
-        {"id": 5, "employee_id": 5, "gunluk_ucret": 180},
-        {"id": 6, "employee_id": 6, "gunluk_ucret": 202}
+        {"id": 1, "company_id": 1, "employee_id": 1, "gunluk_ucret": 150},
+        {"id": 2, "company_id": 1, "employee_id": 2, "gunluk_ucret": 150},
+        {"id": 3, "company_id": 1, "employee_id": 3, "gunluk_ucret": 180},
+        {"id": 4, "company_id": 1, "employee_id": 4, "gunluk_ucret": 150},
+        {"id": 5, "company_id": 1, "employee_id": 5, "gunluk_ucret": 180},
+        {"id": 6, "company_id": 1, "employee_id": 6, "gunluk_ucret": 202}
     ]
     await db.yemek_ucreti.insert_many(yemek_ucretleri)
     
