@@ -50,7 +50,7 @@ class Employee(BaseModel):
     employee_id: str  # 4-digit ID unique within company
 
 class EmployeeCreate(BaseModel):
-    company_id: int
+    company_id: Optional[int] = 1
     ad: str
     soyad: str
     pozisyon: str
@@ -118,7 +118,7 @@ class ShiftTypeCreate(BaseModel):
 class Attendance(BaseModel):
     model_config = ConfigDict(extra="ignore")
     id: int
-    company_id: int
+    company_id: Optional[int] = 1
     employee_id: str
     ad: str
     soyad: str
@@ -129,25 +129,25 @@ class Attendance(BaseModel):
     status: str
 
 class AttendanceCheckIn(BaseModel):
-    company_id: int
+    company_id: Optional[int] = 1
     employee_id: str
 
 class AttendanceCheckOut(BaseModel):
-    company_id: int
+    company_id: Optional[int] = 1
     employee_id: str
 
 # Leave Models
 class LeaveRecord(BaseModel):
     model_config = ConfigDict(extra="ignore")
     id: int
-    company_id: int
+    company_id: Optional[int] = 1
     employee_id: int
     tarih: str
     leave_type: str
     notlar: str
 
 class LeaveRecordCreate(BaseModel):
-    company_id: int
+    company_id: Optional[int] = 1
     employee_id: int
     tarih: str
     leave_type: str
@@ -157,13 +157,13 @@ class LeaveRecordCreate(BaseModel):
 class ShiftCalendar(BaseModel):
     model_config = ConfigDict(extra="ignore")
     id: int
-    company_id: int
+    company_id: Optional[int] = 1
     employee_id: int
     tarih: str
     shift_type: str
 
 class ShiftCalendarCreate(BaseModel):
-    company_id: int
+    company_id: Optional[int] = 1
     employee_id: int
     tarih: str
     shift_type: str
@@ -172,7 +172,7 @@ class ShiftCalendarCreate(BaseModel):
 class Task(BaseModel):
     model_config = ConfigDict(extra="ignore")
     id: int
-    company_id: int
+    company_id: Optional[int] = 1
     baslik: str
     aciklama: str
     atanan_personel_ids: List[int] = []  # Multiple assignment
@@ -187,7 +187,7 @@ class Task(BaseModel):
     tekrar_birim: Optional[str] = None  # gun, hafta, ay
 
 class TaskCreate(BaseModel):
-    company_id: int
+    company_id: Optional[int] = 1
     baslik: str
     aciklama: str
     atanan_personel_ids: List[int] = []  # Multiple assignment
@@ -200,12 +200,12 @@ class TaskCreate(BaseModel):
 class StokBirim(BaseModel):
     model_config = ConfigDict(extra="ignore")
     id: int
-    company_id: int
+    company_id: Optional[int] = 1
     ad: str  # kg, gram, adet, litre vs.
     kisaltma: str  # kg, gr, adet, lt
 
 class StokBirimCreate(BaseModel):
-    company_id: int
+    company_id: Optional[int] = 1
     ad: str
     kisaltma: str
 
@@ -213,12 +213,12 @@ class StokBirimCreate(BaseModel):
 class StokKategori(BaseModel):
     model_config = ConfigDict(extra="ignore")
     id: int
-    company_id: int
+    company_id: Optional[int] = 1
     ad: str  # içecek, malzeme, diğer, etc.
     renk: str  # hex color code for UI
 
 class StokKategoriCreate(BaseModel):
-    company_id: int
+    company_id: Optional[int] = 1
     ad: str
     renk: str = "#6B7280"  # default gray color
 
@@ -226,14 +226,14 @@ class StokKategoriCreate(BaseModel):
 class StokUrun(BaseModel):
     model_config = ConfigDict(extra="ignore")
     id: int
-    company_id: int
+    company_id: Optional[int] = 1
     ad: str
     birim_id: int
     kategori_id: int  # referans to stok_kategori
     min_stok: float  # minimum stok uyarı seviyesi
 
 class StokUrunCreate(BaseModel):
-    company_id: int
+    company_id: Optional[int] = 1
     ad: str
     birim_id: int
     kategori_id: int
@@ -243,7 +243,7 @@ class StokUrunCreate(BaseModel):
 class StokSayim(BaseModel):
     model_config = ConfigDict(extra="ignore")
     id: int
-    company_id: int
+    company_id: Optional[int] = 1
     urun_id: int
     miktar: float
     tarih: str
@@ -251,7 +251,7 @@ class StokSayim(BaseModel):
     notlar: str = ""
 
 class StokSayimCreate(BaseModel):
-    company_id: int
+    company_id: Optional[int] = 1
     urun_id: int
     miktar: float
     tarih: str
@@ -279,7 +279,7 @@ class SalaryRecord(BaseModel):
 class Avans(BaseModel):
     model_config = ConfigDict(extra="ignore")
     id: int
-    company_id: int
+    company_id: Optional[int] = 1
     employee_id: int
     miktar: float
     tarih: str
@@ -287,7 +287,7 @@ class Avans(BaseModel):
     olusturan_id: int
 
 class AvansCreate(BaseModel):
-    company_id: int
+    company_id: Optional[int] = 1
     employee_id: int
     miktar: float
     tarih: str
@@ -297,12 +297,12 @@ class AvansCreate(BaseModel):
 class YemekUcreti(BaseModel):
     model_config = ConfigDict(extra="ignore")
     id: int
-    company_id: int
+    company_id: Optional[int] = 1
     employee_id: int
     gunluk_ucret: float
 
 class YemekUcretiUpdate(BaseModel):
-    company_id: int
+    company_id: Optional[int] = 1
     gunluk_ucret: float
 
 # Login Models
