@@ -1337,9 +1337,9 @@ async def seed_initial_data():
     # Seed avans kayıtları (Arda için örnek)
     current_month = datetime.now(timezone.utc).date().isoformat()[:7]
     avans_list = [
-        {"id": 1, "employee_id": 6, "miktar": 5000, "tarih": f"{current_month}-05", "aciklama": "Kira ödemesi için avans", "olusturan_id": 1},
-        {"id": 2, "employee_id": 6, "miktar": 2000, "tarih": f"{current_month}-15", "aciklama": "Acil ihtiyaç", "olusturan_id": 1},
-        {"id": 3, "employee_id": 2, "miktar": 1500, "tarih": f"{current_month}-10", "aciklama": "Avans talebi", "olusturan_id": 1}
+        {"id": 1, "company_id": 1, "employee_id": 6, "miktar": 5000, "tarih": f"{current_month}-05", "aciklama": "Kira ödemesi için avans", "olusturan_id": 1},
+        {"id": 2, "company_id": 1, "employee_id": 6, "miktar": 2000, "tarih": f"{current_month}-15", "aciklama": "Acil ihtiyaç", "olusturan_id": 1},
+        {"id": 3, "company_id": 1, "employee_id": 2, "miktar": 1500, "tarih": f"{current_month}-10", "aciklama": "Avans talebi", "olusturan_id": 1}
     ]
     await db.avans.insert_many(avans_list)
     
