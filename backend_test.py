@@ -9,7 +9,7 @@ import json
 from datetime import datetime
 
 # Configuration
-BASE_URL = "https://staffsync-23.preview.emergentagent.com/api"
+BASE_URL = "https://company-pulse-10.preview.emergentagent.com/api"
 ADMIN_EMAIL = "admin@example.com"
 
 class StockManagementTester:
