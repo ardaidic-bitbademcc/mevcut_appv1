@@ -361,6 +361,7 @@ async def register(request: RegisterRequest):
         "soyad": request.soyad,
         "email": request.email,
         "employee_id": request.employee_id,
+                "company_id": 1,
         "pozisyon": "Belirlenmedi",  # Admin tarafından atanacak
         "maas_tabani": 0.0,  # Admin tarafından belirlenecek
         "rol": "personel"  # Varsayılan rol
