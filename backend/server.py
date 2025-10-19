@@ -40,7 +40,7 @@ class CompanyCreate(BaseModel):
 class Employee(BaseModel):
     model_config = ConfigDict(extra="ignore")
     id: int
-    company_id: int
+    company_id: Optional[int] = 1
     ad: str
     soyad: str
     pozisyon: str
