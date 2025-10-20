@@ -883,7 +883,7 @@ async def calculate_all_salaries(ay: str):
         saatlik_maas = gunluk_maas / 9  # 9 saat mesai
         
         # Calculate earned amount based on hours
-    hakedilen_maas = saatlik_maas * total_hours
+  hakedilen_maas = hakedilen_maas = saatlik_maas * total_hours
         
         # Get yemek ücreti
         yemek = await db.yemek_ucreti.find_one({"employee_id": employee["id"]})
