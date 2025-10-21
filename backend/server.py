@@ -826,25 +826,13 @@ async def create_or_update_yemek_ucreti(employee_id: int, gunluk_ucret: float):
 @api_router.get("/salary/{employee_id}/{ay}")
 async def calculate_salary(employee_id: int, ay: str):
     """Calculate salary for an employee for a specific month (YYYY-MM format)"""
-    # Get employee
-    employee = await db.employees.find_one({"id": employee_id})
-    if not employee:
-        raise HTTPException(status_code=404, detail="Personel bulunamadı")
-    
-    # Get attendance records for the month
-    year, month = ay.split("-")
-    attendance_records = await db.attendance.find({
-        "employee_id": employee["employee_id"],
-        "tarih": {"$regex": f"^{ay}"},
-        "status": "cikis"
-    }, {"_id": 0}).to_list(1000)
-    
+    # Get employee and attendance records
     total_hours = sum(record.get("calisilan_saat", 0) for record in attendance_records)
-    
-    # Simple calculation: base salary
+
+    #Çalışılan saate göre hesaplama
     temel_maas = employee.get("maas_tabani", 0)
     gunluk_maas = temel_maas / 30
-    saatlik_maas = gunluk_maas / 9  # 9 saat mesai
+    saatlik_maas = gunluk_maas / 9
     hakedilen_maas = saatlik_maas * total_hours
     toplam_maas = hakedilen_maas
     
@@ -867,23 +855,14 @@ async def calculate_all_salaries(ay: str):
     
     salary_records = []
     for employee in employees:
-        year, month = ay.split("-")
-        
-        # Get attendance records for the month
-        attendance_records = await db.attendance.find({
-            "employee_id": employee["employee_id"],
-            "tarih": {"$regex": f"^{ay}"},
-            "status": "cikis"
-        }, {"_id": 0}).to_list(1000)
-        
-        # Calculate total hours and days worked
         total_hours = sum(record.get("calisilan_saat", 0) for record in attendance_records)
         calisilan_gun = len(attendance_records)
         
         # Base calculations
         temel_maas = employee.get("maas_tabani", 0)
         gunluk_maas = temel_maas / 30
-        saatlik_maas = gunluk_maas / 9  # 9 saat mesai
+        saatlik_maas = gunluk_maas / 9 # 9 saat mesai
+        hakedilen_maas = saatlik_maas * total_hours
         
         # Calculate earned amount based on hours
       hakedilen_maas = saatlik_maas * total_hours
