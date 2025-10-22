@@ -341,7 +341,7 @@ export default function Dashboard() {
         employee_id: kioskEmployeeId 
       });
       const employeeName = typeof response.data.employee === 'string' ? response.data.employee : 'Personel';
-      setKioskMessage(`✅ Giriş Başarılı!\n${employeeName}\nID: ${kioskEmployeeId}`);
+      setKioskMessage(`🤮 Giriş Başarılı!\n${employeeName}\nID: ${kioskEmployeeId}`);
       setTimeout(() => { 
         setKioskMessage(''); 
         setKioskEmployeeId(''); 
