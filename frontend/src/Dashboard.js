@@ -281,7 +281,7 @@ export default function Dashboard() {
 
  const handleLogin = async () => {
   try {
-    const response = await axios.post(`${API}/login`, { email: loginData.email });
+    const response = await axios.post(`${API}/login`, { email: loginData.email, password: loginData.password});
     if (response.data.success) {
       setUser({ id: response.data.employee.id, email: response.data.employee.email });
       setEmployee(response.data.employee);
