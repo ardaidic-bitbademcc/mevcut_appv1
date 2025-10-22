@@ -281,22 +281,30 @@ export default function Dashboard() {
 
   const handleLogin = async () => {
     try {
-      const response = await axios.post(`${API}/login`, { email: loginData.email });
-      if (response.data.success) {
-        setUser({ id: response.data.employee.id, email: response.data.employee.email });
-        setEmployee(response.data.employee);
-        setCompanyId(response.data.employee.company_id);
-        setLoginData({ email: '' });
+      const { data } = await axios.post(`${API}/login`, { email: loginData.email });
+      if (data.success) {
+      setUser({ id: data.employee.id, email: data.employee.email });
+      setEmployee(data.employee);
+      setCompanyId(data.employee.company_id);
+      setLoginData({ email: '' });
         
         // If kiosk user, set activeTab to kiosk
-        if (response.data.employee.rol === 'kiosk') {
-          setActiveTab('kiosk');
-        }
+        if (data.employee.rol === 'kiosk') setActiveTab('kiosk');
       } else {
-        alert(response.data.message);
+        alert(`Giriş yapılamadı: ${data.message || 'Bilinmeyen hata'}`);
       }
     } catch (error) {
-      alert('Giriş yapılamadı: ' + (error.response?.data?.detail || error.message));
+      let msg;
+    if (error.response?.data?.message) {
+      msg = error.response.data.message;
+    } else if (error.response?.data?.detail) {
+      msg = error.response.data.detail;
+    } else if (typeof error.message === 'string') {
+      msg = error.message;
+    } else {
+      msg = JSON.stringify(error.message);
+    }
+      alert('Giriş yapılamadı: ${msg}');
     }
   };
 
