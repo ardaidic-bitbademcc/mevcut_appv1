@@ -31,6 +31,64 @@ logger = logging.getLogger(__name__)
 async def lifespan(app: FastAPI):
     # Startup
     logger.info("Starting up...")
+    
+    # Ensure admin user exists on startup
+    admin_user = await db.employees.find_one({"email": "admin@example.com"})
+    if not admin_user:
+        logger.warning("Admin user not found, creating default admin...")
+        # Create minimal admin setup
+        admin_role = await db.roles.find_one({"id": "admin"})
+        if not admin_role:
+            await db.roles.insert_one({
+                "id": "admin",
+                "name": "Yönetici",
+                "permissions": {
+                    "view_dashboard": True,
+                    "view_tasks": True,
+                    "assign_tasks": True,
+                    "rate_tasks": True,
+                    "manage_shifts": True,
+                    "manage_leave": True,
+                    "view_salary": True,
+                    "manage_roles": True,
+                    "manage_shifts_types": True,
+                    "edit_employees": True,
+                    "can_view_stock": True,
+                    "can_add_stock_unit": True,
+                    "can_delete_stock_unit": True,
+                    "can_add_stock_product": True,
+                    "can_edit_stock_product": True,
+                    "can_delete_stock_product": True,
+                    "can_perform_stock_count": True,
+                    "can_manage_categories": True
+                }
+            })
+        
+        company = await db.companies.find_one({"id": 1})
+        if not company:
+            await db.companies.insert_one({
+                "id": 1,
+                "name": "Demo Şirket",
+                "domain": "example.com",
+                "created_at": datetime.now(timezone.utc).isoformat()
+            })
+        
+        await db.employees.insert_one({
+            "id": 1,
+            "company_id": 1,
+            "ad": "Admin",
+            "soyad": "User",
+            "pozisyon": "Sistem Yöneticisi",
+            "maas_tabani": 50000,
+            "rol": "admin",
+            "email": "admin@example.com",
+            "employee_id": "1000",
+            "password": bcrypt.hashpw("admin123".encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
+        })
+        logger.info("Admin user created: admin@example.com / admin123")
+    else:
+        logger.info("Admin user found: admin@example.com")
+    
     yield
     # Shutdown
     logger.info("Shutting down...")
@@ -325,6 +383,20 @@ class AvansCreate(BaseModel):
     miktar: float
     aciklama: str = ""
 
+# Login Models
+class LoginRequest(BaseModel):
+    email: str
+    password: str
+
+class LoginResponse(BaseModel):
+    id: int
+    email: str
+    ad: str
+    soyad: str
+    rol: str
+    employee_id: str
+    company_id: int
+
 # ==================== HELPER FUNCTIONS ====================
 
 async def get_next_id(collection_name: str):
@@ -342,6 +414,52 @@ async def get_next_id(collection_name: str):
         return 1
 
 # ==================== ROUTES ====================
+
+# Health Check
+@app.get("/")
+async def root():
+    return {
+        "status": "ok",
+        "message": "API is running",
+        "admin_login": {
+            "email": "admin@example.com",
+            "password": "admin123",
+            "endpoint": "/api/login"
+        }
+    }
+
+# Login Route
+@api_router.post("/login", response_model=LoginResponse)
+async def login(login_data: LoginRequest):
+    # Find employee by email
+    employee = await db.employees.find_one({"email": login_data.email})
+    
+    if not employee:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid email or password"
+        )
+    
+    # Check password
+    if not bcrypt.checkpw(
+        login_data.password.encode('utf-8'),
+        employee.get("password", "").encode('utf-8')
+    ):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid email or password"
+        )
+    
+    # Return user data (without password)
+    return LoginResponse(
+        id=employee["id"],
+        email=employee["email"],
+        ad=employee["ad"],
+        soyad=employee["soyad"],
+        rol=employee["rol"],
+        employee_id=employee["employee_id"],
+        company_id=employee["company_id"]
+    )
 
 # Company Routes
 @api_router.get("/companies", response_model=List[Company])
@@ -588,6 +706,80 @@ async def rate_task(task_id: int, rating: int):
     
     return {"message": f"Task rated with {rating} stars"}
 
+# Admin check/create endpoint
+@api_router.post("/ensure-admin")
+async def ensure_admin():
+    """Ensure admin user exists with admin@example.com"""
+    # Check if admin exists
+    admin_user = await db.employees.find_one({"email": "admin@example.com"})
+    
+    if admin_user:
+        return {"message": "Admin user already exists", "email": "admin@example.com"}
+    
+    # Check if admin role exists
+    admin_role = await db.roles.find_one({"id": "admin"})
+    if not admin_role:
+        # Create admin role
+        admin_role = {
+            "id": "admin",
+            "name": "Yönetici",
+            "permissions": {
+                "view_dashboard": True,
+                "view_tasks": True,
+                "assign_tasks": True,
+                "rate_tasks": True,
+                "manage_shifts": True,
+                "manage_leave": True,
+                "view_salary": True,
+                "manage_roles": True,
+                "manage_shifts_types": True,
+                "edit_employees": True,
+                "can_view_stock": True,
+                "can_add_stock_unit": True,
+                "can_delete_stock_unit": True,
+                "can_add_stock_product": True,
+                "can_edit_stock_product": True,
+                "can_delete_stock_product": True,
+                "can_perform_stock_count": True,
+                "can_manage_categories": True
+            }
+        }
+        await db.roles.insert_one(admin_role)
+    
+    # Check if company exists
+    company = await db.companies.find_one({"id": 1})
+    if not company:
+        company = {
+            "id": 1,
+            "name": "Demo Şirket",
+            "domain": "example.com",
+            "created_at": datetime.now(timezone.utc).isoformat()
+        }
+        await db.companies.insert_one(company)
+    
+    # Create admin user
+    next_id = await get_next_id("employees")
+    admin_user = {
+        "id": next_id,
+        "company_id": 1,
+        "ad": "Admin",
+        "soyad": "User",
+        "pozisyon": "Sistem Yöneticisi",
+        "maas_tabani": 50000,
+        "rol": "admin",
+        "email": "admin@example.com",
+        "employee_id": "1000",
+        "password": bcrypt.hashpw("admin123".encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
+    }
+    await db.employees.insert_one(admin_user)
+    
+    return {
+        "message": "Admin user created successfully",
+        "email": "admin@example.com",
+        "password": "admin123",
+        "note": "Please change the password after first login"
+    }
+
 # Stok Routes
 @api_router.get("/stok/birimler", response_model=List[StokBirim])
 async def get_stok_birimleri(company_id: int = 1):
@@ -691,22 +883,29 @@ async def create_stok_sayim(sayim: StokSayimCreate):
 
 # Seed data endpoint
 @api_router.post("/seed-data")
-async def seed_data():
-    # Clear existing data
-    await db.companies.delete_many({})
-    await db.employees.delete_many({})
-    await db.roles.delete_many({})
-    await db.shift_types.delete_many({})
-    await db.attendance.delete_many({})
-    await db.leave_records.delete_many({})
-    await db.shift_calendar.delete_many({})
-    await db.tasks.delete_many({})
-    await db.yemek_ucreti.delete_many({})
-    await db.avans.delete_many({})
-    await db.stok_birim.delete_many({})
-    await db.stok_kategori.delete_many({})
-    await db.stok_urun.delete_many({})
-    await db.stok_sayim.delete_many({})
+async def seed_data(force: bool = False):
+    # Check if data already exists
+    existing_count = await db.employees.count_documents({})
+    
+    if existing_count > 0 and not force:
+        return {"message": "Data already exists. Use force=true to reset all data."}
+    
+    if force:
+        # Clear existing data only if forced
+        await db.companies.delete_many({})
+        await db.employees.delete_many({})
+        await db.roles.delete_many({})
+        await db.shift_types.delete_many({})
+        await db.attendance.delete_many({})
+        await db.leave_records.delete_many({})
+        await db.shift_calendar.delete_many({})
+        await db.tasks.delete_many({})
+        await db.yemek_ucreti.delete_many({})
+        await db.avans.delete_many({})
+        await db.stok_birim.delete_many({})
+        await db.stok_kategori.delete_many({})
+        await db.stok_urun.delete_many({})
+        await db.stok_sayim.delete_many({})
     
     # Seed companies
     companies = [
@@ -810,7 +1009,7 @@ async def seed_data():
             "pozisyon": "Sistem Yöneticisi",
             "maas_tabani": 50000,
             "rol": "admin",
-            "email": "admin@demo.com",
+            "email": "admin@example.com",
             "employee_id": "1000",
             "password": bcrypt.hashpw("admin123".encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
         },
