@@ -279,22 +279,23 @@ export default function Dashboard() {
     return userRole?.permissions || {};
   };
 
-  const handleLogin = async () => {
-    try {
-      const { data } = await axios.post(`${API}/login`, { email: loginData.email });
-      if (data.success) {
-      setUser({ id: data.employee.id, email: data.employee.email });
-      setEmployee(data.employee);
-      setCompanyId(data.employee.company_id);
+ const handleLogin = async () => {
+  try {
+    const response = await axios.post(`${API}/login`, { email: loginData.email });
+    if (response.data.success) {
+      setUser({ id: response.data.employee.id, email: response.data.employee.email });
+      setEmployee(response.data.employee);
+      setCompanyId(response.data.employee.company_id);
       setLoginData({ email: '' });
-        
-        // If kiosk user, set activeTab to kiosk
-        if (data.employee.rol === 'kiosk') setActiveTab('kiosk');
-      } else {
-        alert(`Giriş yapılamadı: ${data.message || 'Bilinmeyen hata'}`);
+      // Eğer kiosk rolündeyse, aktif sekmeyi kioska çevirin
+      if (response.data.employee.rol === 'kiosk') {
+        setActiveTab('kiosk');
       }
-    } catch (error) {
-      let msg;
+    } else {
+      alert(`Giriş yapılamadı: ${response.data.message || 'Bilinmeyen hata'}`);
+    }
+  } catch (error) {
+    let msg;
     if (error.response?.data?.message) {
       msg = error.response.data.message;
     } else if (error.response?.data?.detail) {
@@ -304,9 +305,10 @@ export default function Dashboard() {
     } else {
       msg = JSON.stringify(error.message);
     }
-      alert('Giriş yapılamadı: '+ msg);
-    }
-  };
+    alert('Giriş yapılamadı: ' + msg);
+  }
+};
+
 
   const handleRegister = async () => {
     if (!registerData.ad || !registerData.soyad || !registerData.email || !registerData.employee_id) {
