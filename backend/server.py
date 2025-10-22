@@ -385,8 +385,10 @@ class AvansCreate(BaseModel):
 
 # Login Models
 class LoginRequest(BaseModel):
-    email: str
+    email: Optional[str] = None
+    employee_id: Optional[str] = None
     password: str
+    company_id: Optional[int] = 1
 
 class LoginResponse(BaseModel):
     id: int
@@ -396,6 +398,7 @@ class LoginResponse(BaseModel):
     rol: str
     employee_id: str
     company_id: int
+    pozisyon: str
 
 # ==================== HELPER FUNCTIONS ====================
 
@@ -421,45 +424,280 @@ async def root():
     return {
         "status": "ok",
         "message": "API is running",
-        "admin_login": {
-            "email": "admin@example.com",
-            "password": "admin123",
-            "endpoint": "/api/login"
-        }
+        "login_methods": {
+            "method_1_email": {
+                "endpoint": "/api/login",
+                "email": "admin@example.com",
+                "password": "admin123"
+            },
+            "method_2_employee_id": {
+                "endpoint": "/api/login",
+                "employee_id": "1000",
+                "password": "admin123",
+                "company_id": 1
+            },
+            "method_3_pin": {
+                "endpoint": "/api/pin-login",
+                "employee_id": "1000",
+                "pin": "1234",
+                "note": "Admin PIN: 1234, Arda PIN: 2024, Others: use employee_id as PIN"
+            }
+        },
+        "test_users": {
+            "admin": {"employee_id": "1000", "pin": "1234", "password": "admin123"},
+            "arda": {"employee_id": "2001", "pin": "2024", "password": "arda2024"}
+        },
+        "test_endpoints": [
+            "/api/test-login",
+            "/api/login-test?employee_id=1000&password=admin123",
+            "/api/check-user/1000",
+            "/api/ensure-admin"
+        ]
+    }
+
+# Test login endpoint
+@api_router.get("/test-login")
+async def test_login():
+    """Test endpoint to check available users"""
+    users = await db.employees.find({}, {"password": 0}).to_list(None)
+    return {
+        "total_users": len(users),
+        "users": [
+            {
+                "id": u.get("id"),
+                "employee_id": u.get("employee_id"),
+                "email": u.get("email"),
+                "name": f"{u.get('ad')} {u.get('soyad')}",
+                "rol": u.get("rol"),
+                "has_password": bool(u.get("password"))
+            }
+            for u in users
+        ],
+        "login_info": "Use /api/login with employee_id or email + password"
     }
 
 # Login Route
 @api_router.post("/login", response_model=LoginResponse)
 async def login(login_data: LoginRequest):
-    # Find employee by email
-    employee = await db.employees.find_one({"email": login_data.email})
+    logger.info(f"Login attempt with data: email={login_data.email}, employee_id={login_data.employee_id}, company_id={login_data.company_id}")
+    
+    # Find employee by email or employee_id
+    if login_data.email:
+        employee = await db.employees.find_one({"email": login_data.email})
+        logger.info(f"Searching by email: {login_data.email}, Found: {employee is not None}")
+    elif login_data.employee_id:
+        employee = await db.employees.find_one({
+            "employee_id": login_data.employee_id,
+            "company_id": login_data.company_id
+        })
+        logger.info(f"Searching by employee_id: {login_data.employee_id}, Found: {employee is not None}")
+    else:
+        logger.warning("No email or employee_id provided")
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Email or employee_id required"
+        )
     
     if not employee:
+        logger.error(f"Employee not found for: {login_data.email or login_data.employee_id}")
+        # Try to help debug - check if employee exists without company_id filter
+        if login_data.employee_id:
+            any_employee = await db.employees.find_one({"employee_id": login_data.employee_id})
+            if any_employee:
+                logger.info(f"Found employee with different company_id: {any_employee.get('company_id')}")
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid email or password"
+            detail="User not found"
         )
     
-    # Check password
-    if not bcrypt.checkpw(
-        login_data.password.encode('utf-8'),
-        employee.get("password", "").encode('utf-8')
-    ):
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid email or password"
+    # Check if password field exists, if not check with default password
+    stored_password = employee.get("password")
+    
+    if stored_password:
+        # Check hashed password
+        password_match = bcrypt.checkpw(
+            login_data.password.encode('utf-8'),
+            stored_password.encode('utf-8')
         )
+        if not password_match:
+            logger.error(f"Password mismatch for user: {employee.get('employee_id')}")
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Invalid password"
+            )
+    else:
+        # For backward compatibility - check plain password or set default
+        logger.warning(f"User {employee.get('employee_id')} has no hashed password, checking defaults")
+        default_passwords = {
+            "1000": "admin123",
+            "1001": "mehmet123",
+            "1002": "zeynep123",
+            "1003": "ayse123",
+            "1004": "ali123",
+            "2001": "arda2024"
+        }
+        
+        expected_password = default_passwords.get(employee.get("employee_id"), f"user{employee.get('employee_id')}")
+        
+        if login_data.password != expected_password:
+            logger.error(f"Default password mismatch for user: {employee.get('employee_id')}")
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail=f"Invalid password (expected default: {expected_password})"
+            )
+    
+    logger.info(f"Login successful for: {employee.get('employee_id')}")
     
     # Return user data (without password)
     return LoginResponse(
         id=employee["id"],
-        email=employee["email"],
+        email=employee.get("email", f"{employee['employee_id']}@example.com"),
         ad=employee["ad"],
         soyad=employee["soyad"],
         rol=employee["rol"],
         employee_id=employee["employee_id"],
-        company_id=employee["company_id"]
+        company_id=employee["company_id"],
+        pozisyon=employee.get("pozisyon", "")
     )
+
+# Alternative login endpoint for backward compatibility
+@api_router.post("/auth/login")
+async def auth_login(request: dict):
+    """Alternative login endpoint that accepts any JSON structure"""
+    logger.info(f"Auth login attempt with data: {request}")
+    
+    # Try to extract credentials from various formats
+    employee_id = request.get("employee_id") or request.get("employeeId") or request.get("username")
+    password = request.get("password") or request.get("pin") or ""
+    company_id = request.get("company_id") or request.get("companyId") or 1
+    email = request.get("email")
+    
+    # Convert to LoginRequest format
+    login_data = LoginRequest(
+        email=email,
+        employee_id=employee_id,
+        password=password,
+        company_id=company_id
+    )
+    
+    try:
+        result = await login(login_data)
+        return result
+    except HTTPException as e:
+        # Return error in a more frontend-friendly format
+        logger.error(f"Login failed: {e.detail}")
+        raise HTTPException(
+            status_code=e.status_code,
+            detail={"error": e.detail, "message": e.detail}
+        )
+
+# Test login with GET (for debugging)
+@api_router.get("/login-test")
+async def login_test(employee_id: str = "1000", password: str = "admin123"):
+    """Test login endpoint with GET method"""
+    login_data = LoginRequest(
+        employee_id=employee_id,
+        password=password,
+        company_id=1
+    )
+    
+    try:
+        result = await login(login_data)
+        return {
+            "success": True,
+            "data": result,
+            "message": "Login successful"
+        }
+    except HTTPException as e:
+        return {
+            "success": False,
+            "error": e.detail,
+            "message": "Login failed",
+            "help": "Try: /api/login-test?employee_id=1000&password=admin123"
+        }
+
+# Check if user exists
+@api_router.get("/check-user/{employee_id}")
+async def check_user(employee_id: str):
+    """Check if a user exists with given employee_id"""
+    employee = await db.employees.find_one({"employee_id": employee_id})
+    
+    if employee:
+        return {
+            "exists": True,
+            "employee_id": employee.get("employee_id"),
+            "name": f"{employee.get('ad')} {employee.get('soyad')}",
+            "email": employee.get("email"),
+            "has_password": bool(employee.get("password")),
+            "company_id": employee.get("company_id"),
+            "rol": employee.get("rol")
+        }
+    else:
+        # Check if ANY employee exists in database
+        any_employee = await db.employees.find_one({})
+        total_count = await db.employees.count_documents({})
+        
+        return {
+            "exists": False,
+            "employee_id": employee_id,
+            "message": f"User not found. Total users in database: {total_count}",
+            "hint": "Try employee_id: 1000 for admin or run /api/ensure-admin"
+        }
+
+# Simple PIN login for backward compatibility
+@api_router.post("/pin-login")
+async def pin_login(data: dict):
+    """Simple PIN-based login for backward compatibility"""
+    employee_id = data.get("employee_id", "")
+    pin = data.get("pin", "")
+    
+    logger.info(f"PIN login attempt: employee_id={employee_id}")
+    
+    # For simple PIN login, use employee_id as both username and password
+    # Or use predefined PINs
+    predefined_pins = {
+        "1000": "1234",  # Admin
+        "2001": "2024",  # Arda
+        "1001": "1001",  # Others use their ID as PIN
+        "1002": "1002",
+        "1003": "1003",
+        "1004": "1004"
+    }
+    
+    employee = await db.employees.find_one({"employee_id": employee_id})
+    
+    if not employee:
+        logger.error(f"Employee not found: {employee_id}")
+        return {
+            "success": False,
+            "message": "Kullanıcı bulunamadı"
+        }
+    
+    # Check PIN
+    expected_pin = predefined_pins.get(employee_id, employee_id)
+    
+    if pin != expected_pin:
+        logger.error(f"Invalid PIN for {employee_id}: got {pin}, expected {expected_pin}")
+        return {
+            "success": False,
+            "message": "Geçersiz PIN"
+        }
+    
+    # Return user data
+    return {
+        "success": True,
+        "user": {
+            "id": employee["id"],
+            "employee_id": employee["employee_id"],
+            "ad": employee["ad"],
+            "soyad": employee["soyad"],
+            "rol": employee["rol"],
+            "email": employee.get("email", f"{employee['employee_id']}@example.com"),
+            "company_id": employee.get("company_id", 1),
+            "pozisyon": employee.get("pozisyon", "")
+        },
+        "message": "Giriş başarılı"
+    }
 
 # Company Routes
 @api_router.get("/companies", response_model=List[Company])
@@ -778,6 +1016,52 @@ async def ensure_admin():
         "email": "admin@example.com",
         "password": "admin123",
         "note": "Please change the password after first login"
+    }
+
+# Migration endpoint - Add passwords to existing users
+@api_router.post("/migrate-passwords")
+async def migrate_passwords():
+    """Add default passwords to existing users without passwords"""
+    updated_count = 0
+    
+    # Default passwords for known users
+    default_passwords = {
+        "1000": "admin123",
+        "1001": "mehmet123",
+        "1002": "zeynep123",
+        "1003": "ayse123", 
+        "1004": "ali123",
+        "2001": "arda2024"
+    }
+    
+    # Get all employees
+    employees = await db.employees.find({}).to_list(None)
+    
+    for employee in employees:
+        if not employee.get("password"):
+            employee_id = employee.get("employee_id")
+            # Use default password based on employee_id or generate one
+            if employee_id in default_passwords:
+                password = default_passwords[employee_id]
+            else:
+                password = f"user{employee_id}"
+            
+            hashed_password = bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
+            
+            await db.employees.update_one(
+                {"id": employee["id"]},
+                {"$set": {"password": hashed_password}}
+            )
+            updated_count += 1
+            logger.info(f"Password set for {employee['ad']} {employee['soyad']} (ID: {employee_id})")
+    
+    return {
+        "message": f"Passwords updated for {updated_count} users",
+        "default_passwords": {
+            "admin (1000)": "admin123",
+            "arda (2001)": "arda2024",
+            "others": "Check logs or use default pattern"
+        }
     }
 
 # Stok Routes
