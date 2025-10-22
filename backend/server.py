@@ -387,7 +387,7 @@ class AvansCreate(BaseModel):
 class LoginRequest(BaseModel):
     email: Optional[str] = None
     employee_id: Optional[str] = None
-    password: str
+    password: str = None
     company_id: Optional[int] = 1
 
 class LoginResponse(BaseModel):
