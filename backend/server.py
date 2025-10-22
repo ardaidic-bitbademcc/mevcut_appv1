@@ -9,6 +9,7 @@ from pydantic import BaseModel, Field, ConfigDict
 from typing import List, Optional, Dict
 from datetime import datetime, timezone, timedelta
 import bcrypt
+from contextlib import asynccontextmanager
 
 ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / '.env')
@@ -18,8 +19,36 @@ mongo_url = os.environ['MONGO_URL']
 client = AsyncIOMotorClient(mongo_url)
 db = client[os.environ['DB_NAME']]
 
-# Create the main app
-app = FastAPI()
+# Configure logging
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+)
+logger = logging.getLogger(__name__)
+
+# Lifespan context manager for proper shutdown
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # Startup
+    logger.info("Starting up...")
+    yield
+    # Shutdown
+    logger.info("Shutting down...")
+    client.close()
+
+# Create the main app with lifespan
+app = FastAPI(lifespan=lifespan)
+
+# CORS middleware MUST be added BEFORE routers
+app.add_middleware(
+    CORSMiddleware,
+    allow_credentials=True,
+    allow_origins=os.environ.get('CORS_ORIGINS', '*').split(','),
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+# Create router after middleware
 api_router = APIRouter(prefix="/api")
 
 # ==================== MODELS ====================
@@ -215,12 +244,12 @@ class StokKategori(BaseModel):
     id: int
     company_id: Optional[int] = 1
     ad: str  # içecek, malzeme, diğer, etc.
-    renk: str  # hex color code for UI
+    renk: str  # Hex color code
 
 class StokKategoriCreate(BaseModel):
     company_id: Optional[int] = 1
     ad: str
-    renk: str = "#6B7280"  # default gray color
+    renk: str
 
 # Stok Ürün Models
 class StokUrun(BaseModel):
@@ -228,52 +257,56 @@ class StokUrun(BaseModel):
     id: int
     company_id: Optional[int] = 1
     ad: str
-    birim_id: int
-    kategori_id: int  # referans to stok_kategori
-    min_stok: float  # minimum stok uyarı seviyesi
+    birim_id: int  # Stok birimi ID'si
+    kategori_id: int  # Kategori ID'si
+    min_stok: float  # Minimum stok miktarı
 
 class StokUrunCreate(BaseModel):
     company_id: Optional[int] = 1
     ad: str
     birim_id: int
     kategori_id: int
-    min_stok: float = 0
+    min_stok: float = 0.0
+
+class StokUrunUpdate(BaseModel):
+    ad: Optional[str] = None
+    birim_id: Optional[int] = None
+    kategori_id: Optional[int] = None
+    min_stok: Optional[float] = None
 
 # Stok Sayım Models
 class StokSayim(BaseModel):
     model_config = ConfigDict(extra="ignore")
     id: int
     company_id: Optional[int] = 1
-    urun_id: int
-    miktar: float
-    tarih: str
-    sayim_yapan_id: int
-    notlar: str = ""
+    urun_id: int  # Ürün ID'si
+    miktar: float  # Sayılan miktar
+    tarih: str  # Sayım tarihi
+    sayim_yapan_id: int  # Sayımı yapan kişi
+    notlar: Optional[str] = None
 
 class StokSayimCreate(BaseModel):
     company_id: Optional[int] = 1
     urun_id: int
     miktar: float
-    tarih: str
-    notlar: str = ""
+    sayim_yapan_id: int
+    notlar: Optional[str] = None
 
-class TaskUpdate(BaseModel):
-    baslik: Optional[str] = None
-    aciklama: Optional[str] = None
-    atanan_personel_ids: Optional[List[int]] = None
-    durum: Optional[str] = None
-    puan: Optional[int] = None
-
-# Salary Models
-class SalaryRecord(BaseModel):
+# Yemek Ücreti Models
+class YemekUcreti(BaseModel):
     model_config = ConfigDict(extra="ignore")
     id: int
+    company_id: Optional[int] = 1
     employee_id: int
-    ay: str  # YYYY-MM format
-    temel_maas: float
-    calisilan_saat: float
-    toplam_maas: float
-    hesaplama_tarihi: str
+    gunluk_ucret: float
+
+class YemekUcretiCreate(BaseModel):
+    company_id: Optional[int] = 1
+    employee_id: int
+    gunluk_ucret: float
+
+class YemekUcretiUpdate(BaseModel):
+    gunluk_ucret: float
 
 # Avans Models
 class Avans(BaseModel):
@@ -290,230 +323,163 @@ class AvansCreate(BaseModel):
     company_id: Optional[int] = 1
     employee_id: int
     miktar: float
-    tarih: str
     aciklama: str = ""
-
-# Yemek Ücreti Models
-class YemekUcreti(BaseModel):
-    model_config = ConfigDict(extra="ignore")
-    id: int
-    company_id: Optional[int] = 1
-    employee_id: int
-    gunluk_ucret: float
-
-class YemekUcretiUpdate(BaseModel):
-    company_id: Optional[int] = 1
-    gunluk_ucret: float
-
-# Login Models
-class LoginRequest(BaseModel):
-    email: str
-
-class LoginResponse(BaseModel):
-    success: bool
-    employee: Optional[Employee] = None
-    message: str = ""
-
-# Register Models
-class RegisterRequest(BaseModel):
-    ad: str
-    soyad: str
-    email: str
-    employee_id: str
 
 # ==================== HELPER FUNCTIONS ====================
 
-async def get_next_id(collection_name: str) -> int:
-    """Generate next ID for a collection"""
-    result = await db[collection_name].find_one(sort=[("id", -1)])
-    return (result["id"] + 1) if result else 1
+async def get_next_id(collection_name: str):
+    """Get the next available ID for a collection"""
+    try:
+        # Find the document with the highest ID
+        result = await db[collection_name].find_one(
+            sort=[("id", -1)]
+        )
+        if result and "id" in result:
+            return result["id"] + 1
+        return 1
+    except Exception as e:
+        logger.error(f"Error getting next ID for {collection_name}: {e}")
+        return 1
 
-# ==================== AUTHENTICATION ROUTES ====================
+# ==================== ROUTES ====================
 
-@api_router.post("/login", response_model=LoginResponse)
-async def login(request: LoginRequest):
-    employee = await db.employees.find_one({"email": request.email}, {"_id": 0})
-    if employee:
-        return LoginResponse(success=True, employee=Employee(**employee))
-    return LoginResponse(success=False, message="Kullanıcı bulunamadı")
+# Company Routes
+@api_router.get("/companies", response_model=List[Company])
+async def get_companies():
+    companies = await db.companies.find().to_list(None)
+    return companies
 
-@api_router.post("/register", response_model=LoginResponse)
-async def register(request: RegisterRequest):
-    # Check if email already exists
-    existing_email = await db.employees.find_one({"email": request.email})
-    if existing_email:
-        raise HTTPException(status_code=400, detail="Bu e-mail zaten kullanılıyor")
-    
-    # Check if employee_id already exists
-    existing_id = await db.employees.find_one({"employee_id": request.employee_id})
-    if existing_id:
-        raise HTTPException(status_code=400, detail="Bu personel ID zaten kullanılıyor")
-    
-    # Validate employee_id (4 digits)
-    if len(request.employee_id) != 4 or not request.employee_id.isdigit():
-        raise HTTPException(status_code=400, detail="Personel ID 4 haneli rakam olmalıdır")
-    
-    # Create new employee with default values
-    new_id = await get_next_id("employees")
-    employee_dict = {
-        "id": new_id,
-        "ad": request.ad,
-        "soyad": request.soyad,
-        "email": request.email,
-        "employee_id": request.employee_id,
-                "company_id": 1,
-        "pozisyon": "Belirlenmedi",  # Admin tarafından atanacak
-        "maas_tabani": 0.0,  # Admin tarafından belirlenecek
-        "rol": "personel"  # Varsayılan rol
+@api_router.post("/companies", response_model=Company)
+async def create_company(company: CompanyCreate):
+    next_id = await get_next_id("companies")
+    new_company = {
+        "id": next_id,
+        "name": company.name,
+        "domain": company.domain,
+        "created_at": datetime.now(timezone.utc).isoformat()
     }
-    
-    await db.employees.insert_one(employee_dict)
-    new_employee = Employee(**employee_dict)
-    
-    return LoginResponse(success=True, employee=new_employee, message="Kayıt başarılı")
+    await db.companies.insert_one(new_company)
+    return new_company
 
-# ==================== EMPLOYEE ROUTES ====================
-
+# Employee Routes
 @api_router.get("/employees", response_model=List[Employee])
-async def get_employees():
-    employees = await db.employees.find({}, {"_id": 0}).to_list(1000)
+async def get_employees(company_id: int = 1):
+    employees = await db.employees.find({"company_id": company_id}).to_list(None)
     return employees
-
-@api_router.get("/employees/{employee_id}", response_model=Employee)
-async def get_employee(employee_id: int):
-    employee = await db.employees.find_one({"id": employee_id}, {"_id": 0})
-    if not employee:
-        raise HTTPException(status_code=404, detail="Personel bulunamadı")
-    return employee
 
 @api_router.post("/employees", response_model=Employee)
 async def create_employee(employee: EmployeeCreate):
-    # Check if employee_id already exists
-    existing = await db.employees.find_one({"employee_id": employee.employee_id})
-    if existing:
-        raise HTTPException(status_code=400, detail="Bu personel ID zaten kullanılıyor")
-    
-    # Check if email already exists
-    existing_email = await db.employees.find_one({"email": employee.email})
-    if existing_email:
-        raise HTTPException(status_code=400, detail="Bu e-mail zaten kullanılıyor")
-    
-    new_id = await get_next_id("employees")
-    employee_dict = employee.model_dump()
-    employee_dict["id"] = new_id
-    
-    await db.employees.insert_one(employee_dict)
-    return Employee(**employee_dict)
+    next_id = await get_next_id("employees")
+    new_employee = {
+        "id": next_id,
+        **employee.dict()
+    }
+    await db.employees.insert_one(new_employee)
+    return new_employee
 
 @api_router.put("/employees/{employee_id}", response_model=Employee)
 async def update_employee(employee_id: int, employee_update: EmployeeUpdate):
-    existing = await db.employees.find_one({"id": employee_id})
-    if not existing:
-        raise HTTPException(status_code=404, detail="Personel bulunamadı")
+    update_data = {k: v for k, v in employee_update.dict().items() if v is not None}
+    if not update_data:
+        raise HTTPException(status_code=400, detail="No fields to update")
     
-    update_data = {k: v for k, v in employee_update.model_dump().items() if v is not None}
+    result = await db.employees.update_one(
+        {"id": employee_id},
+        {"$set": update_data}
+    )
     
-    # Check if new employee_id conflicts
-    if "employee_id" in update_data:
-        conflict = await db.employees.find_one({
-            "employee_id": update_data["employee_id"],
-            "id": {"$ne": employee_id}
-        })
-        if conflict:
-            raise HTTPException(status_code=400, detail="Bu personel ID zaten kullanılıyor")
+    if result.modified_count == 0:
+        raise HTTPException(status_code=404, detail="Employee not found")
     
-    if update_data:
-        await db.employees.update_one({"id": employee_id}, {"$set": update_data})
-    
-    updated = await db.employees.find_one({"id": employee_id}, {"_id": 0})
-    return Employee(**updated)
+    updated_employee = await db.employees.find_one({"id": employee_id})
+    return updated_employee
 
 @api_router.delete("/employees/{employee_id}")
 async def delete_employee(employee_id: int):
     result = await db.employees.delete_one({"id": employee_id})
     if result.deleted_count == 0:
-        raise HTTPException(status_code=404, detail="Personel bulunamadı")
-    return {"message": "Personel silindi"}
+        raise HTTPException(status_code=404, detail="Employee not found")
+    return {"message": "Employee deleted successfully"}
 
-# ==================== ROLE ROUTES ====================
-
+# Role Routes
 @api_router.get("/roles", response_model=List[Role])
 async def get_roles():
-    roles = await db.roles.find({}, {"_id": 0}).to_list(100)
+    roles = await db.roles.find().to_list(None)
     return roles
 
 @api_router.put("/roles/{role_id}", response_model=Role)
 async def update_role(role_id: str, role_update: RoleUpdate):
-    existing = await db.roles.find_one({"id": role_id})
-    if not existing:
-        raise HTTPException(status_code=404, detail="Rol bulunamadı")
-    
-    await db.roles.update_one(
+    result = await db.roles.update_one(
         {"id": role_id},
-        {"$set": {"permissions": role_update.permissions.model_dump()}}
+        {"$set": {"permissions": role_update.permissions.dict()}}
     )
+    if result.modified_count == 0:
+        raise HTTPException(status_code=404, detail="Role not found")
     
-    updated = await db.roles.find_one({"id": role_id}, {"_id": 0})
-    return Role(**updated)
+    updated_role = await db.roles.find_one({"id": role_id})
+    return updated_role
 
-# ==================== SHIFT TYPE ROUTES ====================
-
+# Shift Type Routes
 @api_router.get("/shift-types", response_model=List[ShiftType])
 async def get_shift_types():
-    shift_types = await db.shift_types.find({}, {"_id": 0}).to_list(100)
+    shift_types = await db.shift_types.find().to_list(None)
     return shift_types
 
 @api_router.post("/shift-types", response_model=ShiftType)
 async def create_shift_type(shift_type: ShiftTypeCreate):
-    shift_id = f"shift_{int(datetime.now(timezone.utc).timestamp() * 1000)}"
-    shift_dict = shift_type.model_dump()
-    shift_dict["id"] = shift_id
-    
-    await db.shift_types.insert_one(shift_dict)
-    return ShiftType(**shift_dict)
+    import uuid
+    new_shift_type = {
+        "id": str(uuid.uuid4()),
+        **shift_type.dict()
+    }
+    await db.shift_types.insert_one(new_shift_type)
+    return new_shift_type
 
 @api_router.delete("/shift-types/{shift_type_id}")
 async def delete_shift_type(shift_type_id: str):
-    # Check if shift type is in use
-    in_use = await db.shift_calendar.find_one({"shift_type": shift_type_id})
-    if in_use:
-        raise HTTPException(status_code=400, detail="Bu vardiya türünde atanmış vardiyalar var")
-    
     result = await db.shift_types.delete_one({"id": shift_type_id})
     if result.deleted_count == 0:
-        raise HTTPException(status_code=404, detail="Vardiya türü bulunamadı")
-    return {"message": "Vardiya türü silindi"}
+        raise HTTPException(status_code=404, detail="Shift type not found")
+    return {"message": "Shift type deleted successfully"}
 
-# ==================== ATTENDANCE ROUTES ====================
-
+# Attendance Routes
 @api_router.get("/attendance", response_model=List[Attendance])
-async def get_attendance():
-    attendance = await db.attendance.find({}, {"_id": 0}).sort("id", -1).to_list(1000)
+async def get_attendance(company_id: int = 1, date: Optional[str] = None):
+    query = {"company_id": company_id}
+    if date:
+        query["tarih"] = date
+    attendance = await db.attendance.find(query).to_list(None)
     return attendance
 
 @api_router.post("/attendance/check-in")
-async def check_in(request: AttendanceCheckIn):
+async def check_in(check_in_data: AttendanceCheckIn):
     # Find employee
-    employee = await db.employees.find_one({"employee_id": request.employee_id})
+    employee = await db.employees.find_one({
+        "company_id": check_in_data.company_id,
+        "employee_id": check_in_data.employee_id
+    })
+    
     if not employee:
-        raise HTTPException(status_code=404, detail="Personel bulunamadı")
+        raise HTTPException(status_code=404, detail="Employee not found")
     
     today = datetime.now(timezone.utc).date().isoformat()
     
     # Check if already checked in today
     existing = await db.attendance.find_one({
-        "employee_id": request.employee_id,
-        "tarih": today,
-        "cikis_saati": None
+        "company_id": check_in_data.company_id,
+        "employee_id": check_in_data.employee_id,
+        "tarih": today
     })
     
     if existing:
-        raise HTTPException(status_code=400, detail="Zaten giriş yapılmış")
+        raise HTTPException(status_code=400, detail="Already checked in today")
     
-    new_id = await get_next_id("attendance")
+    # Create attendance record
+    next_id = await get_next_id("attendance")
     attendance_record = {
-        "id": new_id,
-        "employee_id": request.employee_id,
+        "id": next_id,
+        "company_id": check_in_data.company_id,
+        "employee_id": check_in_data.employee_id,
         "ad": employee["ad"],
         "soyad": employee["soyad"],
         "tarih": today,
@@ -524,534 +490,208 @@ async def check_in(request: AttendanceCheckIn):
     }
     
     await db.attendance.insert_one(attendance_record)
-    return {"message": "Giriş başarılı", "employee": f"{employee['ad']} {employee['soyad']}"}
+    return {"message": "Check-in successful", "time": attendance_record["giris_saati"]}
 
 @api_router.post("/attendance/check-out")
-async def check_out(request: AttendanceCheckOut):
-    # Find employee
-    employee = await db.employees.find_one({"employee_id": request.employee_id})
-    if not employee:
-        raise HTTPException(status_code=404, detail="Personel bulunamadı")
+async def check_out(check_out_data: AttendanceCheckOut):
+    today = datetime.now(timezone.utc).date().isoformat()
     
-    # Find last check-in without check-out
-    last_checkin = await db.attendance.find_one({
-        "employee_id": request.employee_id,
-        "cikis_saati": None
+    # Find today's attendance record
+    attendance = await db.attendance.find_one({
+        "company_id": check_out_data.company_id,
+        "employee_id": check_out_data.employee_id,
+        "tarih": today,
+        "status": "giris"
     })
     
-    if not last_checkin:
-        raise HTTPException(status_code=400, detail="Giriş kaydı bulunamadı")
+    if not attendance:
+        raise HTTPException(status_code=404, detail="No check-in found for today")
     
-    now = datetime.now(timezone.utc)
-    giris = datetime.fromisoformat(last_checkin["giris_saati"])
-    calisilan_saat = (now - giris).total_seconds() / 3600
+    # Calculate worked hours
+    check_out_time = datetime.now(timezone.utc)
+    check_in_time = datetime.fromisoformat(attendance["giris_saati"])
+    worked_hours = (check_out_time - check_in_time).total_seconds() / 3600
     
+    # Update attendance record
     await db.attendance.update_one(
-        {"id": last_checkin["id"]},
-        {"$set": {
-            "cikis_saati": now.isoformat(),
-            "calisilan_saat": round(calisilan_saat, 2),
-            "status": "cikis"
-        }}
+        {"id": attendance["id"]},
+        {
+            "$set": {
+                "cikis_saati": check_out_time.isoformat(),
+                "calisilan_saat": round(worked_hours, 2),
+                "status": "cikis"
+            }
+        }
     )
     
     return {
-        "message": "Çıkış başarılı",
-        "employee": f"{employee['ad']} {employee['soyad']}",
-        "calisilan_saat": round(calisilan_saat, 2)
+        "message": "Check-out successful",
+        "time": check_out_time.isoformat(),
+        "worked_hours": round(worked_hours, 2)
     }
 
-# ==================== LEAVE ROUTES ====================
-
-@api_router.get("/leave-records", response_model=List[LeaveRecord])
-async def get_leave_records():
-    records = await db.leave_records.find({}, {"_id": 0}).to_list(1000)
-    return records
-
-@api_router.post("/leave-records", response_model=LeaveRecord)
-async def create_leave_record(leave: LeaveRecordCreate):
-    new_id = await get_next_id("leave_records")
-    leave_dict = leave.model_dump()
-    leave_dict["id"] = new_id
-    
-    await db.leave_records.insert_one(leave_dict)
-    return LeaveRecord(**leave_dict)
-
-@api_router.delete("/leave-records/{leave_id}")
-async def delete_leave_record(leave_id: int):
-    result = await db.leave_records.delete_one({"id": leave_id})
-    if result.deleted_count == 0:
-        raise HTTPException(status_code=404, detail="İzin kaydı bulunamadı")
-    return {"message": "İzin kaydı silindi"}
-
-# ==================== SHIFT CALENDAR ROUTES ====================
-
-@api_router.get("/shift-calendar", response_model=List[ShiftCalendar])
-async def get_shift_calendar():
-    calendar = await db.shift_calendar.find({}, {"_id": 0}).to_list(1000)
-    return calendar
-
-@api_router.post("/shift-calendar", response_model=ShiftCalendar)
-async def create_shift_assignment(shift: ShiftCalendarCreate):
-    # Check if shift already exists for this employee on this date
-    existing = await db.shift_calendar.find_one({
-        "employee_id": shift.employee_id,
-        "tarih": shift.tarih
-    })
-    
-    if existing:
-        raise HTTPException(status_code=400, detail="Bu tarihte zaten bir vardiya atanmış")
-    
-    new_id = await get_next_id("shift_calendar")
-    shift_dict = shift.model_dump()
-    shift_dict["id"] = new_id
-    
-    await db.shift_calendar.insert_one(shift_dict)
-    return ShiftCalendar(**shift_dict)
-
-@api_router.get("/shift-calendar/weekly/{employee_id}")
-async def get_weekly_shift_calendar(employee_id: int, start_date: str):
-    """Get weekly shift calendar for an employee with team members"""
-    # Parse start_date
-    from datetime import datetime, timedelta
-    start = datetime.fromisoformat(start_date)
-    
-    # Get 7 days from start_date
-    shifts_data = []
-    for i in range(7):
-        current_date = (start + timedelta(days=i)).date().isoformat()
-        
-        # Get employee's shift for this day
-        employee_shift = await db.shift_calendar.find_one({
-            "employee_id": employee_id,
-            "tarih": current_date
-        }, {"_id": 0})
-        
-        # Get leave record
-        leave = await db.leave_records.find_one({
-            "employee_id": employee_id,
-            "tarih": current_date
-        }, {"_id": 0})
-        
-        if leave:
-            shifts_data.append({
-                "tarih": current_date,
-                "type": "izin",
-                "shift_type": None,
-                "team_members": []
-            })
-        elif employee_shift:
-            # Get all shifts for this day and shift type
-            shift_type = employee_shift["shift_type"]
-            all_shifts = await db.shift_calendar.find({
-                "tarih": current_date,
-                "shift_type": shift_type
-            }, {"_id": 0}).to_list(100)
-            
-            # Get employee details for team members
-            team_members = []
-            for shift in all_shifts:
-                if shift["employee_id"] != employee_id:
-                    emp = await db.employees.find_one({"id": shift["employee_id"]}, {"_id": 0})
-                    if emp:
-                        team_members.append({
-                            "ad": emp["ad"],
-                            "soyad": emp["soyad"],
-                            "pozisyon": emp.get("pozisyon", "")
-                        })
-            
-            # Get shift type details
-            shift_type_detail = await db.shift_types.find_one({"id": shift_type}, {"_id": 0})
-            
-            shifts_data.append({
-                "tarih": current_date,
-                "type": "vardiya",
-                "shift_type": shift_type_detail,
-                "team_members": team_members
-            })
-        else:
-            shifts_data.append({
-                "tarih": current_date,
-                "type": "bos",
-                "shift_type": None,
-                "team_members": []
-            })
-    
-    # Get employee info
-    employee = await db.employees.find_one({"id": employee_id}, {"_id": 0})
-    
-    return {
-        "employee": employee,
-        "start_date": start_date,
-        "shifts": shifts_data
-    }
-
-@api_router.delete("/shift-calendar/{shift_id}")
-async def delete_shift_assignment(shift_id: int):
-    result = await db.shift_calendar.delete_one({"id": shift_id})
-    if result.deleted_count == 0:
-        raise HTTPException(status_code=404, detail="Vardiya bulunamadı")
-    return {"message": "Vardiya silindi"}
-
-# ==================== TASK ROUTES ====================
-
+# Task Routes
 @api_router.get("/tasks", response_model=List[Task])
-async def get_tasks():
-    tasks = await db.tasks.find({}, {"_id": 0}).sort("id", -1).to_list(1000)
+async def get_tasks(company_id: int = 1, status: Optional[str] = None):
+    query = {"company_id": company_id}
+    if status:
+        query["durum"] = status
+    tasks = await db.tasks.find(query).to_list(None)
     return tasks
 
-@api_router.post("/tasks")
-async def create_task(task: TaskCreate, olusturan_id: int):
-    new_id = await get_next_id("tasks")
-    task_dict = task.model_dump()
-    task_dict.update({
-        "id": new_id,
-        "olusturan_id": olusturan_id,
+@api_router.post("/tasks", response_model=Task)
+async def create_task(task: TaskCreate, current_user_id: int = 1):
+    next_id = await get_next_id("tasks")
+    new_task = {
+        "id": next_id,
+        **task.dict(),
+        "olusturan_id": current_user_id,
         "durum": "beklemede",
         "puan": None,
         "olusturma_tarihi": datetime.now(timezone.utc).isoformat(),
         "tamamlanma_tarihi": None
-    })
-    
-    await db.tasks.insert_one(task_dict)
-    return Task(**task_dict)
+    }
+    await db.tasks.insert_one(new_task)
+    return new_task
 
-@api_router.put("/tasks/{task_id}", response_model=Task)
-async def update_task(task_id: int, task_update: TaskUpdate):
-    existing = await db.tasks.find_one({"id": task_id})
-    if not existing:
-        raise HTTPException(status_code=404, detail="Görev bulunamadı")
+@api_router.put("/tasks/{task_id}/status")
+async def update_task_status(task_id: int, status: str):
+    if status not in ["beklemede", "devam_ediyor", "tamamlandi"]:
+        raise HTTPException(status_code=400, detail="Invalid status")
     
-    update_data = {k: v for k, v in task_update.model_dump().items() if v is not None}
-    
-    # If task is being marked as completed, set completion date
-    if update_data.get("durum") == "tamamlandi" and not existing.get("tamamlanma_tarihi"):
+    update_data = {"durum": status}
+    if status == "tamamlandi":
         update_data["tamamlanma_tarihi"] = datetime.now(timezone.utc).isoformat()
     
-    if update_data:
-        await db.tasks.update_one({"id": task_id}, {"$set": update_data})
+    result = await db.tasks.update_one(
+        {"id": task_id},
+        {"$set": update_data}
+    )
     
-    updated = await db.tasks.find_one({"id": task_id}, {"_id": 0})
-    return Task(**updated)
-
-@api_router.delete("/tasks/{task_id}")
-async def delete_task(task_id: int):
-    result = await db.tasks.delete_one({"id": task_id})
-    if result.deleted_count == 0:
-        raise HTTPException(status_code=404, detail="Görev bulunamadı")
-    return {"message": "Görev silindi"}
-
-# ==================== AVANS ROUTES ====================
-
-@api_router.get("/avans", response_model=List[Avans])
-async def get_all_avans():
-    avans_list = await db.avans.find({}, {"_id": 0}).sort("id", -1).to_list(1000)
-    return avans_list
-
-@api_router.get("/avans/employee/{employee_id}", response_model=List[Avans])
-async def get_employee_avans(employee_id: int):
-    avans_list = await db.avans.find({"employee_id": employee_id}, {"_id": 0}).sort("id", -1).to_list(1000)
-    return avans_list
-
-@api_router.post("/avans", response_model=Avans)
-async def create_avans(avans: AvansCreate, olusturan_id: int):
-    # Check if employee exists
-    employee = await db.employees.find_one({"id": avans.employee_id})
-    if not employee:
-        raise HTTPException(status_code=404, detail="Personel bulunamadı")
+    if result.modified_count == 0:
+        raise HTTPException(status_code=404, detail="Task not found")
     
-    new_id = await get_next_id("avans")
-    avans_dict = avans.model_dump()
-    avans_dict.update({
-        "id": new_id,
-        "olusturan_id": olusturan_id
-    })
+    return {"message": f"Task status updated to {status}"}
+
+@api_router.put("/tasks/{task_id}/rate")
+async def rate_task(task_id: int, rating: int):
+    if rating < 1 or rating > 5:
+        raise HTTPException(status_code=400, detail="Rating must be between 1 and 5")
     
-    await db.avans.insert_one(avans_dict)
-    return Avans(**avans_dict)
-
-@api_router.delete("/avans/{avans_id}")
-async def delete_avans(avans_id: int):
-    result = await db.avans.delete_one({"id": avans_id})
-    if result.deleted_count == 0:
-        raise HTTPException(status_code=404, detail="Avans kaydı bulunamadı")
-    return {"message": "Avans kaydı silindi"}
-
-# ==================== YEMEK ÜCRETİ ROUTES ====================
-
-@api_router.get("/yemek-ucreti", response_model=List[YemekUcreti])
-async def get_all_yemek_ucreti():
-    yemek_list = await db.yemek_ucreti.find({}, {"_id": 0}).to_list(1000)
-    return yemek_list
-
-@api_router.get("/yemek-ucreti/employee/{employee_id}")
-async def get_employee_yemek_ucreti(employee_id: int):
-    yemek = await db.yemek_ucreti.find_one({"employee_id": employee_id}, {"_id": 0})
-    if not yemek:
-        # Return default 0 if not found
-        return {"id": 0, "employee_id": employee_id, "gunluk_ucret": 0}
-    return yemek
-
-@api_router.post("/yemek-ucreti")
-async def create_or_update_yemek_ucreti(employee_id: int, gunluk_ucret: float):
-    # Check if employee exists
-    employee = await db.employees.find_one({"id": employee_id})
-    if not employee:
-        raise HTTPException(status_code=404, detail="Personel bulunamadı")
+    result = await db.tasks.update_one(
+        {"id": task_id, "durum": "tamamlandi"},
+        {"$set": {"puan": rating}}
+    )
     
-    # Check if already exists
-    existing = await db.yemek_ucreti.find_one({"employee_id": employee_id})
+    if result.modified_count == 0:
+        raise HTTPException(status_code=404, detail="Task not found or not completed")
     
-    if existing:
-        # Update
-        await db.yemek_ucreti.update_one(
-            {"employee_id": employee_id},
-            {"$set": {"gunluk_ucret": gunluk_ucret}}
-        )
-        updated = await db.yemek_ucreti.find_one({"employee_id": employee_id}, {"_id": 0})
-        return updated
-    else:
-        # Create new
-        new_id = await get_next_id("yemek_ucreti")
-        yemek_dict = {
-            "id": new_id,
-            "employee_id": employee_id,
-            "gunluk_ucret": gunluk_ucret
-        }
-        await db.yemek_ucreti.insert_one(yemek_dict)
-        return yemek_dict
+    return {"message": f"Task rated with {rating} stars"}
 
-# ==================== SALARY ROUTES ====================
-
-@api_router.get("/salary/{employee_id}/{ay}")
-async def calculate_salary(employee_id: int, ay: str):
-    """Calculate salary for an employee for a specific month (YYYY-MM format)"""
-    # Get employee and attendance records
-    total_hours = sum(record.get("calisilan_saat", 0) for record in attendance_records)
-
-    #Çalışılan saate göre hesaplama
-    temel_maas = employee.get("maas_tabani", 0)
-    gunluk_maas = temel_maas / 30
-    saatlik_maas = gunluk_maas / 9
-    hakedilen_maas = saatlik_maas * total_hours
-    toplam_maas = hakedilen_maas
-    
-    salary_record = {
-        "id": 1,
-        "employee_id": employee_id,
-        "ay": ay,
-        "temel_maas": temel_maas,
-        "calisilan_saat": round(total_hours, 2),
-        "toplam_maas": toplam_maas,
-        "hesaplama_tarihi": datetime.now(timezone.utc).isoformat()
-    }
-    
-    return SalaryRecord(**salary_record)
-
-@api_router.get("/salary-all/{ay}")
-async def calculate_all_salaries(ay: str):
-    """Calculate detailed salaries for all employees for a specific month"""
-    employees = await db.employees.find({}, {"_id": 0}).to_list(1000)
-    
-    salary_records = []
-    for employee in employees:
-        total_hours = sum(record.get("calisilan_saat", 0) for record in attendance_records)
-        calisilan_gun = len(attendance_records)
-        
-        # Base calculations
-        temel_maas = employee.get("maas_tabani", 0)
-        gunluk_maas = temel_maas / 30
-        saatlik_maas = gunluk_maas / 9 # 9 saat mesai
-        
-        # Calculate earned amount based on hours
-      hakedilen_maas = saatlik_maas * total_hours
-        gunluk_yemek = yemek.get("gunluk_ucret", 0) if yemek else 0
-        toplam_yemek = gunluk_yemek * calisilan_gun
-        
-        # Get avans for this month
-        avans_records = await db.avans.find({
-            "employee_id": employee["id"],
-            "tarih": {"$regex": f"^{ay}"}
-        }, {"_id": 0}).to_list(1000)
-        toplam_avans = sum(record.get("miktar", 0) for record in avans_records)
-        
-        # Final calculation
-        toplam_maas = hakedilen_maas + toplam_yemek - toplam_avans
-        
-        salary_records.append({
-            "employee_id": employee["id"],
-            "ad": employee["ad"],
-            "soyad": employee["soyad"],
-            "pozisyon": employee["pozisyon"],
-            "ay": ay,
-            "temel_maas": temel_maas,
-            "gunluk_maas": round(gunluk_maas, 2),
-            "saatlik_maas": round(saatlik_maas, 2),
-            "calisilan_gun": calisilan_gun,
-            "calisilan_saat": round(total_hours, 2),
-            "hakedilen_maas": round(hakedilen_maas, 2),
-            "gunluk_yemek_ucreti": gunluk_yemek,
-            "toplam_yemek": round(toplam_yemek, 2),
-            "toplam_avans": round(toplam_avans, 2),
-            "toplam_maas": round(toplam_maas, 2)
-        })
-    
-    return salary_records
-
-# ==================== STOK KATEGORİ ROUTES ====================
-
-@api_router.get("/stok-kategori", response_model=List[StokKategori])
-async def get_stok_kategorileri():
-    kategoriler = await db.stok_kategori.find({}, {"_id": 0}).to_list(100)
-    return kategoriler
-
-@api_router.post("/stok-kategori", response_model=StokKategori)
-async def create_stok_kategori(kategori: StokKategoriCreate):
-    new_id = await get_next_id("stok_kategori")
-    kategori_dict = kategori.model_dump()
-    kategori_dict["id"] = new_id
-    
-    await db.stok_kategori.insert_one(kategori_dict)
-    return StokKategori(**kategori_dict)
-
-@api_router.put("/stok-kategori/{kategori_id}", response_model=StokKategori)
-async def update_stok_kategori(kategori_id: int, kategori: StokKategoriCreate):
-    existing = await db.stok_kategori.find_one({"id": kategori_id})
-    if not existing:
-        raise HTTPException(status_code=404, detail="Kategori bulunamadı")
-    
-    await db.stok_kategori.update_one({"id": kategori_id}, {"$set": kategori.model_dump()})
-    updated = await db.stok_kategori.find_one({"id": kategori_id}, {"_id": 0})
-    return StokKategori(**updated)
-
-@api_router.delete("/stok-kategori/{kategori_id}")
-async def delete_stok_kategori(kategori_id: int):
-    # Check if in use
-    in_use = await db.stok_urun.find_one({"kategori_id": kategori_id})
-    if in_use:
-        raise HTTPException(status_code=400, detail="Bu kategori kullanımda, silinemez")
-    
-    result = await db.stok_kategori.delete_one({"id": kategori_id})
-    if result.deleted_count == 0:
-        raise HTTPException(status_code=404, detail="Kategori bulunamadı")
-    return {"message": "Kategori silindi"}
-
-# ==================== STOK BİRİM ROUTES ====================
-
-@api_router.get("/stok-birim", response_model=List[StokBirim])
-async def get_stok_birimleri():
-    birimler = await db.stok_birim.find({}, {"_id": 0}).to_list(100)
+# Stok Routes
+@api_router.get("/stok/birimler", response_model=List[StokBirim])
+async def get_stok_birimleri(company_id: int = 1):
+    birimler = await db.stok_birim.find({"company_id": company_id}).to_list(None)
     return birimler
 
-@api_router.post("/stok-birim", response_model=StokBirim)
+@api_router.post("/stok/birimler", response_model=StokBirim)
 async def create_stok_birim(birim: StokBirimCreate):
-    new_id = await get_next_id("stok_birim")
-    birim_dict = birim.model_dump()
-    birim_dict["id"] = new_id
-    
-    await db.stok_birim.insert_one(birim_dict)
-    return StokBirim(**birim_dict)
+    next_id = await get_next_id("stok_birim")
+    new_birim = {
+        "id": next_id,
+        **birim.dict()
+    }
+    await db.stok_birim.insert_one(new_birim)
+    return new_birim
 
-@api_router.delete("/stok-birim/{birim_id}")
+@api_router.delete("/stok/birimler/{birim_id}")
 async def delete_stok_birim(birim_id: int):
-    # Check if in use
-    in_use = await db.stok_urun.find_one({"birim_id": birim_id})
-    if in_use:
-        raise HTTPException(status_code=400, detail="Bu birim kullanımda, silinemez")
+    # Check if any products use this unit
+    product_count = await db.stok_urun.count_documents({"birim_id": birim_id})
+    if product_count > 0:
+        raise HTTPException(status_code=400, detail="Cannot delete unit that is in use")
     
     result = await db.stok_birim.delete_one({"id": birim_id})
     if result.deleted_count == 0:
-        raise HTTPException(status_code=404, detail="Birim bulunamadı")
-    return {"message": "Birim silindi"}
+        raise HTTPException(status_code=404, detail="Unit not found")
+    return {"message": "Unit deleted successfully"}
 
-# ==================== STOK ÜRÜN ROUTES ====================
+@api_router.get("/stok/kategoriler", response_model=List[StokKategori])
+async def get_stok_kategorileri(company_id: int = 1):
+    kategoriler = await db.stok_kategori.find({"company_id": company_id}).to_list(None)
+    return kategoriler
 
-@api_router.get("/stok-urun", response_model=List[StokUrun])
-async def get_stok_urunleri():
-    urunler = await db.stok_urun.find({}, {"_id": 0}).to_list(1000)
+@api_router.post("/stok/kategoriler", response_model=StokKategori)
+async def create_stok_kategori(kategori: StokKategoriCreate):
+    next_id = await get_next_id("stok_kategori")
+    new_kategori = {
+        "id": next_id,
+        **kategori.dict()
+    }
+    await db.stok_kategori.insert_one(new_kategori)
+    return new_kategori
+
+@api_router.get("/stok/urunler", response_model=List[StokUrun])
+async def get_stok_urunleri(company_id: int = 1):
+    urunler = await db.stok_urun.find({"company_id": company_id}).to_list(None)
     return urunler
 
-@api_router.post("/stok-urun", response_model=StokUrun)
+@api_router.post("/stok/urunler", response_model=StokUrun)
 async def create_stok_urun(urun: StokUrunCreate):
-    new_id = await get_next_id("stok_urun")
-    urun_dict = urun.model_dump()
-    urun_dict["id"] = new_id
-    
-    await db.stok_urun.insert_one(urun_dict)
-    return StokUrun(**urun_dict)
+    next_id = await get_next_id("stok_urun")
+    new_urun = {
+        "id": next_id,
+        **urun.dict()
+    }
+    await db.stok_urun.insert_one(new_urun)
+    return new_urun
 
-@api_router.put("/stok-urun/{urun_id}", response_model=StokUrun)
-async def update_stok_urun(urun_id: int, urun: StokUrunCreate):
-    existing = await db.stok_urun.find_one({"id": urun_id})
-    if not existing:
-        raise HTTPException(status_code=404, detail="Ürün bulunamadı")
+@api_router.put("/stok/urunler/{urun_id}", response_model=StokUrun)
+async def update_stok_urun(urun_id: int, urun_update: StokUrunUpdate):
+    update_data = {k: v for k, v in urun_update.dict().items() if v is not None}
+    if not update_data:
+        raise HTTPException(status_code=400, detail="No fields to update")
     
-    await db.stok_urun.update_one({"id": urun_id}, {"$set": urun.model_dump()})
-    updated = await db.stok_urun.find_one({"id": urun_id}, {"_id": 0})
-    return StokUrun(**updated)
+    result = await db.stok_urun.update_one(
+        {"id": urun_id},
+        {"$set": update_data}
+    )
+    
+    if result.modified_count == 0:
+        raise HTTPException(status_code=404, detail="Product not found")
+    
+    updated_urun = await db.stok_urun.find_one({"id": urun_id})
+    return updated_urun
 
-@api_router.delete("/stok-urun/{urun_id}")
+@api_router.delete("/stok/urunler/{urun_id}")
 async def delete_stok_urun(urun_id: int):
     result = await db.stok_urun.delete_one({"id": urun_id})
     if result.deleted_count == 0:
-        raise HTTPException(status_code=404, detail="Ürün bulunamadı")
-    return {"message": "Ürün silindi"}
+        raise HTTPException(status_code=404, detail="Product not found")
+    return {"message": "Product deleted successfully"}
 
-# ==================== STOK SAYIM ROUTES ====================
-
-@api_router.get("/stok-sayim")
-async def get_stok_sayimlari():
-    sayimlar = await db.stok_sayim.find({}, {"_id": 0}).sort("id", -1).to_list(1000)
+@api_router.get("/stok/sayimlar", response_model=List[StokSayim])
+async def get_stok_sayimlari(company_id: int = 1, urun_id: Optional[int] = None):
+    query = {"company_id": company_id}
+    if urun_id:
+        query["urun_id"] = urun_id
+    sayimlar = await db.stok_sayim.find(query).sort("tarih", -1).to_list(None)
     return sayimlar
 
-@api_router.get("/stok-sayim/son-durum")
-async def get_son_stok_durumu():
-    """Her ürün için en son sayımı getir"""
-    urunler = await db.stok_urun.find({}, {"_id": 0}).to_list(1000)
-    birimler = await db.stok_birim.find({}, {"_id": 0}).to_list(100)
-    kategoriler = await db.stok_kategori.find({}, {"_id": 0}).to_list(100)
-    
-    result = []
-    for urun in urunler:
-        # En son sayımı bul
-        son_sayim = await db.stok_sayim.find_one(
-            {"urun_id": urun["id"]},
-            {"_id": 0},
-            sort=[("tarih", -1), ("id", -1)]
-        )
-        
-        birim = next((b for b in birimler if b["id"] == urun["birim_id"]), None)
-        kategori = next((k for k in kategoriler if k["id"] == urun["kategori_id"]), None)
-        
-        result.append({
-            "urun": urun,
-            "birim": birim,
-            "kategori": kategori,
-            "son_sayim": son_sayim,
-            "stok_miktar": son_sayim["miktar"] if son_sayim else 0,
-            "durum": "kritik" if son_sayim and son_sayim["miktar"] <= urun["min_stok"] else "normal"
-        })
-    
-    return result
+@api_router.post("/stok/sayimlar", response_model=StokSayim)
+async def create_stok_sayim(sayim: StokSayimCreate):
+    next_id = await get_next_id("stok_sayim")
+    new_sayim = {
+        "id": next_id,
+        "tarih": datetime.now(timezone.utc).date().isoformat(),
+        **sayim.dict()
+    }
+    await db.stok_sayim.insert_one(new_sayim)
+    return new_sayim
 
-@api_router.post("/stok-sayim")
-async def create_stok_sayim(sayim: StokSayimCreate, sayim_yapan_id: int):
-    new_id = await get_next_id("stok_sayim")
-    sayim_dict = sayim.model_dump()
-    sayim_dict.update({
-        "id": new_id,
-        "sayim_yapan_id": sayim_yapan_id
-    })
-    
-    await db.stok_sayim.insert_one(sayim_dict)
-    return StokSayim(**sayim_dict)
-
-# ==================== SEED DATA ROUTE ====================
-
+# Seed data endpoint
 @api_router.post("/seed-data")
-async def seed_initial_data():
-    """Initialize database with demo data"""
-    
+async def seed_data():
     # Clear existing data
     await db.companies.delete_many({})
     await db.employees.delete_many({})
@@ -1061,18 +701,24 @@ async def seed_initial_data():
     await db.leave_records.delete_many({})
     await db.shift_calendar.delete_many({})
     await db.tasks.delete_many({})
-    await db.avans.delete_many({})
     await db.yemek_ucreti.delete_many({})
-    await db.stok_kategori.delete_many({})
+    await db.avans.delete_many({})
     await db.stok_birim.delete_many({})
+    await db.stok_kategori.delete_many({})
     await db.stok_urun.delete_many({})
     await db.stok_sayim.delete_many({})
     
-    # Seed Roles
+    # Seed companies
+    companies = [
+        {"id": 1, "name": "Demo Şirket", "domain": "demo.com", "created_at": datetime.now(timezone.utc).isoformat()}
+    ]
+    await db.companies.insert_many(companies)
+    
+    # Seed roles
     roles = [
         {
             "id": "admin",
-            "name": "Admin",
+            "name": "Yönetici",
             "permissions": {
                 "view_dashboard": True,
                 "view_tasks": True,
@@ -1095,56 +741,32 @@ async def seed_initial_data():
             }
         },
         {
-            "id": "sistem_yoneticisi",
-            "name": "Sistem Yöneticisi",
-            "permissions": {
-                "view_dashboard": True,
-                "view_tasks": True,
-                "assign_tasks": False,
-                "rate_tasks": False,
-                "manage_shifts": True,
-                "manage_leave": True,
-                "view_salary": False,
-                "manage_roles": False,
-                "manage_shifts_types": True,
-                "edit_employees": False,
-                "can_view_stock": True,
-                "can_add_stock_unit": False,
-                "can_delete_stock_unit": False,
-                "can_add_stock_product": False,
-                "can_edit_stock_product": False,
-                "can_delete_stock_product": False,
-                "can_perform_stock_count": True,
-                "can_manage_categories": False
-            }
-        },
-        {
-            "id": "sef",
-            "name": "Şef",
+            "id": "manager",
+            "name": "Müdür",
             "permissions": {
                 "view_dashboard": True,
                 "view_tasks": True,
                 "assign_tasks": True,
                 "rate_tasks": True,
-                "manage_shifts": False,
-                "manage_leave": False,
-                "view_salary": False,
+                "manage_shifts": True,
+                "manage_leave": True,
+                "view_salary": True,
                 "manage_roles": False,
-                "manage_shifts_types": False,
-                "edit_employees": False,
+                "manage_shifts_types": True,
+                "edit_employees": True,
                 "can_view_stock": True,
-                "can_add_stock_unit": False,
+                "can_add_stock_unit": True,
                 "can_delete_stock_unit": False,
                 "can_add_stock_product": True,
                 "can_edit_stock_product": True,
                 "can_delete_stock_product": False,
                 "can_perform_stock_count": True,
-                "can_manage_categories": False
+                "can_manage_categories": True
             }
         },
         {
-            "id": "personel",
-            "name": "Personel",
+            "id": "employee",
+            "name": "Çalışan",
             "permissions": {
                 "view_dashboard": True,
                 "view_tasks": True,
@@ -1152,35 +774,11 @@ async def seed_initial_data():
                 "rate_tasks": False,
                 "manage_shifts": False,
                 "manage_leave": False,
-                "view_salary": False,
+                "view_salary": True,
                 "manage_roles": False,
                 "manage_shifts_types": False,
                 "edit_employees": False,
-                "can_view_stock": False,
-                "can_add_stock_unit": False,
-                "can_delete_stock_unit": False,
-                "can_add_stock_product": False,
-                "can_edit_stock_product": False,
-                "can_delete_stock_product": False,
-                "can_perform_stock_count": False,
-                "can_manage_categories": False
-            }
-        },
-        {
-            "id": "kiosk",
-            "name": "Kiosk",
-            "permissions": {
-                "view_dashboard": False,
-                "view_tasks": False,
-                "assign_tasks": False,
-                "rate_tasks": False,
-                "manage_shifts": False,
-                "manage_leave": False,
-                "view_salary": False,
-                "manage_roles": False,
-                "manage_shifts_types": False,
-                "edit_employees": False,
-                "can_view_stock": False,
+                "can_view_stock": True,
                 "can_add_stock_unit": False,
                 "can_delete_stock_unit": False,
                 "can_add_stock_product": False,
@@ -1193,45 +791,105 @@ async def seed_initial_data():
     ]
     await db.roles.insert_many(roles)
     
-    # Seed Companies
-    companies = [
-        {"id": 1, "name": "Demo Company", "domain": "example.com", "created_at": datetime.now(timezone.utc).isoformat()}
-    ]
-    await db.companies.insert_many(companies)
-    
-    # Seed Employees
-    employees = [
-        {"id": 1, "company_id": 1, "ad": "Ahmet", "soyad": "Yılmaz", "pozisyon": "Yazılımcı", "maas_tabani": 15000, "rol": "admin", "email": "admin@example.com", "employee_id": "1001"},
-        {"id": 2, "company_id": 1, "ad": "Fatma", "soyad": "Demir", "pozisyon": "Tasarımcı", "maas_tabani": 12000, "rol": "personel", "email": "fatma@example.com", "employee_id": "1002"},
-        {"id": 3, "company_id": 1, "ad": "Kerem", "soyad": "Ateş", "pozisyon": "Chef", "maas_tabani": 14000, "rol": "sef", "email": "sef@example.com", "employee_id": "1003"},
-        {"id": 4, "company_id": 1, "ad": "Ayşe", "soyad": "Kaya", "pozisyon": "Muhasebeci", "maas_tabani": 13000, "rol": "personel", "email": "ayse@example.com", "employee_id": "1004"},
-        {"id": 5, "company_id": 1, "ad": "Mehmet", "soyad": "Şahin", "pozisyon": "IT Yöneticisi", "maas_tabani": 16000, "rol": "sistem_yoneticisi", "email": "mehmet@example.com", "employee_id": "1005"},
-        {"id": 6, "company_id": 1, "ad": "Arda", "soyad": "Yıldız", "pozisyon": "Pazarlama Müdürü", "maas_tabani": 28000, "rol": "personel", "email": "arda@example.com", "employee_id": "2001"},
-        {"id": 7, "company_id": 1, "ad": "Kiosk", "soyad": "Terminal", "pozisyon": "Kiosk System", "maas_tabani": 0, "rol": "kiosk", "email": "kiosk@example.com", "employee_id": "0000"}
-    ]
-    await db.employees.insert_many(employees)
-    
-    # Seed Shift Types
+    # Seed shift types
     shift_types = [
-        {"id": "sabah", "name": "🌅 Sabah (09:00-18:00)", "start": "09:00", "end": "18:00", "color": "bg-yellow-500"},
-        {"id": "ogle_sonra", "name": "☀️ Öğleden Sonra (13:00-22:00)", "start": "13:00", "end": "22:00", "color": "bg-orange-500"},
-        {"id": "gece", "name": "🌙 Gece (22:00-07:00)", "start": "22:00", "end": "07:00", "color": "bg-indigo-600"}
+        {"id": "sabah", "name": "Sabah", "start": "08:00", "end": "16:00", "color": "#3B82F6"},
+        {"id": "ogle_sonra", "name": "Öğleden Sonra", "start": "16:00", "end": "00:00", "color": "#EF4444"},
+        {"id": "gece", "name": "Gece", "start": "00:00", "end": "08:00", "color": "#6B7280"},
+        {"id": "tam_gun", "name": "Tam Gün", "start": "09:00", "end": "18:00", "color": "#10B981"}
     ]
     await db.shift_types.insert_many(shift_types)
     
-    # Seed some attendance records
+    # Seed employees with hashed passwords
+    employees = [
+        {
+            "id": 1,
+            "company_id": 1,
+            "ad": "Admin",
+            "soyad": "User",
+            "pozisyon": "Sistem Yöneticisi",
+            "maas_tabani": 50000,
+            "rol": "admin",
+            "email": "admin@demo.com",
+            "employee_id": "1000",
+            "password": bcrypt.hashpw("admin123".encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
+        },
+        {
+            "id": 2,
+            "company_id": 1,
+            "ad": "Mehmet",
+            "soyad": "Yılmaz",
+            "pozisyon": "Yazılım Geliştirici",
+            "maas_tabani": 35000,
+            "rol": "employee",
+            "email": "mehmet@demo.com",
+            "employee_id": "1001",
+            "password": bcrypt.hashpw("mehmet123".encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
+        },
+        {
+            "id": 3,
+            "company_id": 1,
+            "ad": "Zeynep",
+            "soyad": "Demir",
+            "pozisyon": "Proje Yöneticisi",
+            "maas_tabani": 45000,
+            "rol": "manager",
+            "email": "zeynep@demo.com",
+            "employee_id": "1002",
+            "password": bcrypt.hashpw("zeynep123".encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
+        },
+        {
+            "id": 4,
+            "company_id": 1,
+            "ad": "Ayşe",
+            "soyad": "Kaya",
+            "pozisyon": "İK Uzmanı",
+            "maas_tabani": 30000,
+            "rol": "employee",
+            "email": "ayse@demo.com",
+            "employee_id": "1003",
+            "password": bcrypt.hashpw("ayse123".encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
+        },
+        {
+            "id": 5,
+            "company_id": 1,
+            "ad": "Ali",
+            "soyad": "Öztürk",
+            "pozisyon": "Satış Müdürü",
+            "maas_tabani": 42000,
+            "rol": "manager",
+            "email": "ali@demo.com",
+            "employee_id": "1004",
+            "password": bcrypt.hashpw("ali123".encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
+        },
+        {
+            "id": 6,
+            "company_id": 1,
+            "ad": "Arda",
+            "soyad": "Yıldız",
+            "pozisyon": "Müdür Yardımcısı",
+            "maas_tabani": 38000,
+            "rol": "manager",
+            "email": "arda@demo.com",
+            "employee_id": "2001",
+            "password": bcrypt.hashpw("arda2024".encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
+        }
+    ]
+    await db.employees.insert_many(employees)
+    
+    # Seed attendance records (including for Arda)
     today = datetime.now(timezone.utc).date().isoformat()
-    yesterday = (datetime.now(timezone.utc).date() - timedelta(days=1)).isoformat()
-    two_days_ago = (datetime.now(timezone.utc).date() - timedelta(days=2)).isoformat()
-    three_days_ago = (datetime.now(timezone.utc).date() - timedelta(days=3)).isoformat()
-    four_days_ago = (datetime.now(timezone.utc).date() - timedelta(days=4)).isoformat()
+    yesterday = (datetime.now(timezone.utc) - timedelta(days=1)).date().isoformat()
+    two_days_ago = (datetime.now(timezone.utc) - timedelta(days=2)).date().isoformat()
+    three_days_ago = (datetime.now(timezone.utc) - timedelta(days=3)).date().isoformat()
+    four_days_ago = (datetime.now(timezone.utc) - timedelta(days=4)).date().isoformat()
     
     attendance = [
         {
             "id": 1,
             "company_id": 1,
             "employee_id": "1001",
-            "ad": "Ahmet",
+            "ad": "Mehmet",
             "soyad": "Yılmaz",
             "tarih": today,
             "giris_saati": datetime.now(timezone.utc).replace(hour=9, minute=0).isoformat(),
@@ -1242,14 +900,14 @@ async def seed_initial_data():
         {
             "id": 2,
             "company_id": 1,
-            "employee_id": "1002",
-            "ad": "Fatma",
-            "soyad": "Demir",
-            "tarih": yesterday,
-            "giris_saati": (datetime.now(timezone.utc) - timedelta(days=1)).replace(hour=9, minute=0).isoformat(),
-            "cikis_saati": (datetime.now(timezone.utc) - timedelta(days=1)).replace(hour=18, minute=0).isoformat(),
-            "calisilan_saat": 9.0,
-            "status": "cikis"
+            "employee_id": "2001",
+            "ad": "Arda",
+            "soyad": "Yıldız",
+            "tarih": today,
+            "giris_saati": datetime.now(timezone.utc).replace(hour=8, minute=30).isoformat(),
+            "cikis_saati": None,
+            "calisilan_saat": 0,
+            "status": "giris"
         },
         {
             "id": 3,
@@ -1444,24 +1102,5 @@ async def seed_initial_data():
     
     return {"message": "Demo veriler başarıyla yüklendi"}
 
-# Include router
+# Include router AFTER middleware
 app.include_router(api_router)
-
-app.add_middleware(
-    CORSMiddleware,
-    allow_credentials=True,
-    allow_origins=os.environ.get('CORS_ORIGINS', '*').split(','),
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
-
-# Configure logging
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
-)
-logger = logging.getLogger(__name__)
-
-@app.on_event("shutdown")
-async def shutdown_db_client():
-    client.close()
