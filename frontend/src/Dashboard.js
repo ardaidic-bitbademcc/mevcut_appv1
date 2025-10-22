@@ -294,19 +294,23 @@ export default function Dashboard() {
     } else {
       alert(`Giriş yapılamadı: ${response.data.message || 'Bilinmeyen hata'}`);
     }
-  } catch (error) {
-    let msg;
-    if (error.response?.data?.message) {
-      msg = error.response.data.message;
-    } else if (error.response?.data?.detail) {
-      msg = error.response.data.detail;
-    } else if (typeof error.message === 'string') {
-      msg = error.message;
-    } else {
-      msg = JSON.stringify(error.message);
-    }
-    alert('Giriş yapılamadı: ' + msg);
+} catch (error) {
+  let msg;
+  if (error.response?.data?.message) {
+    msg = error.response.data.message;
+  } else if (error.response?.data?.detail) {
+    msg = error.response.data.detail;
+  } else if (typeof error.message === 'string') {
+    msg = error.message;
+  } else {
+    msg = error.message;
   }
+  // Eğer msg nesne ise JSON stringify ile dönüştür
+  if (typeof msg !== 'string') {
+    msg = JSON.stringify(msg);
+  }
+  alert(`Giriş yapılamadı: ${msg}`);
+}
 };
 
 
