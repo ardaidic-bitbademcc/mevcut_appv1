@@ -863,7 +863,6 @@ async def calculate_all_salaries(ay: str):
         gunluk_maas = temel_maas / 30
         saatlik_maas = gunluk_maas / 9 # 9 saat mesai
         
-        
         # Calculate earned amount based on hours
       hakedilen_maas = saatlik_maas * total_hours
         gunluk_yemek = yemek.get("gunluk_ucret", 0) if yemek else 0
