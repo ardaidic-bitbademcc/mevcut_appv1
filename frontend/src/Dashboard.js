@@ -304,7 +304,7 @@ export default function Dashboard() {
     } else {
       msg = JSON.stringify(error.message);
     }
-      alert('Giriş yapılamadı: ${msg}');
+      alert('Giriş yapılamadı: '+ msg);
     }
   };
 
