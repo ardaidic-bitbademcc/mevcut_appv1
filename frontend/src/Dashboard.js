@@ -862,6 +862,7 @@ export default function Dashboard() {
             <>
               <div className="space-y-4">
                 <input type="email" placeholder="E-mail" value={loginData.email} onChange={(e) => setLoginData({ ...loginData, email: e.target.value })} onKeyPress={(e) => e.key === 'Enter' && handleLogin()} className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2" style={{borderColor: '#2042FF'}} />
+                <input type="password" placeholder="password" value={loginData.password} onChange={(e) => setLoginData({ ...loginData, password: e.target.value })} onKeyPress={(e) => e.key === 'Enter' && handleLogin()} className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2" style={{borderColor: '#2042FF'}} />
                 <button onClick={handleLogin} className="w-full px-6 py-3 text-white rounded-lg font-semibold transition-colors" style={{backgroundColor: '#2042FF'}} onMouseEnter={(e) => e.target.style.backgroundColor = '#1632CC'} onMouseLeave={(e) => e.target.style.backgroundColor = '#2042FF'}>Giriş Yap</button>
                 <button onClick={() => setShowRegister(true)} className="w-full px-6 py-3 rounded-lg font-semibold transition-colors" style={{backgroundColor: '#A6FF3D', color: '#101318'}} onMouseEnter={(e) => e.target.style.backgroundColor = '#95E635'} onMouseLeave={(e) => e.target.style.backgroundColor = '#A6FF3D'}>Kayıt Ol</button>
               </div>
