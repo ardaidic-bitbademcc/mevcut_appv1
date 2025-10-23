@@ -281,37 +281,26 @@ export default function Dashboard() {
 
  const handleLogin = async () => {
   try {
+    // Backend /api/login returns the user object directly on success (LoginResponse)
     const response = await axios.post(`${API}/login`, { email: loginData.email, password: loginData.password});
-    if (response.data.success) {
-      setUser({ id: response.data.employee.id, email: response.data.employee.email });
-      setEmployee(response.data.employee);
-      setCompanyId(response.data.employee.company_id);
-      setLoginData({ email: '', password: ''});
-      // Eğer kiosk rolündeyse, aktif sekmeyi kioska çevirin
-      if (response.data.employee.rol === 'kiosk') {
-        setActiveTab('kiosk');
-      }
-    } else {
-      alert(`Giriş yapılamadı: ${response.data.message || 'Bilinmeyen hata'}`);
+    const userData = response.data;
+    // If backend wrapped response differently, try common shapes
+    const employeeObj = userData.employee || userData.data || userData;
+
+    setUser({ id: employeeObj.id, email: employeeObj.email || loginData.email });
+    setEmployee(employeeObj);
+    setCompanyId(employeeObj.company_id || employeeObj.companyId || 1);
+    setLoginData({ email: '', password: ''});
+    if (employeeObj.rol === 'kiosk') {
+      setActiveTab('kiosk');
     }
-} catch (error) {
-  let msg;
-  if (error.response?.data?.message) {
-    msg = error.response.data.message;
-  } else if (error.response?.data?.detail) {
-    msg = error.response.data.detail;
-  } else if (typeof error.message === 'string') {
-    msg = error.message;
-  } else {
-    msg = error.message;
+  } catch (error) {
+    // Normalize error message
+    let msg = error.response?.data?.message || error.response?.data?.detail || error.message || 'Bilinmeyen hata';
+    if (typeof msg !== 'string') msg = JSON.stringify(msg);
+    alert(`Giriş yapılamadı: ${msg}`);
   }
-  // Eğer msg nesne ise JSON stringify ile dönüştür
-  if (typeof msg !== 'string') {
-    msg = JSON.stringify(msg);
-  }
-  alert(`Giriş yapılamadı: ${msg}`);
-}
-};
+ };
 
 
   const handleRegister = async () => {

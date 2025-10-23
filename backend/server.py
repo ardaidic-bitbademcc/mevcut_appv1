@@ -733,6 +733,50 @@ async def create_employee(employee: EmployeeCreate):
     await db.employees.insert_one(new_employee)
     return new_employee
 
+
+# Simple register endpoint to support frontend registration flow
+@api_router.post("/register")
+async def register(data: dict):
+    """Register a new employee with minimal required fields.
+
+    Expected JSON: { ad, soyad, email, employee_id, company_id(optional) }
+    Returns a success wrapper to match existing frontend expectations.
+    """
+    # Validate required fields
+    required = ["ad", "soyad", "email", "employee_id"]
+    for field in required:
+        if not data.get(field):
+            raise HTTPException(status_code=400, detail=f"Missing field: {field}")
+
+    # Check if user already exists by email or employee_id
+    existing = await db.employees.find_one({
+        "$or": [
+            {"email": data["email"]},
+            {"employee_id": data["employee_id"]}
+        ]
+    })
+
+    if existing:
+        raise HTTPException(status_code=400, detail="User with that email or employee_id already exists")
+
+    next_id = await get_next_id("employees")
+    new_employee = {
+        "id": next_id,
+        "company_id": data.get("company_id", 1),
+        "ad": data["ad"],
+        "soyad": data["soyad"],
+        "pozisyon": data.get("pozisyon", ""),
+        "maas_tabani": data.get("maas_tabani", 0),
+        "rol": data.get("rol", "personel"),
+        "email": data["email"],
+        "employee_id": data["employee_id"]
+        # intentionally not setting password here; admin can migrate/set later
+    }
+
+    await db.employees.insert_one(new_employee)
+
+    return {"success": True, "employee": new_employee, "message": "Kayıt başarılı"}
+
 @api_router.put("/employees/{employee_id}", response_model=Employee)
 async def update_employee(employee_id: int, employee_update: EmployeeUpdate):
     update_data = {k: v for k, v in employee_update.dict().items() if v is not None}
@@ -1063,6 +1107,59 @@ async def migrate_passwords():
             "others": "Check logs or use default pattern"
         }
     }
+
+
+# Compatibility aliases for frontend endpoints that use dashed paths
+# These simply proxy to the canonical /stok/... endpoints above
+@api_router.get("/stok-birim")
+async def get_stok_birim_alias(company_id: int = 1):
+    return await get_stok_birimleri(company_id)
+
+@api_router.post("/stok-birim")
+async def post_stok_birim_alias(birim: StokBirimCreate):
+    return await create_stok_birim(birim)
+
+@api_router.delete("/stok-birim/{birim_id}")
+async def delete_stok_birim_alias(birim_id: int):
+    return await delete_stok_birim(birim_id)
+
+@api_router.get("/stok-kategori")
+async def get_stok_kategori_alias(company_id: int = 1):
+    return await get_stok_kategorileri(company_id)
+
+@api_router.post("/stok-kategori")
+async def post_stok_kategori_alias(kategori: StokKategoriCreate):
+    return await create_stok_kategori(kategori)
+
+@api_router.put("/stok-kategori/{kategori_id}")
+async def put_stok_kategori_alias(kategori_id: int, kategori: StokKategoriCreate):
+    return await update_stok_kategori(kategori_id, kategori)
+
+@api_router.get("/stok-urun")
+async def get_stok_urun_alias(company_id: int = 1):
+    return await get_stok_urunleri(company_id)
+
+@api_router.post("/stok-urun")
+async def post_stok_urun_alias(urun: StokUrunCreate):
+    return await create_stok_urun(urun)
+
+@api_router.put("/stok-urun/{urun_id}")
+async def put_stok_urun_alias(urun_id: int, urun_update: StokUrunUpdate):
+    return await update_stok_urun(urun_id, urun_update)
+
+@api_router.delete("/stok-urun/{urun_id}")
+async def delete_stok_urun_alias(urun_id: int):
+    return await delete_stok_urun(urun_id)
+
+@api_router.get("/stok-sayim/son-durum")
+async def stok_son_durum_alias(company_id: int = 1):
+    # Return last counts per product - reuse get_stok_sayimlari
+    sayimlar = await get_stok_sayimlari(company_id)
+    return sayimlar
+
+@api_router.post("/stok-sayim")
+async def post_stok_sayim_alias(sayim: StokSayimCreate):
+    return await create_stok_sayim(sayim)
 
 # Stok Routes
 @api_router.get("/stok/birimler", response_model=List[StokBirim])
