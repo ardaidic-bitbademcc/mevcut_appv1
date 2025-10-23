@@ -873,6 +873,7 @@ export default function Dashboard() {
                 <input type="text" placeholder="Ad *" value={registerData.ad} onChange={(e) => setRegisterData({ ...registerData, ad: e.target.value })} className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500" />
                 <input type="text" placeholder="Soyad *" value={registerData.soyad} onChange={(e) => setRegisterData({ ...registerData, soyad: e.target.value })} className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500" />
                 <input type="email" placeholder="E-mail *" value={registerData.email} onChange={(e) => setRegisterData({ ...registerData, email: e.target.value })} className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500" />
+                <input type="password" placeholder="Password *" value={registerData.password} onChange {(e) => setRegisterData({ ...registerData, password: e.target.value })} className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500" />
                 <input type="text" placeholder="Personel ID (4 haneli) *" maxLength="4" value={registerData.employee_id} onChange={(e) => {
                   const value = e.target.value.replace(/\D/g, '');
                   setRegisterData({ ...registerData, employee_id: value });
