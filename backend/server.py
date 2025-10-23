@@ -81,13 +81,13 @@ async def lifespan(app: FastAPI):
             "pozisyon": "Sistem Yöneticisi",
             "maas_tabani": 50000,
             "rol": "admin",
-            "email": "admin@example.com",
+            "email": "arda@example.com",
             "employee_id": "1000",
-            "password": bcrypt.hashpw("admin123".encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
+            "password": bcrypt.hashpw("arda3010".encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
         })
-        logger.info("Admin user created: admin@example.com / admin123")
+        logger.info("Admin user created: arda@example.com / arda123")
     else:
-        logger.info("Admin user found: admin@example.com")
+        logger.info("Admin user found: arda@example.com")
     
     yield
     # Shutdown
