@@ -286,7 +286,7 @@ export default function Dashboard() {
       setUser({ id: response.data.employee.id, email: response.data.employee.email });
       setEmployee(response.data.employee);
       setCompanyId(response.data.employee.company_id);
-      setLoginData({ email: '' });
+      setLoginData({ email: '', password: ''});
       // Eğer kiosk rolündeyse, aktif sekmeyi kioska çevirin
       if (response.data.employee.rol === 'kiosk') {
         setActiveTab('kiosk');
