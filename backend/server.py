@@ -1,4 +1,4 @@
-from fastapi import FastAPI, APIRouter, HTTPException, status
+from fastapi import FastAPI, APIRouter, HTTPException, status, UploadFile, File
 from dotenv import load_dotenv
 from starlette.middleware.cors import CORSMiddleware
 from motor.motor_asyncio import AsyncIOMotorClient
@@ -10,6 +10,9 @@ from typing import List, Optional, Dict
 from datetime import datetime, timezone, timedelta
 import bcrypt
 from contextlib import asynccontextmanager
+import io
+from fastapi.responses import StreamingResponse
+import openpyxl
 
 ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / '.env')
@@ -1970,6 +1973,117 @@ async def salary_all(month: str):
         results.append(record)
 
     return results
+
+
+def _workbook_from_dicts(rows, headers=None, sheet_name="Sheet1"):
+    wb = openpyxl.Workbook()
+    ws = wb.active
+    ws.title = sheet_name
+    if not rows:
+        if headers:
+            ws.append(headers)
+        return wb
+    if not headers:
+        # derive headers from first row
+        headers = list(rows[0].keys())
+    ws.append(headers)
+    for r in rows:
+        ws.append([r.get(h, "") for h in headers])
+    return wb
+
+
+@api_router.get("/salary-all/{month}/xlsx")
+async def salary_all_xlsx(month: str):
+    # reuse salary_all logic (call the function body or duplicate minimal logic)
+    data = await salary_all(month)
+    # create workbook
+    headers = ["employee_id", "employee_unique_id", "ad", "soyad", "pozisyon", "temel_maas", "gunluk_maas", "saatlik_maas", "calisilan_gun", "calisilan_saat", "hakedilen_maas", "gunluk_yemek_ucreti", "toplam_yemek", "toplam_avans", "toplam_maas", "ay"]
+    wb = _workbook_from_dicts(data, headers=headers, sheet_name=f"Salary_{month}")
+    stream = io.BytesIO()
+    wb.save(stream)
+    stream.seek(0)
+    fname = f"salary_{month}.xlsx"
+    return StreamingResponse(stream, media_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', headers={"Content-Disposition": f"attachment; filename=\"{fname}\""})
+
+
+@api_router.get("/stok-export")
+async def stok_export(company_id: int = 1):
+    # export stock products and last known stock (if any)
+    urunler = await db.stok_urun.find({"company_id": company_id}).to_list(None)
+    # try to get last sayim quantities
+    results = []
+    for u in urunler:
+        # lookup latest sayim for this product
+        sayim = await db.stok_sayim.find({"urun_id": u.get("id")}).sort([("tarih", -1)]).to_list(1)
+        miktar = sayim[0].get("miktar") if sayim else ""
+        results.append({
+            "id": u.get("id"),
+            "ad": u.get("ad"),
+            "birim_id": u.get("birim_id"),
+            "kategori_id": u.get("kategori_id"),
+            "min_stok": u.get("min_stok", 0),
+            "mevcut_miktar": miktar,
+        })
+    wb = _workbook_from_dicts(results, headers=["id", "ad", "birim_id", "kategori_id", "min_stok", "mevcut_miktar"], sheet_name="Stok")
+    stream = io.BytesIO()
+    wb.save(stream)
+    stream.seek(0)
+    return StreamingResponse(stream, media_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', headers={"Content-Disposition": "attachment; filename=\"stok_export.xlsx\""})
+
+
+@api_router.get("/stok-template")
+async def stok_template():
+    # return a sample template XLSX for bulk stock upload
+    sample = [
+        {"ad": "Domates", "birim_id": 1, "kategori_id": 1, "min_stok": 10, "mevcut_miktar": 50},
+        {"ad": "Pirinç", "birim_id": 2, "kategori_id": 2, "min_stok": 5, "mevcut_miktar": 200},
+    ]
+    wb = _workbook_from_dicts(sample, headers=["ad", "birim_id", "kategori_id", "min_stok", "mevcut_miktar"], sheet_name="Template")
+    stream = io.BytesIO()
+    wb.save(stream)
+    stream.seek(0)
+    return StreamingResponse(stream, media_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', headers={"Content-Disposition": "attachment; filename=\"stok_template.xlsx\""})
+
+
+@api_router.post("/stok-import")
+async def stok_import(file: UploadFile = File(...), company_id: int = 1):
+    # parse uploaded XLSX and insert/update stok_urun
+    try:
+        content = await file.read()
+        stream = io.BytesIO(content)
+        wb = openpyxl.load_workbook(stream)
+        ws = wb.active
+        rows = list(ws.iter_rows(values_only=True))
+        if not rows or len(rows) < 2:
+            raise HTTPException(status_code=400, detail="Dosya boş veya başlık yok")
+        headers = [str(h).strip() for h in rows[0]]
+        created = 0
+        updated = 0
+        for r in rows[1:]:
+            data = {headers[i]: r[i] for i in range(len(headers))}
+            # expect at least 'ad' field
+            if not data.get('ad'):
+                continue
+            # try to match by name
+            existing = await db.stok_urun.find_one({"company_id": company_id, "ad": data.get('ad')})
+            doc = {
+                "company_id": company_id,
+                "ad": data.get('ad'),
+                "birim_id": int(data.get('birim_id')) if data.get('birim_id') else None,
+                "kategori_id": int(data.get('kategori_id')) if data.get('kategori_id') else None,
+                "min_stok": float(data.get('min_stok') or 0)
+            }
+            if existing:
+                await db.stok_urun.update_one({"id": existing['id']}, {"$set": doc})
+                updated += 1
+            else:
+                next_id = await get_next_id('stok_urun')
+                doc['id'] = next_id
+                await db.stok_urun.insert_one(doc)
+                created += 1
+        return {"created": created, "updated": updated}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 # Include API router after all routes have been declared so every @api_router

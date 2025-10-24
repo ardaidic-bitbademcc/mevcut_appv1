@@ -55,6 +55,7 @@ export default function Dashboard() {
   const [stokBirimler, setStokBirimler] = useState([]);
   const [stokUrunler, setStokUrunler] = useState([]);
   const [stokDurum, setStokDurum] = useState([]);
+  const [stokImportFile, setStokImportFile] = useState(null);
   const [newStokKategori, setNewStokKategori] = useState({ ad: '', renk: '#6B7280' });
   const [newStokBirim, setNewStokBirim] = useState({ ad: '', kisaltma: '' });
   const [newStokUrun, setNewStokUrun] = useState({ ad: '', birim_id: '', kategori_id: '', min_stok: 0 });
@@ -142,6 +143,55 @@ export default function Dashboard() {
       setStokDurum(durumRes.data);
     } catch (error) {
       console.error('Stok verileri getirilemedi:', error);
+    }
+  };
+
+  const downloadStok = async () => {
+    try {
+      const res = await axios.get(`${API}/stok-export`, { responseType: 'blob' });
+      const url = window.URL.createObjectURL(new Blob([res.data]));
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `stok_export.xlsx`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      window.URL.revokeObjectURL(url);
+    } catch (err) {
+      console.error('Stok export error', err);
+      alert('Stok export hatası: ' + (err.response?.data || err.message));
+    }
+  };
+
+  const downloadStokTemplate = async () => {
+    try {
+      const res = await axios.get(`${API}/stok-template`, { responseType: 'blob' });
+      const url = window.URL.createObjectURL(new Blob([res.data]));
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `stok_template.xlsx`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      window.URL.revokeObjectURL(url);
+    } catch (err) {
+      console.error('Template download error', err);
+      alert('Template indirme hatası: ' + (err.response?.data || err.message));
+    }
+  };
+
+  const uploadStokFile = async () => {
+    if (!stokImportFile) return alert('Lütfen bir dosya seçin');
+    try {
+      const fd = new FormData();
+      fd.append('file', stokImportFile);
+      const res = await axios.post(`${API}/stok-import`, fd, { headers: { 'Content-Type': 'multipart/form-data' } });
+      alert(`Başarılı: oluşturulan ${res.data.created}, güncellenen ${res.data.updated}`);
+      setStokImportFile(null);
+      fetchStokData();
+    } catch (err) {
+      console.error('Stok import error', err);
+      alert('Stok import hatası: ' + (err.response?.data?.detail || err.message));
     }
   };
 
@@ -1351,6 +1401,21 @@ export default function Dashboard() {
                 </div>
               </div>
             )}
+
+            {/* Stock Export / Import */}
+            <div className="bg-white rounded-lg shadow p-6 mb-6">
+              <h2 className="text-xl font-bold mb-4">📥/📤 Stok - Excel İşlemleri</h2>
+              <div className="flex flex-col md:flex-row gap-4 items-start">
+                <div className="flex gap-2">
+                  <button onClick={downloadStok} className="px-4 py-2 bg-indigo-600 text-white rounded hover:bg-indigo-700">Stok İndir (.xlsx)</button>
+                  <button onClick={downloadStokTemplate} className="px-4 py-2 bg-gray-600 text-white rounded hover:bg-gray-700">Şablon İndir</button>
+                </div>
+                <div className="flex items-center gap-2">
+                  <input type="file" accept=".xlsx,.xls" onChange={(e) => setStokImportFile(e.target.files?.[0] || null)} />
+                  <button onClick={uploadStokFile} className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700">Toplu Yükle</button>
+                </div>
+              </div>
+            </div>
           </div>
         )}
 
