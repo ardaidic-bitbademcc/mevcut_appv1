@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { LogOut, Plus, Trash2, Edit2, Check, X } from 'lucide-react';
 import axios from 'axios';
 
-const BACKEND_URL = process.env.REACT_APP_BACKEND_URL || 'http://localhost:8001';
+const BACKEND_URL = process.env.REACT_APP_BACKEND_URL || 'https://mevcut-appv1.onrender.com';
 const API = `${BACKEND_URL}/api`;
 
 export default function Dashboard() {
@@ -363,7 +363,11 @@ export default function Dashboard() {
         setLoginData({ email: response.data.employee.email });
       }
     } catch (error) {
-      const msg = error.response?.data?.detail || error.message || 'Hata oluştu';
+      // Normalize network vs server errors so the user sees a clearer message
+      const msg = error?.response
+        ? (error.response.data?.detail || error.response.statusText || `Sunucu hata ${error.response.status}`)
+        : (error?.message || 'Ağ/CORS hatası - sunucuya ulaşılamıyor');
+      console.error('Register error:', error);
       setRegisterMessage(`❌ ${msg}`);
     } finally {
       setIsRegistering(false);
@@ -662,7 +666,11 @@ export default function Dashboard() {
       const yemekRes = await axios.get(`${API}/yemek-ucreti`);
       setYemekUcretleri(yemekRes.data);
     } catch (error) {
-      alert('❌ Maaş verileri getirilemedi: ' + (error.response?.data?.detail || error.message));
+      const msg = error?.response
+        ? (error.response.data?.detail || error.response.statusText || `Sunucu hata ${error.response.status}`)
+        : (error?.message || 'Ağ/CORS hatası - sunucuya ulaşılamıyor');
+      console.error('Salary fetch error:', error);
+      alert('❌ Maaş verileri getirilemedi: ' + msg);
     }
   };
 
