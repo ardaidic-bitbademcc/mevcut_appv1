@@ -1402,20 +1402,7 @@ export default function Dashboard() {
               </div>
             )}
 
-            {/* Stock Export / Import */}
-            <div className="bg-white rounded-lg shadow p-6 mb-6">
-              <h2 className="text-xl font-bold mb-4">📥/📤 Stok - Excel İşlemleri</h2>
-              <div className="flex flex-col md:flex-row gap-4 items-start">
-                <div className="flex gap-2">
-                  <button onClick={downloadStok} className="px-4 py-2 bg-indigo-600 text-white rounded hover:bg-indigo-700">Stok İndir (.xlsx)</button>
-                  <button onClick={downloadStokTemplate} className="px-4 py-2 bg-gray-600 text-white rounded hover:bg-gray-700">Şablon İndir</button>
-                </div>
-                <div className="flex items-center gap-2">
-                  <input type="file" accept=".xlsx,.xls" onChange={(e) => setStokImportFile(e.target.files?.[0] || null)} />
-                  <button onClick={uploadStokFile} className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700">Toplu Yükle</button>
-                </div>
-              </div>
-            </div>
+            {/* Stock Export / Import removed from vardiya; moved into stok tab */}
           </div>
         )}
 
@@ -1899,6 +1886,20 @@ export default function Dashboard() {
 
         {activeTab === 'stok' && permissions.can_view_stock && (
           <div>
+            {/* Stock Export / Import (top of Stok page) */}
+            <div className="bg-white rounded-lg shadow p-6 mb-6">
+              <h2 className="text-xl font-bold mb-4">📥/📤 Stok - Excel İşlemleri</h2>
+              <div className="flex flex-col md:flex-row gap-4 items-start">
+                <div className="flex gap-2">
+                  <button onClick={downloadStok} className="px-4 py-2 bg-indigo-600 text-white rounded hover:bg-indigo-700">Stok İndir (.xlsx)</button>
+                  <button onClick={downloadStokTemplate} className="px-4 py-2 bg-gray-600 text-white rounded hover:bg-gray-700">Şablon İndir</button>
+                </div>
+                <div className="flex items-center gap-2">
+                  <input type="file" accept=".xlsx,.xls" onChange={(e) => setStokImportFile(e.target.files?.[0] || null)} />
+                  <button onClick={uploadStokFile} className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700">Toplu Yükle</button>
+                </div>
+              </div>
+            </div>
             {permissions.can_manage_categories && (
               // Category Management
               <div className="bg-white rounded-lg shadow p-6 mb-6">
