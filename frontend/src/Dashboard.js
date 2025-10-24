@@ -61,22 +61,53 @@ export default function Dashboard() {
   // Fetch all data from backend
   const fetchData = async () => {
     try {
-      const [empRes, roleRes, shiftTypeRes, attendanceRes, leaveRes, shiftCalRes, taskRes] = await Promise.all([
-        axios.get(`${API}/employees`),
-        axios.get(`${API}/roles`),
-        axios.get(`${API}/shift-types`),
-        axios.get(`${API}/attendance`),
-        axios.get(`${API}/leave-records`),
-        axios.get(`${API}/shift-calendar`),
-        axios.get(`${API}/tasks`)
-      ]);
+      // Fetch critical collections first
+      const empRes = await axios.get(`${API}/employees`);
+      const roleRes = await axios.get(`${API}/roles`);
+      const shiftTypeRes = await axios.get(`${API}/shift-types`);
+      const attendanceRes = await axios.get(`${API}/attendance`);
+
       setEmployees(empRes.data);
       setRoles(roleRes.data);
       setShiftTypes(shiftTypeRes.data);
       setAttendance(attendanceRes.data);
-      setLeaveRecords(leaveRes.data);
-      setShiftCalendar(shiftCalRes.data);
-      setTasks(taskRes.data);
+
+      // Fetch optional collections separately and tolerate 404s
+      try {
+        const leaveRes = await axios.get(`${API}/leave-records`);
+        setLeaveRecords(leaveRes.data);
+      } catch (err) {
+        if (err.response?.status === 404) {
+          console.warn('leave-records not available on backend; using empty list');
+          setLeaveRecords([]);
+        } else {
+          throw err;
+        }
+      }
+
+      try {
+        const shiftCalRes = await axios.get(`${API}/shift-calendar`);
+        setShiftCalendar(shiftCalRes.data);
+      } catch (err) {
+        if (err.response?.status === 404) {
+          console.warn('shift-calendar not available on backend; using empty list');
+          setShiftCalendar([]);
+        } else {
+          throw err;
+        }
+      }
+
+      try {
+        const taskRes = await axios.get(`${API}/tasks`);
+        setTasks(taskRes.data);
+      } catch (err) {
+        if (err.response?.status === 404) {
+          console.warn('tasks endpoint not available; using empty list');
+          setTasks([]);
+        } else {
+          throw err;
+        }
+      }
     } catch (error) {
       console.error('Error fetching data:', error);
       alert('Veri yüklenirken hata oluştu: ' + (error.response?.data?.detail || error.message));

@@ -73,6 +73,7 @@ async def lifespan(app: FastAPI):
                 "created_at": datetime.now(timezone.utc).isoformat()
             })
         
+        # Create a consistent default admin account for demos/tests
         await db.employees.insert_one({
             "id": 1,
             "company_id": 1,
@@ -81,11 +82,11 @@ async def lifespan(app: FastAPI):
             "pozisyon": "Sistem Yöneticisi",
             "maas_tabani": 50000,
             "rol": "admin",
-            "email": "arda@example.com",
+            "email": "admin@example.com",
             "employee_id": "1000",
-            "password": bcrypt.hashpw("arda3010".encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
+            "password": bcrypt.hashpw("admin123".encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
         })
-        logger.info("Admin user created: arda@example.com / arda123")
+        logger.info("Admin user created: admin@example.com / admin123")
     else:
         logger.info("Admin user found: arda@example.com")
     
@@ -541,9 +542,10 @@ async def login(login_data: LoginRequest):
         
         if login_data.password != expected_password:
             logger.error(f"Default password mismatch for user: {employee.get('employee_id')}")
+            # Do not leak expected/default passwords in API responses
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
-                detail=f"Invalid password (expected default: {expected_password})"
+                detail="Invalid password"
             )
     
     logger.info(f"Login successful for: {employee.get('employee_id')}")
@@ -579,6 +581,29 @@ async def auth_login(request: dict):
         password=password,
         company_id=company_id
     )
+
+    # Convenience: allow auto-login when no password is provided for demo accounts
+    # This is gated by environment variable ALLOW_AUTO_LOGIN=true to avoid accidental insecurity in prod
+    try:
+        allow_auto = os.environ.get("ALLOW_AUTO_LOGIN", "false").lower() == "true"
+    except Exception:
+        allow_auto = False
+
+    if allow_auto and login_data.email and not login_data.password:
+        emp = await db.employees.find_one({"email": login_data.email})
+        if emp and not emp.get("password"):
+            # Return user object without requiring password
+            logger.info(f"Auto-login allowed for {login_data.email}")
+            return LoginResponse(
+                id=emp["id"],
+                email=emp.get("email", f"{emp['employee_id']}@example.com"),
+                ad=emp.get("ad"),
+                soyad=emp.get("soyad"),
+                rol=emp.get("rol"),
+                employee_id=emp.get("employee_id"),
+                company_id=emp.get("company_id", 1),
+                pozisyon=emp.get("pozisyon", "")
+            )
     
     try:
         result = await login(login_data)
@@ -988,6 +1013,79 @@ async def rate_task(task_id: int, rating: int):
     
     return {"message": f"Task rated with {rating} stars"}
 
+
+# Leave Records Routes
+@api_router.get("/leave-records", response_model=List[LeaveRecord])
+async def get_leave_records(company_id: int = 1):
+    leaves = await db.leave_records.find({"company_id": company_id}).to_list(None)
+    return leaves
+
+
+@api_router.post("/leave-records", response_model=LeaveRecord)
+async def create_leave_record(leave: LeaveRecordCreate):
+    next_id = await get_next_id("leave_records")
+    new_leave = {
+        "id": next_id,
+        **leave.dict()
+    }
+    await db.leave_records.insert_one(new_leave)
+    return new_leave
+
+
+@api_router.delete("/leave-records/{leave_id}")
+async def delete_leave_record(leave_id: int):
+    result = await db.leave_records.delete_one({"id": leave_id})
+    if result.deleted_count == 0:
+        raise HTTPException(status_code=404, detail="Leave record not found")
+    return {"message": "Leave record deleted successfully"}
+
+
+# Shift Calendar Routes
+@api_router.get("/shift-calendar", response_model=List[ShiftCalendar])
+async def get_shift_calendar(company_id: int = 1):
+    shifts = await db.shift_calendar.find({"company_id": company_id}).to_list(None)
+    return shifts
+
+
+@api_router.post("/shift-calendar", response_model=ShiftCalendar)
+async def create_shift_calendar(shift: ShiftCalendarCreate):
+    next_id = await get_next_id("shift_calendar")
+    new_shift = {
+        "id": next_id,
+        **shift.dict()
+    }
+    await db.shift_calendar.insert_one(new_shift)
+    return new_shift
+
+
+@api_router.delete("/shift-calendar/{shift_id}")
+async def delete_shift_calendar(shift_id: int):
+    result = await db.shift_calendar.delete_one({"id": shift_id})
+    if result.deleted_count == 0:
+        raise HTTPException(status_code=404, detail="Shift not found")
+    return {"message": "Shift deleted successfully"}
+
+
+@api_router.get("/shift-calendar/weekly/{employee_id}")
+async def get_weekly_shift_calendar(employee_id: int, start_date: Optional[str] = None):
+    # If start_date provided (YYYY-MM-DD), return that week (start_date to start_date+6)
+    query = {"employee_id": str(employee_id)}
+    all_shifts = await db.shift_calendar.find(query).to_list(None)
+
+    if not start_date:
+        return all_shifts
+
+    try:
+        sd = datetime.fromisoformat(start_date).date()
+    except Exception:
+        # invalid date format, return all
+        return all_shifts
+
+    end_date = sd + timedelta(days=6)
+    # Filter by tarih field (assumed ISO date string)
+    filtered = [s for s in all_shifts if 'tarih' in s and sd.isoformat() <= s['tarih'] <= end_date.isoformat()]
+    return filtered
+
 # Admin check/create endpoint
 @api_router.post("/ensure-admin")
 async def ensure_admin():
@@ -1107,6 +1205,27 @@ async def migrate_passwords():
             "others": "Check logs or use default pattern"
         }
     }
+
+
+# Admin password reset endpoint (gated by env var)
+@api_router.post("/reset-admin-password")
+async def reset_admin_password(payload: Dict[str, str]):
+    """Reset admin@example.com's password to a provided value (or admin123 by default).
+
+    This endpoint is gated by the ALLOW_ADMIN_RESET environment variable to avoid accidental use.
+    Request JSON: { "password": "newpass" }
+    """
+    if os.environ.get("ALLOW_ADMIN_RESET", "false").lower() != "true":
+        raise HTTPException(status_code=403, detail="Admin password reset not allowed")
+
+    new_password = payload.get("password") or "admin123"
+    hashed = bcrypt.hashpw(new_password.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
+
+    result = await db.employees.update_one({"email": "admin@example.com"}, {"$set": {"password": hashed}})
+    if result.matched_count == 0:
+        raise HTTPException(status_code=404, detail="Admin user not found")
+
+    return {"message": "Admin password updated", "email": "admin@example.com"}
 
 
 # Compatibility aliases for frontend endpoints that use dashed paths
@@ -1242,6 +1361,24 @@ async def delete_stok_urun(urun_id: int):
     if result.deleted_count == 0:
         raise HTTPException(status_code=404, detail="Product not found")
     return {"message": "Product deleted successfully"}
+
+
+@api_router.put("/stok/kategoriler/{kategori_id}", response_model=StokKategori)
+async def update_stok_kategori(kategori_id: int, kategori_update: StokKategoriCreate):
+    update_data = {k: v for k, v in kategori_update.dict().items() if v is not None}
+    if not update_data:
+        raise HTTPException(status_code=400, detail="No fields to update")
+
+    result = await db.stok_kategori.update_one(
+        {"id": kategori_id},
+        {"$set": update_data}
+    )
+
+    if result.modified_count == 0:
+        raise HTTPException(status_code=404, detail="Category not found")
+
+    updated_kategori = await db.stok_kategori.find_one({"id": kategori_id})
+    return updated_kategori
 
 @api_router.get("/stok/sayimlar", response_model=List[StokSayim])
 async def get_stok_sayimlari(company_id: int = 1, urun_id: Optional[int] = None):
