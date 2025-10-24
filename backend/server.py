@@ -1932,10 +1932,10 @@ async def salary_all(month: str):
                 calisilan_gun += 1
                 calisilan_saat += cs
 
-    # Previously hakedilen was calculated using days * daily wage.
-    # Change: calculate earned salary as total worked hours * hourly wage.
-    # saatlik was calculated above as: round(gunluk / 9.0, 2)
-    hakedilen = round(saatlik * calisilan_saat, 2)
+        # Previously hakedilen was calculated using days * daily wage.
+        # Change: calculate earned salary as total worked hours * hourly wage.
+        # saatlik was calculated above as: round(gunluk / 9.0, 2)
+        hakedilen = round(saatlik * calisilan_saat, 2)
 
         # Yemek ucreti - stored by numeric employee id (employee.id)
         yemek_doc = await db.yemek_ucreti.find_one({"employee_id": int(emp.get("id"))})
