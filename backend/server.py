@@ -1837,7 +1837,8 @@ async def seed_data(force: bool = False):
     return {"message": "Demo veriler başarıyla yüklendi"}
 
 # Include router AFTER middleware
-app.include_router(api_router)
+# NOTE: router inclusion moved to bottom so all @api_router routes defined below are registered
+# app.include_router(api_router)
 
 
 # ==================== SALARY / AVANS / YEMEK ENDPOINTS ====================
@@ -1966,4 +1967,10 @@ async def salary_all(month: str):
         results.append(record)
 
     return results
+
+
+# Include API router after all routes have been declared so every @api_router
+# route is registered. Previously include_router was called earlier which
+# caused routes defined after that call to return 404 (e.g. salary endpoints).
+app.include_router(api_router)
 
