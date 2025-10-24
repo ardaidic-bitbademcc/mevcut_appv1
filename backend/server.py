@@ -155,6 +155,7 @@ class EmployeeUpdate(BaseModel):
     rol: Optional[str] = None
     email: Optional[str] = None
     employee_id: Optional[str] = None
+    password: Optional[str] = None
 
 # Role Models
 class RolePermissions(BaseModel):
@@ -795,8 +796,16 @@ async def register(data: dict):
         "rol": data.get("rol", "personel"),
         "email": data["email"],
         "employee_id": data["employee_id"]
-        # intentionally not setting password here; admin can migrate/set later
+        # If a password was provided on registration, hash and store it
     }
+
+    if data.get("password"):
+        try:
+            hashed = bcrypt.hashpw(data.get("password").encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
+            new_employee["password"] = hashed
+        except Exception as e:
+            logger.error(f"Error hashing password during registration for {data.get('email')}: {e}")
+            raise HTTPException(status_code=500, detail="Error processing password")
 
     await db.employees.insert_one(new_employee)
 
@@ -807,6 +816,14 @@ async def update_employee(employee_id: int, employee_update: EmployeeUpdate):
     update_data = {k: v for k, v in employee_update.dict().items() if v is not None}
     if not update_data:
         raise HTTPException(status_code=400, detail="No fields to update")
+    # If password present, hash it before storing
+    if "password" in update_data:
+        try:
+            hashed = bcrypt.hashpw(update_data["password"].encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
+            update_data["password"] = hashed
+        except Exception as e:
+            logger.error(f"Error hashing password for employee {employee_id}: {e}")
+            raise HTTPException(status_code=500, detail="Error processing password")
     
     result = await db.employees.update_one(
         {"id": employee_id},
@@ -1821,3 +1838,132 @@ async def seed_data(force: bool = False):
 
 # Include router AFTER middleware
 app.include_router(api_router)
+
+
+# ==================== SALARY / AVANS / YEMEK ENDPOINTS ====================
+
+
+@api_router.get("/avans", response_model=List[Avans])
+async def get_avans(company_id: int = 1):
+    avans = await db.avans.find({"company_id": company_id}).to_list(None)
+    return avans
+
+
+@api_router.post("/avans", response_model=Avans)
+async def create_avans(avans_data: AvansCreate, olusturan_id: int = 1):
+    next_id = await get_next_id("avans")
+    new_avans = {
+        "id": next_id,
+        "company_id": avans_data.company_id or 1,
+        "employee_id": avans_data.employee_id,
+        "miktar": avans_data.miktar,
+        "tarih": avans_data.tarih if hasattr(avans_data, 'tarih') else datetime.now(timezone.utc).date().isoformat(),
+        "aciklama": avans_data.aciklama if hasattr(avans_data, 'aciklama') else "",
+        "olusturan_id": olusturan_id
+    }
+    await db.avans.insert_one(new_avans)
+    return new_avans
+
+
+@api_router.delete("/avans/{avans_id}")
+async def delete_avans(avans_id: int):
+    result = await db.avans.delete_one({"id": avans_id})
+    if result.deleted_count == 0:
+        raise HTTPException(status_code=404, detail="Avans kaydı bulunamadı")
+    return {"message": "Avans silindi"}
+
+
+@api_router.get("/yemek-ucreti")
+async def get_yemek_ucretleri(company_id: int = 1):
+    y = await db.yemek_ucreti.find({"company_id": company_id}).to_list(None)
+    return y
+
+
+@api_router.post("/yemek-ucreti")
+async def set_yemek_ucreti(employee_id: int, gunluk_ucret: float, company_id: int = 1):
+    # Upsert daily meal allowance for an employee (employee_id here is numeric employee.id)
+    existing = await db.yemek_ucreti.find_one({"company_id": company_id, "employee_id": int(employee_id)})
+    if existing:
+        await db.yemek_ucreti.update_one({"id": existing["id"]}, {"$set": {"gunluk_ucret": float(gunluk_ucret)}})
+        updated = await db.yemek_ucreti.find_one({"id": existing["id"]})
+        return updated
+
+    next_id = await get_next_id("yemek_ucreti")
+    new_y = {"id": next_id, "company_id": company_id, "employee_id": int(employee_id), "gunluk_ucret": float(gunluk_ucret)}
+    await db.yemek_ucreti.insert_one(new_y)
+    return new_y
+
+
+@api_router.get("/salary-all/{month}")
+async def salary_all(month: str):
+    """Return aggregated salary records for given month (format: YYYY-MM)."""
+    # Validate month format loosely
+    if not month or len(month) < 7:
+        raise HTTPException(status_code=400, detail="Invalid month format. Use YYYY-MM")
+
+    # Load employees
+    employees = await db.employees.find({}).to_list(None)
+
+    results = []
+
+    for emp in employees:
+        # basic fields
+        temel = float(emp.get("maas_tabani", 0) or 0)
+        gunluk = round(temel / 30.0, 2)
+        saatlik = round(gunluk / 9.0, 2)  # assume 9h workday
+
+        # Attendance in the month
+        # match tarih starting with month
+        att_query = {"employee_id": emp.get("employee_id") if emp.get("employee_id") else str(emp.get("id")), "tarih": {"$regex": f"^{month}"}}
+        # Some attendance records use numeric employee ids as strings; try both patterns
+        attendance_records = await db.attendance.find({"tarih": {"$regex": f"^{month}"}, "employee_id": {"$in": [emp.get("employee_id"), str(emp.get("id")), int(emp.get("id"))]}}).to_list(None)
+
+        # Count worked days and sum hours
+        calisilan_gun = 0
+        calisilan_saat = 0.0
+        for a in attendance_records:
+            # consider record as worked day if calisilan_saat > 0 or status == 'cikis'
+            try:
+                cs = float(a.get("calisilan_saat", 0) or 0)
+            except Exception:
+                cs = 0.0
+            if cs > 0 or a.get("status") == "cikis":
+                calisilan_gun += 1
+                calisilan_saat += cs
+
+        hakedilen = round(gunluk * calisilan_gun, 2)
+
+        # Yemek ucreti - stored by numeric employee id (employee.id)
+        yemek_doc = await db.yemek_ucreti.find_one({"employee_id": int(emp.get("id"))})
+        gunluk_yemek = float(yemek_doc.get("gunluk_ucret", 0)) if yemek_doc else 0.0
+        toplam_yemek = round(gunluk_yemek * calisilan_gun, 2)
+
+        # Avans - sum avans for this employee in month
+        avans_records = await db.avans.find({"employee_id": int(emp.get("id")), "tarih": {"$regex": f"^{month}"}}).to_list(None)
+        toplam_avans = round(sum([float(a.get("miktar", 0) or 0) for a in avans_records]), 2)
+
+        toplam = round(hakedilen + toplam_yemek - toplam_avans, 2)
+
+        record = {
+            "employee_id": int(emp.get("id")),
+            "employee_unique_id": emp.get("employee_id"),
+            "ad": emp.get("ad"),
+            "soyad": emp.get("soyad"),
+            "pozisyon": emp.get("pozisyon", ""),
+            "temel_maas": temel,
+            "gunluk_maas": gunluk,
+            "saatlik_maas": saatlik,
+            "calisilan_gun": calisilan_gun,
+            "calisilan_saat": round(calisilan_saat, 2),
+            "hakedilen_maas": hakedilen,
+            "gunluk_yemek_ucreti": gunluk_yemek,
+            "toplam_yemek": toplam_yemek,
+            "toplam_avans": toplam_avans,
+            "toplam_maas": toplam,
+            "ay": month
+        }
+
+        results.append(record)
+
+    return results
+

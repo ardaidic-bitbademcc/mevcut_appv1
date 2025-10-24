@@ -10,8 +10,12 @@ export default function Dashboard() {
   const [employee, setEmployee] = useState(null);
   const [companyId, setCompanyId] = useState(null);
   const [loginData, setLoginData] = useState({ email: '', password: '' });
+  const [isLoggingIn, setIsLoggingIn] = useState(false);
+  const [loginMessage, setLoginMessage] = useState('');
   const [showRegister, setShowRegister] = useState(false);
   const [registerData, setRegisterData] = useState({ ad: '', soyad: '', email: '', employee_id: '' });
+  const [isRegistering, setIsRegistering] = useState(false);
+  const [registerMessage, setRegisterMessage] = useState('');
   const [activeTab, setActiveTab] = useState('dashboard');
 
   const [employees, setEmployees] = useState([]);
@@ -311,6 +315,8 @@ export default function Dashboard() {
   };
 
  const handleLogin = async () => {
+  setIsLoggingIn(true);
+  setLoginMessage('Giriş yapılıyor...');
   try {
     // Backend /api/login returns the user object directly on success (LoginResponse)
     const response = await axios.post(`${API}/login`, { email: loginData.email, password: loginData.password});
@@ -322,6 +328,8 @@ export default function Dashboard() {
     setEmployee(employeeObj);
     setCompanyId(employeeObj.company_id || employeeObj.companyId || 1);
     setLoginData({ email: '', password: ''});
+    setLoginMessage('');
+    setIsLoggingIn(false);
     if (employeeObj.rol === 'kiosk') {
       setActiveTab('kiosk');
     }
@@ -329,30 +337,38 @@ export default function Dashboard() {
     // Normalize error message
     let msg = error.response?.data?.message || error.response?.data?.detail || error.message || 'Bilinmeyen hata';
     if (typeof msg !== 'string') msg = JSON.stringify(msg);
-    alert(`Giriş yapılamadı: ${msg}`);
+    setLoginMessage(`Giriş yapılamadı: ${msg}`);
+    setIsLoggingIn(false);
   }
  };
 
 
   const handleRegister = async () => {
     if (!registerData.ad || !registerData.soyad || !registerData.email || !registerData.employee_id) {
-      alert('❌ Tüm alanları doldurunuz!');
+      setRegisterMessage('❌ Tüm alanları doldurunuz!');
       return;
     }
     if (registerData.employee_id.length !== 4) {
-      alert('❌ Personel ID tam 4 haneli olmalıdır!');
+      setRegisterMessage('❌ Personel ID tam 4 haneli olmalıdır!');
       return;
     }
+    setIsRegistering(true);
+    setRegisterMessage('Kayıt yapılıyor...');
     try {
       const response = await axios.post(`${API}/register`, registerData);
       if (response.data.success) {
-        alert('✅ Kayıt başarılı! Giriş yapabilirsiniz.');
+        setRegisterMessage('✅ Kayıt başarılı! Giriş yapabilirsiniz.');
         setShowRegister(false);
         setRegisterData({ ad: '', soyad: '', email: '', employee_id: '' });
         setLoginData({ email: response.data.employee.email });
       }
     } catch (error) {
-      alert('❌ ' + (error.response?.data?.detail || error.message));
+      const msg = error.response?.data?.detail || error.message || 'Hata oluştu';
+      setRegisterMessage(`❌ ${msg}`);
+    } finally {
+      setIsRegistering(false);
+      // clear the register message after a short timeout so it doesn't persist forever
+      setTimeout(() => setRegisterMessage(''), 4000);
     }
   };
 
@@ -883,8 +899,11 @@ export default function Dashboard() {
               <div className="space-y-4">
                 <input type="email" placeholder="E-mail" value={loginData.email} onChange={(e) => setLoginData({ ...loginData, email: e.target.value })} onKeyPress={(e) => e.key === 'Enter' && handleLogin()} className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2" style={{borderColor: '#2042FF'}} />
                 <input type="password" placeholder="password" value={loginData.password} onChange={(e) => setLoginData({ ...loginData, password: e.target.value })} onKeyPress={(e) => e.key === 'Enter' && handleLogin()} className="w-full px-6 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2" style={{borderColor: '#2042FF'}} />
-                <button onClick={handleLogin} className="w-full px-6 py-3 text-white rounded-lg font-semibold transition-colors" style={{backgroundColor: '#2042FF'}} onMouseEnter={(e) => e.target.style.backgroundColor = '#1632CC'} onMouseLeave={(e) => e.target.style.backgroundColor = '#2042FF'}>Giriş Yap</button>
-                <button onClick={() => setShowRegister(true)} className="w-full px-8 py-3 rounded-lg font-semibold transition-colors" style={{backgroundColor: '#A6FF3D', color: '#101318'}} onMouseEnter={(e) => e.target.style.backgroundColor = '#95E635'} onMouseLeave={(e) => e.target.style.backgroundColor = '#A6FF3D'}>Kayıt Ol</button>
+                <button onClick={handleLogin} disabled={isLoggingIn} className="w-full px-6 py-3 text-white rounded-lg font-semibold transition-colors" style={{backgroundColor: isLoggingIn ? '#9FB7FF' : '#2042FF'}} onMouseEnter={(e) => e.target.style.backgroundColor = isLoggingIn ? '#9FB7FF' : '#1632CC'} onMouseLeave={(e) => e.target.style.backgroundColor = isLoggingIn ? '#9FB7FF' : '#2042FF'}>{isLoggingIn ? 'Giriş yapılıyor...' : 'Giriş Yap'}</button>
+                <button onClick={() => setShowRegister(true)} disabled={isLoggingIn} className="w-full px-8 py-3 rounded-lg font-semibold transition-colors" style={{backgroundColor: isLoggingIn ? '#E6F6D6' : '#A6FF3D', color: '#101318'}} onMouseEnter={(e) => e.target.style.backgroundColor = isLoggingIn ? '#E6F6D6' : '#95E635'} onMouseLeave={(e) => e.target.style.backgroundColor = isLoggingIn ? '#E6F6D6' : '#A6FF3D'}>Kayıt Ol</button>
+                {loginMessage && (
+                  <div className="mt-3 text-sm text-center text-gray-700">{loginMessage}</div>
+                )}
               </div>
             </>
           ) : (
@@ -900,8 +919,11 @@ export default function Dashboard() {
                   setRegisterData({ ...registerData, employee_id: value });
                 }} className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500" />
                 <p className="text-xs text-gray-500">* Pozisyon ve maaş bilgisi admin tarafından atanacaktır</p>
-                <button onClick={handleRegister} className="w-full px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 font-semibold">Kayıt Ol</button>
-                <button onClick={() => setShowRegister(false)} className="w-full px-6 py-3 bg-gray-500 text-white rounded-lg hover:bg-gray-600 font-semibold">Geri Dön</button>
+                <button onClick={handleRegister} disabled={isRegistering} className="w-full px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 font-semibold">{isRegistering ? 'Kayıt yapılıyor...' : 'Kayıt Ol'}</button>
+                <button onClick={() => setShowRegister(false)} disabled={isRegistering} className="w-full px-6 py-3 bg-gray-500 text-white rounded-lg hover:bg-gray-600 font-semibold">Geri Dön</button>
+                {registerMessage && (
+                  <div className="mt-3 text-sm text-center text-gray-700">{registerMessage}</div>
+                )}
               </div>
             </>
           )}
