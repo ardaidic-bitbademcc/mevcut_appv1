@@ -26,6 +26,7 @@ export default function Dashboard() {
   const [shiftCalendar, setShiftCalendar] = useState([]);
   const [tasks, setTasks] = useState([]);
   const [salaryData, setSalaryData] = useState([]);
+  const [salaryError, setSalaryError] = useState(null);
   const [selectedEmployeeForDetail, setSelectedEmployeeForDetail] = useState(null);
   const [avansData, setAvansData] = useState([]);
   const [yemekUcretleri, setYemekUcretleri] = useState([]);
@@ -657,6 +658,7 @@ export default function Dashboard() {
     try {
       const response = await axios.get(`${API}/salary-all/${salaryMonth}`);
       setSalaryData(response.data);
+      setSalaryError(null);
       
       // Also fetch avans data
       const avansRes = await axios.get(`${API}/avans`);
@@ -670,7 +672,8 @@ export default function Dashboard() {
         ? (error.response.data?.detail || error.response.statusText || `Sunucu hata ${error.response.status}`)
         : (error?.message || 'Ağ/CORS hatası - sunucuya ulaşılamıyor');
       console.error('Salary fetch error:', error);
-      alert('❌ Maaş verileri getirilemedi: ' + msg);
+      // Don't use alert (can spam). Show inline error in UI instead.
+      setSalaryError(msg);
     }
   };
 
@@ -1036,6 +1039,12 @@ export default function Dashboard() {
             <div className="bg-white rounded-lg shadow p-6">
               <h2 className="text-xl font-bold mb-4">Personel Listesi</h2>
               <div className="overflow-x-auto">
+              {salaryError && (
+                <div className="mb-4 p-3 bg-red-50 border border-red-200 text-red-700 rounded">
+                  <strong>❌ Maaş verileri getirilemedi:</strong> {salaryError}
+                  <button onClick={() => { setSalaryError(null); fetchSalaryData(); }} className="ml-4 px-2 py-1 bg-red-600 text-white rounded text-sm">Yeniden Dene</button>
+                </div>
+              )}
                 <table className="w-full text-sm">
                   <thead className="bg-gray-50 border-b">
                     <tr>
