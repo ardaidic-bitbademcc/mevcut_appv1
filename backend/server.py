@@ -29,6 +29,15 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
+# Minimal FastAPI app object to ensure decorators defined later don't fail during import.
+# A proper lifespan/context is configured further down; this early creation prevents
+# NameError during module import when decorators like @app.get are evaluated.
+try:
+    from fastapi import FastAPI as _FastAPI
+    app = _FastAPI()
+except Exception:
+    app = None  # fallback; import errors will surface later
+
 # Lifespan context manager for proper shutdown
 @asynccontextmanager
 async def lifespan(app: FastAPI):
