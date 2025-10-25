@@ -33,7 +33,12 @@ logger = logging.getLogger(__name__)
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # Use Redis cache if available
-    from cache import cache_get, cache_set
+    try:
+        # Prefer package-relative import when running as a module (backend.server)
+        from .cache import cache_get, cache_set  # type: ignore
+    except Exception:
+        # Fallback when running in different import contexts
+        from cache import cache_get, cache_set
 
     cache_key = f"salary_all:{month}"
     cached = None
@@ -127,7 +132,6 @@ async def lifespan(app: FastAPI):
         pass
 
     return results
-
 
 # Create router after middleware
 api_router = APIRouter(prefix="/api")

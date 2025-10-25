@@ -7,7 +7,12 @@ import asyncio
 import os
 import logging
 
-from cache import cache_set, REDIS_URL
+try:
+    # Prefer package-relative import when running as a module (backend.tasks)
+    from .cache import cache_set, REDIS_URL  # type: ignore
+except Exception:
+    # Fallback for environments where package layout differs
+    from cache import cache_set, REDIS_URL
 
 logger = logging.getLogger(__name__)
 
@@ -16,7 +21,10 @@ def precompute_salary_month(month: str, expire_seconds: int = 60 * 60 * 6):
     """RQ job entrypoint. Calls the salary_all coroutine and caches result."""
     try:
         # Import here to avoid circular imports at module load
-        from server import salary_all
+        try:
+            from .server import salary_all  # type: ignore
+        except Exception:
+            from server import salary_all
 
         loop = asyncio.new_event_loop()
         asyncio.set_event_loop(loop)
