@@ -914,8 +914,9 @@ export default function Dashboard() {
       document.body.appendChild(container);
 
       const { jsPDF } = await import('jspdf');
-      const doc = new jsPDF('p','pt','a4');
-      await doc.html(container, { callback: () => { doc.save(`vardiya_hafta_${employee.ad}_${sd.toISOString().slice(0,10)}.pdf`); container.remove(); }, x: 20, y: 20, html2canvas: { scale: 1 } });
+  const doc = new jsPDF('p','pt','a4');
+  const ww = container.scrollWidth || 1200;
+  await doc.html(container, { callback: () => { doc.save(`vardiya_hafta_${employee.ad}_${sd.toISOString().slice(0,10)}.pdf`); container.remove(); }, x: 20, y: 20, windowWidth: ww, html2canvas: { scale: 2, background: '#ffffff', useCORS: true } });
     } catch (err) {
       console.error('Weekly PDF error', err);
       alert('Haftalık PDF oluşturulamadı: ' + (err.response?.data || err.message));
@@ -1021,8 +1022,9 @@ export default function Dashboard() {
       document.body.appendChild(container);
 
       const { jsPDF } = await import('jspdf');
-      const doc = new jsPDF('l','pt','a4');
-      await doc.html(container, { callback: () => { doc.save(`vardiya_aylik_${selectedShiftMonth}.pdf`); container.remove(); }, x: 20, y: 20, html2canvas: { scale: 1 } });
+  const doc = new jsPDF('l','pt','a4');
+  const ww = container.scrollWidth || 1600;
+  await doc.html(container, { callback: () => { doc.save(`vardiya_aylik_${selectedShiftMonth}.pdf`); container.remove(); }, x: 20, y: 20, windowWidth: ww, html2canvas: { scale: 2, background: '#ffffff', useCORS: true } });
     } catch (err) {
       console.error('Monthly PDF error', err);
       alert('Aylık PDF oluşturulamadı: ' + (err.response?.data || err.message));
@@ -1227,10 +1229,13 @@ export default function Dashboard() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100">
       <div className="p-8 max-w-7xl mx-auto">
-        <div className="flex justify-between items-center mb-8 bg-white rounded-lg shadow p-6">
-          <div>
-            <h1 className="text-3xl font-bold text-gray-800">İK Dashboard</h1>
-            <p className="text-gray-600">👤 {employee.ad} {employee.soyad} - <span className="font-semibold">{currentRole?.name}</span></p>
+        <div className="flex justify-between items-center mb-8 bg-white/60 backdrop-blur-sm rounded-xl shadow p-4 md:p-6">
+          <div className="flex items-center gap-4">
+            <img src="/logo.svg" alt="Mevcut" className="w-10 h-10 rounded-md shadow-sm" />
+            <div>
+              <h1 className="text-2xl md:text-3xl font-semibold text-gray-900">Mevcut Dashboard</h1>
+              <p className="text-sm text-gray-500">👤 {employee.ad} {employee.soyad} · <span className="font-medium">{currentRole?.name}</span></p>
+            </div>
           </div>
           <button onClick={handleLogout} className="px-6 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 font-semibold flex items-center gap-2"><LogOut className="w-4 h-4" /> Çıkış</button>
         </div>
