@@ -845,71 +845,66 @@ export default function Dashboard() {
       const weeklyData = resp.data;
       if (!weeklyData) return alert('Haftalık veri bulunamadı');
 
+      // Build dates array
+      const sd = weeklyData.start_date ? new Date(weeklyData.start_date) : new Date(startDate);
+      const ed = weeklyData.end_date ? new Date(weeklyData.end_date) : new Date(sd.getTime() + 6 * 86400000);
+      const dates = [];
+      for (let d = new Date(sd); d <= ed; d.setDate(d.getDate() + 1)) {
+        dates.push(new Date(d));
+      }
+
+      // Build simple table HTML (days as columns, single employee row)
+      const employee = weeklyData.employee || { ad: 'Bilinmiyor', soyad: '', pozisyon: '' };
+      const shiftsByDate = {};
+      (weeklyData.shifts || []).forEach(s => { shiftsByDate[s.tarih] = s; });
+
+      const container = document.createElement('div');
+      container.style.padding = '16px';
+      container.style.fontFamily = 'Arial, Helvetica, sans-serif';
+      container.innerHTML = `
+        <div style="text-align:center; margin-bottom:12px;">
+          <h2 style="margin:0; font-size:18px">Haftalık Vardiya Programı</h2>
+          <div style="font-size:14px;">${employee.ad} ${employee.soyad} — ${employee.pozisyon}</div>
+          <div style="font-size:12px; color:#666;">Dönem: ${sd.toLocaleDateString('tr-TR')} - ${ed.toLocaleDateString('tr-TR')}</div>
+        </div>
+      `;
+
+      const table = document.createElement('table');
+      table.style.width = '100%';
+      table.style.borderCollapse = 'collapse';
+      table.style.fontSize = '11px';
+
+      const thead = document.createElement('thead');
+      thead.innerHTML = `<tr>
+        <th style="border:1px solid #ddd;padding:8px;background:#f3f4f6;text-align:left;">Personel</th>
+        ${dates.map(d => `<th style="border:1px solid #ddd;padding:8px;background:#f3f4f6;text-align:center">${d.toLocaleDateString('tr-TR')}<br/>${['Paz','Pzt','Sal','Çar','Per','Cum','Cmt'][d.getDay()]}</th>`).join('')}
+      </tr>`;
+      table.appendChild(thead);
+
+      const tbody = document.createElement('tbody');
+      const tr = document.createElement('tr');
+      tr.innerHTML = `<td style="border:1px solid #ddd;padding:8px">${employee.ad} ${employee.soyad}</td>` +
+        dates.map(d => {
+          const key = d.toISOString().slice(0,10);
+          const s = shiftsByDate[key];
+          if (!s) return `<td style="border:1px solid #ddd;padding:8px;text-align:center;color:#999">-</td>`;
+          if (s.type === 'izin') return `<td style="border:1px solid #ddd;padding:8px;text-align:center;color:#c0392b">İZİN</td>`;
+          const st = s.shift_type || s.shift_type_name || {};
+          const name = st.name || s.shift_type?.name || 'Vardiya';
+          const start = st.start || s.shift_type?.start || '';
+          const end = st.end || s.shift_type?.end || '';
+          return `<td style="border:1px solid #ddd;padding:8px;text-align:center">${name}<br/><small>${start} - ${end}</small></td>`;
+        }).join('');
+      tr.innerHTML = tr.innerHTML;
+      tbody.appendChild(tr);
+      table.appendChild(tbody);
+      container.appendChild(table);
+
+      document.body.appendChild(container);
+
       const { jsPDF } = await import('jspdf');
-      const doc = new jsPDF();
-      const employee = weeklyData.employee;
-      let yPos = 20;
-
-      doc.setFontSize(18);
-      doc.text(`Haftalık Vardiya Programı`, 105, yPos, { align: 'center' });
-      yPos += 10;
-      doc.setFontSize(14);
-      doc.text(`${employee.ad} ${employee.soyad} - ${employee.pozisyon}`, 105, yPos, { align: 'center' });
-      yPos += 6;
-
-      doc.setFontSize(10);
-      doc.text(`Dönem: ${weeklyData.start_date} - ${weeklyData.end_date || ''}`, 105, yPos, { align: 'center' });
-      yPos += 10;
-
-      doc.setLineWidth(0.5);
-      doc.line(20, yPos, 190, yPos);
-      yPos += 8;
-
-      const dayNames = ['Pazar', 'Pazartesi', 'Salı', 'Çarşamba', 'Perşembe', 'Cuma', 'Cumartesi'];
-      weeklyData.shifts.forEach((shift) => {
-        const date = new Date(shift.tarih);
-        const dayName = dayNames[date.getDay()];
-        const dateStr = `${date.getDate()}.${date.getMonth() + 1}.${date.getFullYear()}`;
-
-        doc.setFontSize(12);
-        doc.setFont(undefined, 'bold');
-        doc.text(`${dayName}, ${dateStr}`, 20, yPos);
-        yPos += 6;
-
-        doc.setFont(undefined, 'normal');
-        doc.setFontSize(10);
-        if (shift.type === 'izin') {
-          doc.setTextColor(255, 0, 0);
-          doc.text('🏖️ İZİNLİ', 20, yPos);
-          doc.setTextColor(0, 0, 0);
-          yPos += 6;
-        } else if (shift.type === 'vardiya') {
-          doc.setTextColor(0, 128, 0);
-          doc.text(`⏰ ${shift.shift_type.name} (${shift.shift_type.start}-${shift.shift_type.end})`, 20, yPos);
-          doc.setTextColor(0, 0, 0);
-          yPos += 6;
-          if (shift.team_members && shift.team_members.length) {
-            doc.setFontSize(9);
-            shift.team_members.forEach(m => {
-              doc.text(`• ${m.ad} ${m.soyad} (${m.pozisyon})`, 25, yPos);
-              yPos += 4;
-            });
-          }
-        } else {
-          doc.setTextColor(128, 128, 128);
-          doc.text('Vardiya atanmamış', 20, yPos);
-          doc.setTextColor(0, 0, 0);
-          yPos += 6;
-        }
-
-        yPos += 4;
-        if (yPos > 270) { doc.addPage(); yPos = 20; }
-      });
-
-      doc.setFontSize(8);
-      doc.setTextColor(128, 128, 128);
-      doc.text(`Oluşturulma: ${new Date().toLocaleString('tr-TR')}`, 105, 285, { align: 'center' });
-      doc.save(`vardiya_${employee.ad}_${employee.soyad}_${weeklyData.start_date}.pdf`);
+      const doc = new jsPDF('p','pt','a4');
+      await doc.html(container, { callback: () => { doc.save(`vardiya_hafta_${employee.ad}_${sd.toISOString().slice(0,10)}.pdf`); container.remove(); }, x: 20, y: 20, html2canvas: { scale: 1 } });
     } catch (err) {
       console.error('Weekly PDF error', err);
       alert('Haftalık PDF oluşturulamadı: ' + (err.response?.data || err.message));
@@ -924,39 +919,85 @@ export default function Dashboard() {
       const monthFilter = `${year}-${monthStr}`;
       const shifts = shiftCalendar.filter(s => s.tarih && s.tarih.startsWith(monthFilter));
 
-      const { jsPDF } = await import('jspdf');
-      const doc = new jsPDF('p','mm','a4');
-      let y = 20;
-
-      doc.setFontSize(18);
-      doc.text(`Aylık Vardiya Programı - ${selectedShiftMonth}`, 105, y, { align: 'center' });
-      y += 10;
-
-      // Group shifts by date
-      const byDate = {};
-      shifts.forEach(s => { (byDate[s.tarih] = byDate[s.tarih] || []).push(s); });
-      const dates = Object.keys(byDate).sort();
-
-      for (const date of dates) {
-        const d = new Date(date);
-        const dateStr = `${d.getDate()}.${d.getMonth()+1}.${d.getFullYear()}`;
-        doc.setFontSize(12); doc.setFont(undefined,'bold'); doc.text(dateStr, 20, y);
-        y += 6;
-        doc.setFont(undefined,'normal'); doc.setFontSize(10);
-        for (const s of byDate[date]) {
-          const emp = employees.find(e => e.id === s.employee_id) || { ad: 'Bilinmiyor', soyad: '' };
-          const shiftType = shiftTypes.find(st => st.id === s.shift_type) || { name: 'Bilinmiyor', start: '', end: '' };
-          doc.text(`• ${shiftType.name} ${shiftType.start || ''}-${shiftType.end || ''} — ${emp.ad} ${emp.soyad}`, 22, y);
-          y += 5;
-          if (y > 270) { doc.addPage(); y = 20; }
-        }
-        y += 4;
-        if (y > 270) { doc.addPage(); y = 20; }
+      // Build list of dates in month
+      const daysInMonth = new Date(year, month, 0).getDate();
+      const dates = [];
+      for (let d = 1; d <= daysInMonth; d++) {
+        const dateObj = new Date(year, month - 1, d);
+        dates.push(dateObj);
       }
 
-      doc.setFontSize(8); doc.setTextColor(128,128,128);
-      doc.text(`Oluşturulma: ${new Date().toLocaleString('tr-TR')}`, 105, 285, { align: 'center' });
-      doc.save(`vardiya_aylik_${selectedShiftMonth}.pdf`);
+      // Determine employees involved (or all employees if none)
+      const empMap = {};
+      shifts.forEach(s => { empMap[s.employee_id] = true; });
+      const involvedEmployees = Object.keys(empMap).length > 0 ? employees.filter(e => empMap[e.id]) : employees;
+
+      // Build shift lookup
+      const cellMap = {};
+      shifts.forEach(s => { cellMap[`${s.employee_id}_${s.tarih}`] = s; });
+
+      // Build HTML table with days as columns and employees as rows
+      const container = document.createElement('div');
+      container.style.padding = '10px';
+      container.style.fontFamily = 'Arial, Helvetica, sans-serif';
+
+      const title = document.createElement('div');
+      title.style.textAlign = 'center';
+      title.innerHTML = `<h2 style="margin:0;font-size:18px">Aylık Vardiya Programı - ${selectedShiftMonth}</h2><div style="font-size:12px;color:#666;margin-bottom:8px">Oluşturulma: ${new Date().toLocaleString('tr-TR')}</div>`;
+      container.appendChild(title);
+
+      const table = document.createElement('table');
+      table.style.width = '100%';
+      table.style.borderCollapse = 'collapse';
+      table.style.fontSize = '10px';
+
+      // Header
+      const thead = document.createElement('thead');
+      const headerRow = document.createElement('tr');
+      const thFirst = document.createElement('th');
+      thFirst.style.border = '1px solid #ddd'; thFirst.style.padding = '6px'; thFirst.style.background = '#f3f4f6'; thFirst.textContent = 'Personel';
+      headerRow.appendChild(thFirst);
+      dates.forEach(d => {
+        const th = document.createElement('th');
+        th.style.border = '1px solid #ddd'; th.style.padding = '4px'; th.style.background = '#f9fafb'; th.style.textAlign = 'center';
+        th.innerHTML = `${d.getDate()}<br/><small>${['Paz','Pzt','Sal','Çar','Per','Cum','Cmt'][d.getDay()]}</small>`;
+        headerRow.appendChild(th);
+      });
+      thead.appendChild(headerRow);
+      table.appendChild(thead);
+
+      const tbody = document.createElement('tbody');
+      involvedEmployees.forEach(emp => {
+        const tr = document.createElement('tr');
+        const tdName = document.createElement('td');
+        tdName.style.border = '1px solid #ddd'; tdName.style.padding = '6px'; tdName.textContent = `${emp.ad} ${emp.soyad}`;
+        tr.appendChild(tdName);
+        dates.forEach(d => {
+          const key = `${emp.id}_${d.toISOString().slice(0,10)}`;
+          const td = document.createElement('td');
+          td.style.border = '1px solid #ddd'; td.style.padding = '4px'; td.style.textAlign = 'center'; td.style.fontSize = '9px';
+          const s = cellMap[`${emp.id}_${d.toISOString().slice(0,10)}`] || cellMap[`${emp.employee_id}_${d.toISOString().slice(0,10)}`];
+          if (!s) { td.textContent = '-'; }
+          else if (s.type === 'izin') { td.innerHTML = '<span style="color:#c0392b;font-weight:600">İZİN</span>'; }
+          else {
+            const st = s.shift_type || s.shift_type_name || {};
+            const name = st.name || s.shift_type?.name || 'Vardiya';
+            const start = st.start || s.shift_type?.start || '';
+            const end = st.end || s.shift_type?.end || '';
+            td.innerHTML = `${name}<br/><small>${start} - ${end}</small>`;
+          }
+          tr.appendChild(td);
+        });
+        tbody.appendChild(tr);
+      });
+
+      table.appendChild(tbody);
+      container.appendChild(table);
+      document.body.appendChild(container);
+
+      const { jsPDF } = await import('jspdf');
+      const doc = new jsPDF('l','pt','a4');
+      await doc.html(container, { callback: () => { doc.save(`vardiya_aylik_${selectedShiftMonth}.pdf`); container.remove(); }, x: 20, y: 20, html2canvas: { scale: 1 } });
     } catch (err) {
       console.error('Monthly PDF error', err);
       alert('Aylık PDF oluşturulamadı: ' + (err.response?.data || err.message));
