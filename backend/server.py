@@ -142,6 +142,16 @@ async def lifespan(app: FastAPI):
 
     return results
 
+# Add CORS middleware BEFORE routers so browser requests from the frontend are allowed.
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=os.environ.get('CORS_ORIGINS', '*').split(','),
+    allow_methods=["*"],
+    allow_headers=["*"],
+    # Do not allow credentials with a wildcard origin — keep it False for public deploys
+    allow_credentials=False,
+)
+
 # Create router after middleware
 api_router = APIRouter(prefix="/api")
 
