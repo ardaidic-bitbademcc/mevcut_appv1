@@ -11,3 +11,7 @@ passlib==1.7.4
 
 # For XLSX export/import
 openpyxl==3.1.2
+
+# Caching / background jobs
+redis==4.6.0
+rq==1.11.0

@@ -32,82 +32,101 @@ logger = logging.getLogger(__name__)
 # Lifespan context manager for proper shutdown
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # Startup
-    logger.info("Starting up...")
-    
-    # Ensure admin user exists on startup
-    admin_user = await db.employees.find_one({"email": "admin@example.com"})
-    if not admin_user:
-        logger.warning("Admin user not found, creating default admin...")
-        # Create minimal admin setup
-        admin_role = await db.roles.find_one({"id": "admin"})
-        if not admin_role:
-            await db.roles.insert_one({
-                "id": "admin",
-                "name": "Yönetici",
-                "permissions": {
-                    "view_dashboard": True,
-                    "view_tasks": True,
-                    "assign_tasks": True,
-                    "rate_tasks": True,
-                    "manage_shifts": True,
-                    "manage_leave": True,
-                    "view_salary": True,
-                    "manage_roles": True,
-                    "manage_shifts_types": True,
-                    "edit_employees": True,
-                    "can_view_stock": True,
-                    "can_add_stock_unit": True,
-                    "can_delete_stock_unit": True,
-                    "can_add_stock_product": True,
-                    "can_edit_stock_product": True,
-                    "can_delete_stock_product": True,
-                    "can_perform_stock_count": True,
-                    "can_manage_categories": True
-                }
-            })
-        
-        company = await db.companies.find_one({"id": 1})
-        if not company:
-            await db.companies.insert_one({
-                "id": 1,
-                "name": "Demo Şirket",
-                "domain": "example.com",
-                "created_at": datetime.now(timezone.utc).isoformat()
-            })
-        
-        # Create a consistent default admin account for demos/tests
-        await db.employees.insert_one({
-            "id": 1,
-            "company_id": 1,
-            "ad": "Admin",
-            "soyad": "User",
-            "pozisyon": "Sistem Yöneticisi",
-            "maas_tabani": 50000,
-            "rol": "admin",
-            "email": "admin@example.com",
-            "employee_id": "1000",
-            "password": bcrypt.hashpw("admin123".encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
-        })
-        logger.info("Admin user created: admin@example.com / admin123")
+    # Use Redis cache if available
+    from cache import cache_get, cache_set
+
+    cache_key = f"salary_all:{month}"
+    cached = None
+    try:
+        cached = cache_get(cache_key)
+    except Exception:
+        cached = None
+
+    if cached is not None:
+        return cached
+
+    # Gather all attendance records for the month
+    # month is YYYY-MM
+    try:
+        start = datetime.fromisoformat(f"{month}-01").date()
+    except Exception:
+        raise HTTPException(status_code=400, detail="Invalid month format. Use YYYY-MM")
+
+    # compute end of month (simple way: move to next month and subtract a day)
+    if start.month == 12:
+        next_month = datetime(start.year + 1, 1, 1).date()
     else:
-        logger.info("Admin user found: arda@example.com")
-    
-    yield
-    # Shutdown
-    logger.info("Shutting down...")
-    client.close()
+        next_month = datetime(start.year, start.month + 1, 1).date()
 
-# Create the main app with lifespan
-app = FastAPI(lifespan=lifespan)
+    end = (next_month - timedelta(days=1))
 
-# CORS middleware MUST be added BEFORE routers
-app.add_middleware(
-    CORSMiddleware,
-    allow_credentials=True,
-    allow_origins=os.environ.get('CORS_ORIGINS', '*').split(','),
-    allow_methods=["*"],
-    allow_headers=["*"],
+    # we will iterate employees and compute salary
+    employees = await db.employees.find({}).to_list(None)
+    results = []
+
+    for emp in employees:
+        emp_id = emp.get("employee_id")
+        # find attendance in the month
+        query = {"employee_id": emp_id, "tarih": {"$regex": f"^{month}"}}
+        attendance = await db.attendance.find(query).to_list(None)
+
+        temel = float(emp.get("maas_tabani", 0) or 0)
+        # estimate daily wage as temel / 30
+        gunluk = round(temel / 30.0, 2) if temel else 0.0
+        saatlik = round(gunluk / 9.0, 2)  # assume 9h workday
+
+        calisilan_saat = 0.0
+        calisilan_gun = 0
+        for a in attendance:
+            # consider record as worked day if calisilan_saat > 0 or status == 'cikis'
+            cs = float(a.get("calisilan_saat", 0) or 0)
+            if cs > 0 or a.get("status") == "cikis":
+                calisilan_saat += cs
+                calisilan_gun += 1
+
+        # Previously hakedilen was calculated using days * daily wage.
+        # Change: calculate earned salary as total worked hours * hourly wage.
+        # saatlik was calculated above as: round(gunluk / 9.0, 2)
+        hakedilen = round(saatlik * calisilan_saat, 2)
+
+        # toplam yemek ucreti
+        yemek_records = await db.yemek_ucreti.find({"employee_id": int(emp.get("id", 0))}).to_list(None)
+        gunluk_yemek = float(yemek_records[0].get("gunluk_ucret", 0)) if yemek_records else 0.0
+        toplam_yemek = round(gunluk_yemek * calisilan_gun, 2)
+
+        # avanslar for the month
+        avans_query = {"employee_id": int(emp.get("id", 0)), "tarih": {"$regex": f"^{month}"}}
+        avanslar = await db.avans.find(avans_query).to_list(None)
+        toplam_avans = round(sum([float(a.get("miktar", 0) or 0) for a in avanslar]), 2)
+
+        toplam = round(hakedilen + toplam_yemek - toplam_avans, 2)
+
+        results.append({
+            "employee_id": emp.get("employee_id"),
+            "employee_unique_id": emp.get("id"),
+            "ad": emp.get("ad"),
+            "soyad": emp.get("soyad"),
+            "pozisyon": emp.get("pozisyon"),
+            "temel_maas": temel,
+            "gunluk_maas": gunluk,
+            "saatlik_maas": saatlik,
+            "calisilan_gun": calisilan_gun,
+            "calisilan_saat": round(calisilan_saat, 2),
+            "hakedilen_maas": hakedilen,
+            "gunluk_yemek_ucreti": gunluk_yemek,
+            "toplam_yemek": toplam_yemek,
+            "toplam_avans": toplam_avans,
+            "toplam_maas": toplam,
+            "ay": month
+        })
+
+    # store in cache for future requests
+    try:
+        cache_set(cache_key, results, expire_seconds=60 * 60 * 6)
+    except Exception:
+        pass
+
+    return results
 )
 
 # Create router after middleware
