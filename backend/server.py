@@ -127,7 +127,7 @@ async def lifespan(app: FastAPI):
         pass
 
     return results
-)
+
 
 # Create router after middleware
 api_router = APIRouter(prefix="/api")
