@@ -859,41 +859,52 @@ export default function Dashboard() {
       (weeklyData.shifts || []).forEach(s => { shiftsByDate[s.tarih] = s; });
 
       const container = document.createElement('div');
-      container.style.padding = '16px';
-      container.style.fontFamily = 'Arial, Helvetica, sans-serif';
+      container.style.padding = '14px';
+      container.style.fontFamily = `-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial`;
+      container.style.color = '#1c1c1e';
       container.innerHTML = `
-        <div style="text-align:center; margin-bottom:12px;">
-          <h2 style="margin:0; font-size:18px">Haftalık Vardiya Programı</h2>
-          <div style="font-size:14px;">${employee.ad} ${employee.soyad} — ${employee.pozisyon}</div>
-          <div style="font-size:12px; color:#666;">Dönem: ${sd.toLocaleDateString('tr-TR')} - ${ed.toLocaleDateString('tr-TR')}</div>
+        <div style="display:flex;align-items:center;gap:12px;margin-bottom:10px;">
+          <div style="width:48px;height:48px;flex:0 0 48px;border-radius:10px;display:flex;align-items:center;justify-content:center;background:linear-gradient(135deg,#06b6d4,#7c3aed);box-shadow:0 4px 14px rgba(0,0,0,0.06)">
+            <!-- simple SVG mark -->
+            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <rect rx="5" width="24" height="24" fill="white"/>
+              <path d="M7 12.5C7 9.5 9.5 7 12.5 7C13.25 7 14 7.1 14.7 7.3C13.8 8.8 12 9.6 10.6 9.6C10.6 11.4 12 12.5 13.6 12.5H7Z" fill="#7c3aed"/>
+            </svg>
+          </div>
+          <div style="flex:1">
+            <div style="font-size:16px;font-weight:600">Haftalık Vardiya Programı</div>
+            <div style="font-size:13px;color:#6b7280;margin-top:2px">${employee.ad} ${employee.soyad} — ${employee.pozisyon} · ${sd.toLocaleDateString('tr-TR')} - ${ed.toLocaleDateString('tr-TR')}</div>
+          </div>
         </div>
       `;
 
-      const table = document.createElement('table');
-      table.style.width = '100%';
-      table.style.borderCollapse = 'collapse';
-      table.style.fontSize = '11px';
+  const table = document.createElement('table');
+  table.style.width = '100%';
+  table.style.borderCollapse = 'collapse';
+  table.style.fontSize = '11px';
+  table.style.borderRadius = '8px';
+  table.style.overflow = 'hidden';
 
       const thead = document.createElement('thead');
       thead.innerHTML = `<tr>
-        <th style="border:1px solid #ddd;padding:8px;background:#f3f4f6;text-align:left;">Personel</th>
-        ${dates.map(d => `<th style="border:1px solid #ddd;padding:8px;background:#f3f4f6;text-align:center">${d.toLocaleDateString('tr-TR')}<br/>${['Paz','Pzt','Sal','Çar','Per','Cum','Cmt'][d.getDay()]}</th>`).join('')}
+        <th style="border:1px solid #f0f0f0;padding:6px 8px;background:#fbfbfc;text-align:left;font-weight:600;font-size:12px;color:#111">Personel</th>
+        ${dates.map(d => `<th style="border:1px solid #f0f0f0;padding:6px 6px;background:#fbfbfc;text-align:center;font-weight:600;font-size:11px;color:#111">${d.getDate()}<div style=\"font-size:10px;color:#6b7280;margin-top:3px\">${['Paz','Pzt','Sal','Çar','Per','Cum','Cmt'][d.getDay()]}</div></th>`).join('')}
       </tr>`;
       table.appendChild(thead);
 
       const tbody = document.createElement('tbody');
       const tr = document.createElement('tr');
-      tr.innerHTML = `<td style="border:1px solid #ddd;padding:8px">${employee.ad} ${employee.soyad}</td>` +
+      tr.innerHTML = `<td style="border:1px solid #f0f0f0;padding:8px 10px;background:#fff;font-weight:600">${employee.ad} ${employee.soyad}</td>` +
         dates.map(d => {
           const key = d.toISOString().slice(0,10);
           const s = shiftsByDate[key];
-          if (!s) return `<td style="border:1px solid #ddd;padding:8px;text-align:center;color:#999">-</td>`;
-          if (s.type === 'izin') return `<td style="border:1px solid #ddd;padding:8px;text-align:center;color:#c0392b">İZİN</td>`;
+          if (!s) return `<td style="border:1px solid #f0f0f0;padding:8px;text-align:center;color:#9ca3af">-</td>`;
+          if (s.type === 'izin') return `<td style="border:1px solid #f0f0f0;padding:8px;text-align:center;color:#ef4444;font-weight:700">İZİN</td>`;
           const st = s.shift_type || s.shift_type_name || {};
           const name = st.name || s.shift_type?.name || 'Vardiya';
           const start = st.start || s.shift_type?.start || '';
           const end = st.end || s.shift_type?.end || '';
-          return `<td style="border:1px solid #ddd;padding:8px;text-align:center">${name}<br/><small>${start} - ${end}</small></td>`;
+          return `<td style="border:1px solid #f0f0f0;padding:6px 8px;text-align:center"><div style=\"font-weight:600;color:#111\">${name}</div><div style=\"font-size:10px;color:#6b7280\">${start} - ${end}</div></td>`;
         }).join('');
       tr.innerHTML = tr.innerHTML;
       tbody.appendChild(tr);
@@ -939,28 +950,42 @@ export default function Dashboard() {
       // Build HTML table with days as columns and employees as rows
       const container = document.createElement('div');
       container.style.padding = '10px';
-      container.style.fontFamily = 'Arial, Helvetica, sans-serif';
+      container.style.fontFamily = `-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial`;
+      container.style.color = '#1c1c1e';
 
       const title = document.createElement('div');
-      title.style.textAlign = 'center';
-      title.innerHTML = `<h2 style="margin:0;font-size:18px">Aylık Vardiya Programı - ${selectedShiftMonth}</h2><div style="font-size:12px;color:#666;margin-bottom:8px">Oluşturulma: ${new Date().toLocaleString('tr-TR')}</div>`;
+      title.style.display = 'flex'; title.style.alignItems = 'center'; title.style.gap = '12px';
+      title.innerHTML = `
+        <div style="width:48px;height:48px;border-radius:10px;display:flex;align-items:center;justify-content:center;background:linear-gradient(135deg,#06b6d4,#7c3aed);box-shadow:0 4px 14px rgba(0,0,0,0.06)">
+          <svg width="28" height="28" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <rect rx="5" width="24" height="24" fill="white"/>
+            <path d="M7 12.5C7 9.5 9.5 7 12.5 7C13.25 7 14 7.1 14.7 7.3C13.8 8.8 12 9.6 10.6 9.6C10.6 11.4 12 12.5 13.6 12.5H7Z" fill="#7c3aed"/>
+          </svg>
+        </div>
+        <div>
+          <div style="font-size:16px;font-weight:600">Aylık Vardiya Programı — ${selectedShiftMonth}</div>
+          <div style="font-size:12px;color:#6b7280;margin-top:2px">Oluşturulma: ${new Date().toLocaleString('tr-TR')}</div>
+        </div>
+      `;
       container.appendChild(title);
 
       const table = document.createElement('table');
-      table.style.width = '100%';
-      table.style.borderCollapse = 'collapse';
-      table.style.fontSize = '10px';
+  table.style.width = '100%';
+  table.style.borderCollapse = 'collapse';
+  table.style.fontSize = '10px';
+  table.style.borderRadius = '8px';
+  table.style.overflow = 'hidden';
 
       // Header
       const thead = document.createElement('thead');
       const headerRow = document.createElement('tr');
-      const thFirst = document.createElement('th');
-      thFirst.style.border = '1px solid #ddd'; thFirst.style.padding = '6px'; thFirst.style.background = '#f3f4f6'; thFirst.textContent = 'Personel';
+  const thFirst = document.createElement('th');
+  thFirst.style.border = '1px solid #f0f0f0'; thFirst.style.padding = '6px'; thFirst.style.background = '#fbfbfc'; thFirst.style.fontWeight = '600'; thFirst.style.color = '#111'; thFirst.textContent = 'Personel';
       headerRow.appendChild(thFirst);
       dates.forEach(d => {
         const th = document.createElement('th');
-        th.style.border = '1px solid #ddd'; th.style.padding = '4px'; th.style.background = '#f9fafb'; th.style.textAlign = 'center';
-        th.innerHTML = `${d.getDate()}<br/><small>${['Paz','Pzt','Sal','Çar','Per','Cum','Cmt'][d.getDay()]}</small>`;
+        th.style.border = '1px solid #f0f0f0'; th.style.padding = '4px 6px'; th.style.background = '#fbfbfc'; th.style.textAlign = 'center'; th.style.fontWeight = '600'; th.style.fontSize = '11px';
+        th.innerHTML = `${d.getDate()}<div style="font-size:10px;color:#6b7280;margin-top:3px">${['Paz','Pzt','Sal','Çar','Per','Cum','Cmt'][d.getDay()]}</div>`;
         headerRow.appendChild(th);
       });
       thead.appendChild(headerRow);
