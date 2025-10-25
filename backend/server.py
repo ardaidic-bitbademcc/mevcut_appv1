@@ -29,12 +29,27 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
+# Initialize Sentry (if configured) as early as possible to capture import-time errors.
+try:
+    from .monitoring import init_sentry as _init_sentry
+except Exception:
+    # fallback to top-level import if package context differs
+    try:
+        from monitoring import init_sentry as _init_sentry
+    except Exception:
+        _init_sentry = None
+
 # Minimal FastAPI app object to ensure decorators defined later don't fail during import.
 # A proper lifespan/context is configured further down; this early creation prevents
 # NameError during module import when decorators like @app.get are evaluated.
 try:
     from fastapi import FastAPI as _FastAPI
     app = _FastAPI()
+    if _init_sentry:
+        try:
+            _init_sentry(app)
+        except Exception:
+            logger.exception("Sentry init failed during early app creation")
 except Exception:
     app = None  # fallback; import errors will surface later
 
@@ -2146,6 +2161,31 @@ async def stok_import(file: UploadFile = File(...), company_id: int = 1):
                 await db.stok_urun.insert_one(doc)
                 created += 1
         return {"created": created, "updated": updated}
+
+
+    # Debug endpoint to validate Sentry and logging in production.
+    # Usage:
+    #  - POST /api/debug/sentry-test            -> sends a Sentry message (if configured) and returns 200
+    #  - POST /api/debug/sentry-test?raise_exc=true -> triggers an unhandled exception (500) to force Sentry to capture an exception
+    @api_router.post("/debug/sentry-test")
+    async def sentry_test(raise_exc: bool = False):
+        """Send a test message to Sentry (if available). If raise_exc=true, raise an exception to produce a 500 and ensure Sentry captures it.
+
+        This endpoint is intended for manual testing after you set SENTRY_DSN in your Render environment.
+        """
+        try:
+            import sentry_sdk
+            # Capture an informational message so Sentry shows an event even if we don't raise
+            sentry_sdk.capture_message("Mevcut App - Sentry test message from /api/debug/sentry-test")
+            logger.info("Sentry test message captured (if Sentry configured)")
+        except Exception:
+            logger.exception("Sentry SDK not configured or capture failed")
+
+        if raise_exc:
+            # This will produce a 500 response and, if Sentry is configured, an exception event
+            raise Exception("Sentry test exception triggered by /api/debug/sentry-test")
+
+        return {"success": True, "sentry_message_sent": True, "raise_exception": raise_exc}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
