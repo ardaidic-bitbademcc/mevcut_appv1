@@ -51,6 +51,7 @@ export default function Dashboard() {
   const [showWeeklySchedule, setShowWeeklySchedule] = useState(false);
   const [weeklyScheduleEmployee, setWeeklyScheduleEmployee] = useState(null);
   const [weeklyScheduleData, setWeeklyScheduleData] = useState(null);
+  const [weeklyPdfEmployeeId, setWeeklyPdfEmployeeId] = useState('');
   const [stokKategoriler, setStokKategoriler] = useState([]);
   const [stokBirimler, setStokBirimler] = useState([]);
   const [stokUrunler, setStokUrunler] = useState([]);
@@ -837,6 +838,131 @@ export default function Dashboard() {
     doc.save(`vardiya_${employee.ad}_${employee.soyad}_${weeklyScheduleData.start_date}.pdf`);
   };
 
+  // Generate weekly PDF for a given employee and week start date (YYYY-MM-DD)
+  const generateWeeklyPDFFor = async (employeeId, startDate) => {
+    try {
+      const resp = await axios.get(`${API}/shift-calendar/weekly/${employeeId}?start_date=${startDate}`);
+      const weeklyData = resp.data;
+      if (!weeklyData) return alert('Haftalık veri bulunamadı');
+
+      const { jsPDF } = await import('jspdf');
+      const doc = new jsPDF();
+      const employee = weeklyData.employee;
+      let yPos = 20;
+
+      doc.setFontSize(18);
+      doc.text(`Haftalık Vardiya Programı`, 105, yPos, { align: 'center' });
+      yPos += 10;
+      doc.setFontSize(14);
+      doc.text(`${employee.ad} ${employee.soyad} - ${employee.pozisyon}`, 105, yPos, { align: 'center' });
+      yPos += 6;
+
+      doc.setFontSize(10);
+      doc.text(`Dönem: ${weeklyData.start_date} - ${weeklyData.end_date || ''}`, 105, yPos, { align: 'center' });
+      yPos += 10;
+
+      doc.setLineWidth(0.5);
+      doc.line(20, yPos, 190, yPos);
+      yPos += 8;
+
+      const dayNames = ['Pazar', 'Pazartesi', 'Salı', 'Çarşamba', 'Perşembe', 'Cuma', 'Cumartesi'];
+      weeklyData.shifts.forEach((shift) => {
+        const date = new Date(shift.tarih);
+        const dayName = dayNames[date.getDay()];
+        const dateStr = `${date.getDate()}.${date.getMonth() + 1}.${date.getFullYear()}`;
+
+        doc.setFontSize(12);
+        doc.setFont(undefined, 'bold');
+        doc.text(`${dayName}, ${dateStr}`, 20, yPos);
+        yPos += 6;
+
+        doc.setFont(undefined, 'normal');
+        doc.setFontSize(10);
+        if (shift.type === 'izin') {
+          doc.setTextColor(255, 0, 0);
+          doc.text('🏖️ İZİNLİ', 20, yPos);
+          doc.setTextColor(0, 0, 0);
+          yPos += 6;
+        } else if (shift.type === 'vardiya') {
+          doc.setTextColor(0, 128, 0);
+          doc.text(`⏰ ${shift.shift_type.name} (${shift.shift_type.start}-${shift.shift_type.end})`, 20, yPos);
+          doc.setTextColor(0, 0, 0);
+          yPos += 6;
+          if (shift.team_members && shift.team_members.length) {
+            doc.setFontSize(9);
+            shift.team_members.forEach(m => {
+              doc.text(`• ${m.ad} ${m.soyad} (${m.pozisyon})`, 25, yPos);
+              yPos += 4;
+            });
+          }
+        } else {
+          doc.setTextColor(128, 128, 128);
+          doc.text('Vardiya atanmamış', 20, yPos);
+          doc.setTextColor(0, 0, 0);
+          yPos += 6;
+        }
+
+        yPos += 4;
+        if (yPos > 270) { doc.addPage(); yPos = 20; }
+      });
+
+      doc.setFontSize(8);
+      doc.setTextColor(128, 128, 128);
+      doc.text(`Oluşturulma: ${new Date().toLocaleString('tr-TR')}`, 105, 285, { align: 'center' });
+      doc.save(`vardiya_${employee.ad}_${employee.soyad}_${weeklyData.start_date}.pdf`);
+    } catch (err) {
+      console.error('Weekly PDF error', err);
+      alert('Haftalık PDF oluşturulamadı: ' + (err.response?.data || err.message));
+    }
+  };
+
+  // Generate monthly PDF for selected month (selectedShiftMonth is YYYY-MM)
+  const generateMonthlyPDF = async () => {
+    try {
+      const [year, month] = selectedShiftMonth.split('-').map(Number);
+      const monthStr = `${String(month).padStart(2,'0')}`;
+      const monthFilter = `${year}-${monthStr}`;
+      const shifts = shiftCalendar.filter(s => s.tarih && s.tarih.startsWith(monthFilter));
+
+      const { jsPDF } = await import('jspdf');
+      const doc = new jsPDF('p','mm','a4');
+      let y = 20;
+
+      doc.setFontSize(18);
+      doc.text(`Aylık Vardiya Programı - ${selectedShiftMonth}`, 105, y, { align: 'center' });
+      y += 10;
+
+      // Group shifts by date
+      const byDate = {};
+      shifts.forEach(s => { (byDate[s.tarih] = byDate[s.tarih] || []).push(s); });
+      const dates = Object.keys(byDate).sort();
+
+      for (const date of dates) {
+        const d = new Date(date);
+        const dateStr = `${d.getDate()}.${d.getMonth()+1}.${d.getFullYear()}`;
+        doc.setFontSize(12); doc.setFont(undefined,'bold'); doc.text(dateStr, 20, y);
+        y += 6;
+        doc.setFont(undefined,'normal'); doc.setFontSize(10);
+        for (const s of byDate[date]) {
+          const emp = employees.find(e => e.id === s.employee_id) || { ad: 'Bilinmiyor', soyad: '' };
+          const shiftType = shiftTypes.find(st => st.id === s.shift_type) || { name: 'Bilinmiyor', start: '', end: '' };
+          doc.text(`• ${shiftType.name} ${shiftType.start || ''}-${shiftType.end || ''} — ${emp.ad} ${emp.soyad}`, 22, y);
+          y += 5;
+          if (y > 270) { doc.addPage(); y = 20; }
+        }
+        y += 4;
+        if (y > 270) { doc.addPage(); y = 20; }
+      }
+
+      doc.setFontSize(8); doc.setTextColor(128,128,128);
+      doc.text(`Oluşturulma: ${new Date().toLocaleString('tr-TR')}`, 105, 285, { align: 'center' });
+      doc.save(`vardiya_aylik_${selectedShiftMonth}.pdf`);
+    } catch (err) {
+      console.error('Monthly PDF error', err);
+      alert('Aylık PDF oluşturulamadı: ' + (err.response?.data || err.message));
+    }
+  };
+
   const addAvans = async () => {
     if (!newAvans.employee_id || !newAvans.miktar || !newAvans.tarih) {
       alert('❌ Tüm alanları doldurunuz!');
@@ -1293,6 +1419,23 @@ export default function Dashboard() {
                   <div className="mb-6 flex gap-4 items-center">
                     <input type="month" value={selectedShiftMonth} onChange={(e) => setSelectedShiftMonth(e.target.value)} className="px-4 py-2 border rounded-lg font-semibold" />
                     <div className="text-sm text-gray-600">İpucu: Takvimde gün seçin, sonra personel seçin ve vardiya atayın</div>
+                  </div>
+
+                  <div className="mb-4 flex gap-3 items-center">
+                    <select value={weeklyPdfEmployeeId} onChange={(e) => setWeeklyPdfEmployeeId(e.target.value)} className="px-3 py-2 border rounded-lg">
+                      <option value="">Haftalık PDF için personel seç</option>
+                      {employees.map(emp => (
+                        <option key={emp.id} value={emp.id}>{emp.ad} {emp.soyad}</option>
+                      ))}
+                    </select>
+                    <input id="weekly-start-date" type="date" className="px-3 py-2 border rounded-lg" />
+                    <button onClick={() => {
+                      const date = document.getElementById('weekly-start-date').value;
+                      if (!weeklyPdfEmployeeId) return alert('Lütfen personel seçin');
+                      if (!date) return alert('Lütfen hafta başlangıç tarihi seçin');
+                      generateWeeklyPDFFor(weeklyPdfEmployeeId, date);
+                    }} className="px-4 py-2 bg-indigo-600 text-white rounded hover:bg-indigo-700">Haftalık PDF İndir</button>
+                    <button onClick={generateMonthlyPDF} className="px-4 py-2 bg-gray-700 text-white rounded hover:bg-gray-800">Aylık PDF İndir</button>
                   </div>
 
                   <div className="bg-gray-50 rounded-lg p-4">
