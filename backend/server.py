@@ -2161,9 +2161,11 @@ async def stok_import(file: UploadFile = File(...), company_id: int = 1):
                 await db.stok_urun.insert_one(doc)
                 created += 1
         return {"created": created, "updated": updated}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 
-    # Debug endpoint to validate Sentry and logging in production.
+# Debug endpoint to validate Sentry and logging in production.
     # Usage:
     #  - POST /api/debug/sentry-test            -> sends a Sentry message (if configured) and returns 200
     #  - POST /api/debug/sentry-test?raise_exc=true -> triggers an unhandled exception (500) to force Sentry to capture an exception
@@ -2186,8 +2188,6 @@ async def stok_import(file: UploadFile = File(...), company_id: int = 1):
             raise Exception("Sentry test exception triggered by /api/debug/sentry-test")
 
         return {"success": True, "sentry_message_sent": True, "raise_exception": raise_exc}
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
 
 
 # Include API router after all routes have been declared so every @api_router
