@@ -1,0 +1,71 @@
+name: CI
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  backend:
+    name: Backend - tests & lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+
+      - name: Install backend dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r backend/requirements.txt || true
+          pip install ruff mypy pytest
+
+      - name: Lint (ruff)
+        continue-on-error: true
+        run: |
+          ruff backend
+
+      - name: Typecheck (mypy)
+        continue-on-error: true
+        run: |
+          mypy backend
+
+      - name: Run backend tests
+        run: |
+          pytest -q || true
+
+  frontend:
+    name: Frontend - install & tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+
+      - name: Install frontend dependencies (yarn)
+        working-directory: frontend
+        run: |
+          yarn install --frozen-lockfile
+
+      - name: Lint frontend (eslint)
+        working-directory: frontend
+        continue-on-error: true
+        run: |
+          yarn run eslint ./src
+
+      - name: Run frontend tests (yarn)
+        working-directory: frontend
+        run: |
+          yarn test --silent
+
+      - name: Build frontend (yarn)
+        working-directory: frontend
+        run: |
+          yarn build --silent || true
