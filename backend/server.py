@@ -1092,19 +1092,41 @@ async def get_weekly_shift_calendar(employee_id: int, start_date: Optional[str] 
     query = {"employee_id": str(employee_id)}
     all_shifts = await db.shift_calendar.find(query).to_list(None)
 
+    # default response shape for compatibility with frontend expects an object
+    # containing employee, start_date, end_date, shifts
     if not start_date:
-        return all_shifts
+        # try to include employee info if available
+        employee = await db.employees.find_one({"employee_id": str(employee_id)})
+        return {
+            "employee": employee or {},
+            "start_date": None,
+            "end_date": None,
+            "shifts": all_shifts,
+        }
 
     try:
         sd = datetime.fromisoformat(start_date).date()
     except Exception:
-        # invalid date format, return all
-        return all_shifts
+        # invalid date format, return all in same shape
+        employee = await db.employees.find_one({"employee_id": str(employee_id)})
+        return {
+            "employee": employee or {},
+            "start_date": None,
+            "end_date": None,
+            "shifts": all_shifts,
+        }
 
     end_date = sd + timedelta(days=6)
     # Filter by tarih field (assumed ISO date string)
     filtered = [s for s in all_shifts if 'tarih' in s and sd.isoformat() <= s['tarih'] <= end_date.isoformat()]
-    return filtered
+
+    employee = await db.employees.find_one({"employee_id": str(employee_id)})
+    return {
+        "employee": employee or {},
+        "start_date": sd.isoformat(),
+        "end_date": end_date.isoformat(),
+        "shifts": filtered,
+    }
 
 # Admin check/create endpoint
 @api_router.post("/ensure-admin")
