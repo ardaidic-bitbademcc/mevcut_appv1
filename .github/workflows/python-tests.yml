@@ -1,0 +1,86 @@
+name: Python backend tests
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  backend-tests:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: [3.11, 3.12]
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Cache pip
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-${{ hashFiles('**/backend/requirements.txt') }}
+          restore-keys: |
+            ${{ runner.os }}-pip-
+
+      - name: Install backend dependencies
+        run: |
+          python -m pip install --upgrade pip
+          if [ -f backend/requirements.txt ]; then pip install -r backend/requirements.txt; fi
+          pip install pytest
+
+      - name: Run backend tests
+        working-directory: ./
+        run: |
+          python -m pytest -q backend/tests
+
+  frontend-tests:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        node-version: [18.x, 20.x]
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node-version }}
+
+      - name: Cache node modules
+        uses: actions/cache@v4
+        with:
+          path: |
+            frontend/node_modules
+            ~/.cache/yarn
+          key: ${{ runner.os }}-node-${{ matrix.node-version }}-${{ hashFiles('frontend/package.json') }}
+          restore-keys: |
+            ${{ runner.os }}-node-${{ matrix.node-version }}-
+
+      - name: Prepare Yarn and install frontend dependencies
+        run: |
+          # ensure yarn v1 is available (project uses yarn@1.x in packageManager)
+          corepack enable || true
+          corepack prepare yarn@1.22.22 --activate || true
+          cd frontend
+          if [ -f yarn.lock ]; then
+            yarn --frozen-lockfile --silent
+          else
+            yarn install --silent
+          fi
+
+      - name: Run frontend tests (Yarn)
+        env:
+          CI: true
+        run: |
+          # run tests once in CI (no watch)
+          yarn --cwd frontend test --watchAll=false --silent
