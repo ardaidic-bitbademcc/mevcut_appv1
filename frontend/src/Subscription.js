@@ -4,23 +4,23 @@ import axios from 'axios';
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL || 'https://mevcut-appv1.onrender.com';
 const API = `${BACKEND_URL}/api`;
 
-export default function Subscription({ employeeId }) {
+export default function Subscription({ companyId }) {
   const [status, setStatus] = useState('loading');
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState('');
 
   useEffect(() => {
-    if (!employeeId) return;
+    if (!companyId) return;
     (async () => {
       try {
-        const res = await axios.get(`${API}/subscription/${employeeId}`);
+        const res = await axios.get(`${API}/subscription/company/${companyId}`);
         setStatus(res.data.status || 'none');
       } catch (err) {
         console.error('Failed to load subscription', err);
         setStatus('error');
       }
     })();
-  }, [employeeId]);
+  }, [companyId]);
 
   const plans = [
     { id: 'mock_monthly', name: 'Aylık Plan', price: '₺49 / ay' },
@@ -28,11 +28,11 @@ export default function Subscription({ employeeId }) {
   ];
 
   const startCheckout = async (priceId) => {
-    if (!employeeId) return setMessage('Employee ID required');
+    if (!companyId) return setMessage('Company ID required');
     setLoading(true);
     try {
       const payload = {
-        employee_id: employeeId,
+        company_id: companyId,
         price_id: priceId,
         success_url: window.location.origin + '/subscription/success',
         cancel_url: window.location.origin + '/subscription/cancel'

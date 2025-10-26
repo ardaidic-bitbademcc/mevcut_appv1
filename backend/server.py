@@ -2224,15 +2224,20 @@ app.include_router(api_router)
 # -------------------- Subscription / Payment endpoints --------------------
 
 
-@api_router.get("/subscription/{employee_id}")
-async def get_subscription(employee_id: int):
-    """Return subscription status for a given employee (if any)."""
-    sub = await db.subscriptions.find_one({"employee_id": int(employee_id)})
+@api_router.get("/subscription/company/{company_id}")
+async def get_subscription(company_id: int):
+    """Return subscription status for a given company.
+
+    Subscriptions are maintained per company (tenant). Employees belong to a company
+    and access company-level data. This endpoint returns the subscription record for
+    the provided company id.
+    """
+    sub = await db.subscriptions.find_one({"company_id": int(company_id)})
     if not sub:
-        return {"employee_id": int(employee_id), "status": "none"}
+        return {"company_id": int(company_id), "status": "none"}
     # sanitize
     return {
-        "employee_id": int(employee_id),
+        "company_id": int(company_id),
         "status": sub.get("status", "unknown"),
         "plan": sub.get("plan"),
         "stripe_subscription_id": sub.get("stripe_subscription_id")
@@ -2249,7 +2254,7 @@ async def create_checkout_session(payload: dict):
     If STRIPE_SECRET is not configured we'll fallback to a mock path that
     persist a subscription record with status 'active' for testing.
     """
-    employee_id = int(payload.get("employee_id") or 0)
+    company_id = int(payload.get("company_id") or 0)
     price_id = payload.get("price_id")
     success_url = payload.get("success_url") or "https://example.com/success"
     cancel_url = payload.get("cancel_url") or "https://example.com/cancel"
@@ -2258,7 +2263,7 @@ async def create_checkout_session(payload: dict):
     if not stripe_key:
         # Mock flow: create a subscription record locally and return a mock url
         sub_doc = {
-            "employee_id": employee_id,
+            "company_id": company_id,
             "status": "active",
             "plan": price_id or "mock_monthly",
             "created_at": datetime.now(timezone.utc).isoformat(),
@@ -2275,7 +2280,7 @@ async def create_checkout_session(payload: dict):
             line_items=[{"price": price_id, "quantity": 1}],
             success_url=success_url + "?session_id={CHECKOUT_SESSION_ID}",
             cancel_url=cancel_url,
-            metadata={"employee_id": str(employee_id)}
+            metadata={"company_id": str(company_id)}
         )
         return {"session_id": session.id, "session_url": session.url}
     except Exception as e:
@@ -2313,15 +2318,15 @@ async def stripe_webhook(request: Request):
     try:
         if kind == "checkout.session.completed":
             session = event.get("data", {}).get("object") if isinstance(event, dict) else event.data.object
-            employee_id = int(session.get("metadata", {}).get("employee_id") or 0)
+            company_id = int(session.get("metadata", {}).get("company_id") or 0)
             stripe_sub_id = session.get("subscription")
-            # persist subscription
+            # persist subscription under company
             await db.subscriptions.update_one(
-                {"employee_id": employee_id},
+                {"company_id": company_id},
                 {"$set": {"status": "active", "stripe_subscription_id": stripe_sub_id, "updated_at": datetime.now(timezone.utc).isoformat()}},
                 upsert=True
             )
-            logger.info("Subscription activated for employee %s via checkout.session.completed", employee_id)
+            logger.info("Subscription activated for company %s via checkout.session.completed", company_id)
 
         elif kind == "invoice.payment_failed":
             invoice = event.get("data", {}).get("object") if isinstance(event, dict) else event.data.object
