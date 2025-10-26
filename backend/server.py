@@ -2351,12 +2351,21 @@ async def get_subscription(company_id: int):
     sub = await db.subscriptions.find_one({"company_id": int(company_id)})
     if not sub:
         return {"company_id": int(company_id), "status": "none"}
-    # sanitize
+
+    # sanitize and expose useful billing fields for frontend
+    plan = sub.get("plan") or {}
+    # plan may be stored as string (price id) or dict with details
+    plan_obj = plan if isinstance(plan, dict) else {"id": plan}
+
     return {
         "company_id": int(company_id),
         "status": sub.get("status", "unknown"),
-        "plan": sub.get("plan"),
-        "stripe_subscription_id": sub.get("stripe_subscription_id")
+        "plan": plan_obj,
+        "stripe_subscription_id": sub.get("stripe_subscription_id"),
+        "billing_email": sub.get("billing_email"),
+        "current_period_end": sub.get("current_period_end"),
+        "created_at": sub.get("created_at"),
+        "updated_at": sub.get("updated_at")
     }
 
 
@@ -2378,10 +2387,23 @@ async def create_checkout_session(payload: dict):
     stripe_key = os.environ.get("STRIPE_SECRET")
     if not stripe_key:
         # Mock flow: create a subscription record locally and return a mock url
+        # Support optional billing_email and plan_name in payload for better demo UX
+        billing_email = payload.get("billing_email") or payload.get("customer_email")
+        plan_name = payload.get("plan_name") or ("Aylık Plan" if (price_id or '').lower().find('month') >= 0 else "Yıllık Plan")
+        # Compute a mock period end date (30 days for monthly, 365 for yearly)
+        period_days = 30 if 'month' in (price_id or '').lower() else 365
+        current_period_end = (datetime.now(timezone.utc) + timedelta(days=period_days)).date().isoformat()
+
         sub_doc = {
             "company_id": company_id,
             "status": "active",
-            "plan": price_id or "mock_monthly",
+            "plan": {
+                "id": price_id or "mock_monthly",
+                "name": plan_name,
+                "price_display": ("₺49 / ay" if (price_id or '').lower().find('month') >= 0 else "₺499 / yıl")
+            },
+            "billing_email": billing_email,
+            "current_period_end": current_period_end,
             "created_at": datetime.now(timezone.utc).isoformat(),
             "stripe_subscription_id": None,
         }
@@ -2436,10 +2458,19 @@ async def stripe_webhook(request: Request):
             session = event.get("data", {}).get("object") if isinstance(event, dict) else event.data.object
             company_id = int(session.get("metadata", {}).get("company_id") or 0)
             stripe_sub_id = session.get("subscription")
-            # persist subscription under company
+            # try to collect billing email from session (customer_details in newer API)
+            billing_email = None
+            if isinstance(session, dict):
+                billing_email = session.get("customer_details", {}).get("email") or session.get("customer_email")
+
             await db.subscriptions.update_one(
                 {"company_id": company_id},
-                {"$set": {"status": "active", "stripe_subscription_id": stripe_sub_id, "updated_at": datetime.now(timezone.utc).isoformat()}},
+                {"$set": {
+                    "status": "active",
+                    "stripe_subscription_id": stripe_sub_id,
+                    "billing_email": billing_email,
+                    "updated_at": datetime.now(timezone.utc).isoformat()
+                }},
                 upsert=True
             )
             logger.info("Subscription activated for company %s via checkout.session.completed", company_id)

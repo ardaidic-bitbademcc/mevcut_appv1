@@ -5,7 +5,7 @@ const BACKEND_URL = process.env.REACT_APP_BACKEND_URL || 'https://mevcut-appv1.o
 const API = `${BACKEND_URL}/api`;
 
 export default function Subscription({ companyId }) {
-  const [status, setStatus] = useState('loading');
+  const [subscription, setSubscription] = useState(null);
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState('');
 
@@ -14,10 +14,10 @@ export default function Subscription({ companyId }) {
     (async () => {
       try {
         const res = await axios.get(`${API}/subscription/company/${companyId}`);
-        setStatus(res.data.status || 'none');
+        setSubscription(res.data || { status: 'none', company_id: companyId });
       } catch (err) {
         console.error('Failed to load subscription', err);
-        setStatus('error');
+        setSubscription({ status: 'error' });
       }
     })();
   }, [companyId]);
@@ -48,7 +48,13 @@ export default function Subscription({ companyId }) {
       // Mock flow: backend returns { mock: true, redirect }
       if (res.data && res.data.mock) {
         setMessage('Test subscription created (mock).');
-        setStatus('active');
+        // Refresh subscription info from backend
+        try {
+          const subRes = await axios.get(`${API}/subscription/company/${companyId}`);
+          setSubscription(subRes.data || { status: 'active' });
+        } catch (e) {
+          console.warn('Could not reload subscription after mock create', e);
+        }
         // optionally redirect to success
         window.location.href = res.data.redirect;
         return;
@@ -66,7 +72,20 @@ export default function Subscription({ companyId }) {
   return (
     <div className="p-4 bg-white rounded shadow">
       <h2 className="text-xl font-semibold mb-2">Abonelik</h2>
-      <p className="mb-2">Durum: <strong>{status}</strong></p>
+      <p className="mb-2">Durum: <strong>{subscription?.status || 'loading'}</strong></p>
+      {subscription?.billing_email && (
+        <p className="mb-1 text-sm">Fatura e-posta: <strong>{subscription.billing_email}</strong></p>
+      )}
+      {subscription?.current_period_end && (
+        <p className="mb-1 text-sm">Bitiş: <strong>{subscription.current_period_end}</strong></p>
+      )}
+      {subscription?.plan && (
+        <div className="mb-3 text-sm">
+          <div>Plan: <strong>{subscription.plan.name || subscription.plan.id}</strong></div>
+          {subscription.plan.price_display && <div>Ücret: {subscription.plan.price_display}</div>}
+        </div>
+      )}
+
       {message && <div className="mb-2 text-sm text-red-600">{message}</div>}
 
       <div className="grid gap-3 md:grid-cols-2">
