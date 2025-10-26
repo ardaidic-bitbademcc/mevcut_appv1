@@ -2188,28 +2188,28 @@ async def stok_import(file: UploadFile = File(...), company_id: int = 1):
 
 
 # Debug endpoint to validate Sentry and logging in production.
-    # Usage:
-    #  - POST /api/debug/sentry-test            -> sends a Sentry message (if configured) and returns 200
-    #  - POST /api/debug/sentry-test?raise_exc=true -> triggers an unhandled exception (500) to force Sentry to capture an exception
-    @api_router.post("/debug/sentry-test")
-    async def sentry_test(raise_exc: bool = False):
-        """Send a test message to Sentry (if available). If raise_exc=true, raise an exception to produce a 500 and ensure Sentry captures it.
+# Usage:
+#  - POST /api/debug/sentry-test            -> sends a Sentry message (if configured) and returns 200
+#  - POST /api/debug/sentry-test?raise_exc=true -> triggers an unhandled exception (500) to force Sentry to capture an exception
+@api_router.post("/debug/sentry-test")
+async def sentry_test(raise_exc: bool = False):
+    """Send a test message to Sentry (if available). If raise_exc=true, raise an exception to produce a 500 and ensure Sentry captures it.
 
-        This endpoint is intended for manual testing after you set SENTRY_DSN in your Render environment.
-        """
-        try:
-            import sentry_sdk
-            # Capture an informational message so Sentry shows an event even if we don't raise
-            sentry_sdk.capture_message("Mevcut App - Sentry test message from /api/debug/sentry-test")
-            logger.info("Sentry test message captured (if Sentry configured)")
-        except Exception:
-            logger.exception("Sentry SDK not configured or capture failed")
+    This endpoint is intended for manual testing after you set SENTRY_DSN in your Render environment.
+    """
+    try:
+        import sentry_sdk
+        # Capture an informational message so Sentry shows an event even if we don't raise
+        sentry_sdk.capture_message("Mevcut App - Sentry test message from /api/debug/sentry-test")
+        logger.info("Sentry test message captured (if Sentry configured)")
+    except Exception:
+        logger.exception("Sentry SDK not configured or capture failed")
 
-        if raise_exc:
-            # This will produce a 500 response and, if Sentry is configured, an exception event
-            raise Exception("Sentry test exception triggered by /api/debug/sentry-test")
+    if raise_exc:
+        # This will produce a 500 response and, if Sentry is configured, an exception event
+        raise Exception("Sentry test exception triggered by /api/debug/sentry-test")
 
-        return {"success": True, "sentry_message_sent": True, "raise_exception": raise_exc}
+    return {"success": True, "sentry_message_sent": True, "raise_exception": raise_exc}
 
 
 # Include API router after all routes have been declared so every @api_router
