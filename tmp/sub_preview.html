@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="tr">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Abonelik Önizleme</title>
+  <style>
+    body{font-family:Inter,system-ui,Segoe UI,Roboto,Helvetica,Arial,sans-serif;background:#f3f4f6;padding:24px}
+    .card{max-width:720px;margin:24px auto;background:white;border-radius:12px;box-shadow:0 6px 20px rgba(2,6,23,0.08);padding:20px}
+    .muted{color:#6b7280}
+    .plan{background:#f8fafc;border-radius:8px;padding:10px;margin-top:8px}
+    .btn{display:inline-block;padding:8px 12px;background:#2563eb;color:white;border-radius:8px;text-decoration:none}
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h2 id="title">Abonelik</h2>
+    <div id="statusRow"><strong>Durum:</strong> <span id="status" class="muted">yükleniyor...</span></div>
+    <div id="billing" style="margin-top:10px"></div>
+    <div id="planBox" style="margin-top:10px"></div>
+    <div style="margin-top:16px">
+      <a id="manageBtn" class="btn" href="#">Aboneliği Yönet</a>
+    </div>
+    <pre id="raw" style="margin-top:12px;background:#f8fafc;padding:8px;border-radius:6px;overflow:auto;max-height:220px"></pre>
+  </div>
+
+<script>
+async function load(){
+  try{
+    const resp = await fetch('http://127.0.0.1:8000/api/subscription/company/1');
+    if(!resp.ok){
+      document.getElementById('status').innerText = 'Hata: ' + resp.status;
+      document.getElementById('raw').innerText = await resp.text();
+      return;
+    }
+    const data = await resp.json();
+    document.getElementById('status').innerText = data.status || 'none';
+    const billing = document.getElementById('billing');
+    billing.innerHTML = '';
+    if(data.billing_email) billing.innerHTML += '<div><strong>Fatura e-posta:</strong> ' + data.billing_email + '</div>';
+    if(data.current_period_end) billing.innerHTML += '<div><strong>Bitiş:</strong> ' + data.current_period_end + '</div>';
+
+    const planBox = document.getElementById('planBox');
+    if(data.plan){
+      planBox.innerHTML = '<div class="plan"><div><strong>Plan:</strong> ' + (data.plan.name || data.plan.id) + '</div>' + (data.plan.price_display ? '<div class="muted">Ücret: ' + data.plan.price_display + '</div>' : '') + '</div>';
+    }
+
+    document.getElementById('raw').innerText = JSON.stringify(data, null, 2);
+    document.getElementById('manageBtn').href = data.redirect || (window.location.origin + '/');
+  }catch(e){
+    document.getElementById('status').innerText = 'Ağ hatası';
+    document.getElementById('raw').innerText = String(e);
+  }
+}
+load();
+</script>
+</body>
+</html>

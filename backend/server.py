@@ -1174,37 +1174,153 @@ async def get_weekly_shift_calendar(employee_id: int, start_date: Optional[str] 
     query = {"employee_id": str(employee_id)}
     all_shifts = await db.shift_calendar.find(query).to_list(None)
 
+    # Preload related data to enrich shift objects in a JSON-serializable way
+    # Collect unique shift_type ids and team member ids
+    shift_type_ids = set()
+    member_employee_ids = set()
+    for s in all_shifts:
+        st = s.get("shift_type")
+        if isinstance(st, (str, int)):
+            shift_type_ids.add(str(st))
+        elif isinstance(st, dict) and st.get("id"):
+            shift_type_ids.add(str(st.get("id")))
+
+        members = s.get("team_members") or s.get("members") or []
+        if isinstance(members, list):
+            for m in members:
+                # members may be employee_id strings or numeric ids or full objects
+                if isinstance(m, dict) and m.get("employee_id"):
+                    member_employee_ids.add(str(m.get("employee_id")))
+                elif isinstance(m, (str, int)):
+                    member_employee_ids.add(str(m))
+
+    # Fetch shift type documents by id (if any)
+    shift_types_map = {}
+    if shift_type_ids:
+        # try to find by id or by name fallback
+        types = await db.shift_types.find({"id": {"$in": list(shift_type_ids)}}).to_list(None)
+        for t in types:
+            shift_types_map[str(t.get("id"))] = {
+                "id": t.get("id"),
+                "name": t.get("name"),
+                "start": t.get("start"),
+                "end": t.get("end"),
+                "color": t.get("color")
+            }
+
+    # Fetch member employee docs
+    employees_map = {}
+    if member_employee_ids:
+        # employee_id is stored as string in employees collection
+        emps = await db.employees.find({"employee_id": {"$in": list(member_employee_ids)}}).to_list(None)
+        for e in emps:
+            employees_map[str(e.get("employee_id"))] = {
+                "id": e.get("id"),
+                "employee_id": e.get("employee_id"),
+                "ad": e.get("ad"),
+                "soyad": e.get("soyad"),
+                "pozisyon": e.get("pozisyon")
+            }
+
+    # Build enriched, safe shift objects
+    def enrich_shift(s):
+        # Base fields
+        st_raw = s.get("shift_type")
+        st_obj = None
+        if isinstance(st_raw, dict):
+            st_obj = {
+                "id": st_raw.get("id"),
+                "name": st_raw.get("name"),
+                "start": st_raw.get("start"),
+                "end": st_raw.get("end"),
+                "color": st_raw.get("color")
+            }
+        elif st_raw is not None:
+            st_obj = shift_types_map.get(str(st_raw))
+
+        members = s.get("team_members") or s.get("members") or []
+        tm = []
+        if isinstance(members, list):
+            for m in members:
+                if isinstance(m, dict):
+                    # already full object
+                    tm.append({
+                        "id": m.get("id"),
+                        "employee_id": m.get("employee_id"),
+                        "ad": m.get("ad"),
+                        "soyad": m.get("soyad"),
+                        "pozisyon": m.get("pozisyon")
+                    })
+                else:
+                    e = employees_map.get(str(m))
+                    if e:
+                        tm.append(e)
+
+        hours = s.get("hours") if s.get("hours") is not None else s.get("calisilan_saat")
+
+        # determine type field expected by frontend: 'izin' or 'vardiya' or 'none'
+        s_type = s.get("type") or s.get("shift_kind")
+        if not s_type:
+            s_type = 'izin' if s.get("is_leave") else ('vardiya' if st_obj else 'none')
+
+        return {
+            "id": s.get("id") or (str(s.get("_id")) if s.get("_id") else None),
+            "_id": str(s.get("_id")) if s.get("_id") is not None else None,
+            "company_id": s.get("company_id"),
+            "employee_id": s.get("employee_id"),
+            "tarih": s.get("tarih"),
+            "type": s_type,
+            "shift_type": st_obj,
+            "shift_type_name": (st_obj and st_obj.get("name")) or (s.get("shift_type_name") or None),
+            "start": s.get("start") or (st_obj and st_obj.get("start")),
+            "end": s.get("end") or (st_obj and st_obj.get("end")),
+            "hours": hours,
+            "team_members": tm,
+            "location": s.get("location") or None,
+            "tags": s.get("tags") or [],
+        }
+
+    safe_shifts = [enrich_shift(s) for s in all_shifts]
+
     # default response shape for compatibility with frontend expects an object
     # containing employee, start_date, end_date, shifts
+    employee = await db.employees.find_one({"employee_id": str(employee_id)})
+    safe_employee = None
+    if employee:
+        safe_employee = {
+            "id": employee.get("id"),
+            "employee_id": employee.get("employee_id"),
+            "ad": employee.get("ad"),
+            "soyad": employee.get("soyad"),
+            "company_id": employee.get("company_id"),
+            "pozisyon": employee.get("pozisyon"),
+        }
+
     if not start_date:
-        # try to include employee info if available
-        employee = await db.employees.find_one({"employee_id": str(employee_id)})
         return {
-            "employee": employee or {},
+            "employee": safe_employee or {},
             "start_date": None,
             "end_date": None,
-            "shifts": all_shifts,
+            "shifts": safe_shifts,
         }
 
     try:
         sd = datetime.fromisoformat(start_date).date()
     except Exception:
         # invalid date format, return all in same shape
-        employee = await db.employees.find_one({"employee_id": str(employee_id)})
         return {
-            "employee": employee or {},
+            "employee": safe_employee or {},
             "start_date": None,
             "end_date": None,
-            "shifts": all_shifts,
+            "shifts": safe_shifts,
         }
 
     end_date = sd + timedelta(days=6)
     # Filter by tarih field (assumed ISO date string)
-    filtered = [s for s in all_shifts if 'tarih' in s and sd.isoformat() <= s['tarih'] <= end_date.isoformat()]
+    filtered = [s for s in safe_shifts if s.get('tarih') and sd.isoformat() <= s['tarih'] <= end_date.isoformat()]
 
-    employee = await db.employees.find_one({"employee_id": str(employee_id)})
     return {
-        "employee": employee or {},
+        "employee": safe_employee or {},
         "start_date": sd.isoformat(),
         "end_date": end_date.isoformat(),
         "shifts": filtered,
@@ -2218,7 +2334,7 @@ async def sentry_test(raise_exc: bool = False):
 # Include API router after all routes have been declared so every @api_router
 # route is registered. Previously include_router was called earlier which
 # caused routes defined after that call to return 404 (e.g. salary endpoints).
-app.include_router(api_router)
+# NOTE: router will be included at the end of this file after subscription/webhook handlers
 
 
 # -------------------- Subscription / Payment endpoints --------------------
@@ -2235,12 +2351,21 @@ async def get_subscription(company_id: int):
     sub = await db.subscriptions.find_one({"company_id": int(company_id)})
     if not sub:
         return {"company_id": int(company_id), "status": "none"}
-    # sanitize
+
+    # sanitize and expose useful billing fields for frontend
+    plan = sub.get("plan") or {}
+    # plan may be stored as string (price id) or dict with details
+    plan_obj = plan if isinstance(plan, dict) else {"id": plan}
+
     return {
         "company_id": int(company_id),
         "status": sub.get("status", "unknown"),
-        "plan": sub.get("plan"),
-        "stripe_subscription_id": sub.get("stripe_subscription_id")
+        "plan": plan_obj,
+        "stripe_subscription_id": sub.get("stripe_subscription_id"),
+        "billing_email": sub.get("billing_email"),
+        "current_period_end": sub.get("current_period_end"),
+        "created_at": sub.get("created_at"),
+        "updated_at": sub.get("updated_at")
     }
 
 
@@ -2262,10 +2387,23 @@ async def create_checkout_session(payload: dict):
     stripe_key = os.environ.get("STRIPE_SECRET")
     if not stripe_key:
         # Mock flow: create a subscription record locally and return a mock url
+        # Support optional billing_email and plan_name in payload for better demo UX
+        billing_email = payload.get("billing_email") or payload.get("customer_email")
+        plan_name = payload.get("plan_name") or ("Aylık Plan" if (price_id or '').lower().find('month') >= 0 else "Yıllık Plan")
+        # Compute a mock period end date (30 days for monthly, 365 for yearly)
+        period_days = 30 if 'month' in (price_id or '').lower() else 365
+        current_period_end = (datetime.now(timezone.utc) + timedelta(days=period_days)).date().isoformat()
+
         sub_doc = {
             "company_id": company_id,
             "status": "active",
-            "plan": price_id or "mock_monthly",
+            "plan": {
+                "id": price_id or "mock_monthly",
+                "name": plan_name,
+                "price_display": ("₺49 / ay" if (price_id or '').lower().find('month') >= 0 else "₺499 / yıl")
+            },
+            "billing_email": billing_email,
+            "current_period_end": current_period_end,
             "created_at": datetime.now(timezone.utc).isoformat(),
             "stripe_subscription_id": None,
         }
@@ -2320,10 +2458,19 @@ async def stripe_webhook(request: Request):
             session = event.get("data", {}).get("object") if isinstance(event, dict) else event.data.object
             company_id = int(session.get("metadata", {}).get("company_id") or 0)
             stripe_sub_id = session.get("subscription")
-            # persist subscription under company
+            # try to collect billing email from session (customer_details in newer API)
+            billing_email = None
+            if isinstance(session, dict):
+                billing_email = session.get("customer_details", {}).get("email") or session.get("customer_email")
+
             await db.subscriptions.update_one(
                 {"company_id": company_id},
-                {"$set": {"status": "active", "stripe_subscription_id": stripe_sub_id, "updated_at": datetime.now(timezone.utc).isoformat()}},
+                {"$set": {
+                    "status": "active",
+                    "stripe_subscription_id": stripe_sub_id,
+                    "billing_email": billing_email,
+                    "updated_at": datetime.now(timezone.utc).isoformat()
+                }},
                 upsert=True
             )
             logger.info("Subscription activated for company %s via checkout.session.completed", company_id)
@@ -2345,4 +2492,8 @@ async def stripe_webhook(request: Request):
         logger.exception("Error handling webhook event")
 
     return {"received": True}
+
+
+# Finally include the API router so all routes are registered
+app.include_router(api_router)
 
