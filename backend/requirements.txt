@@ -20,3 +20,4 @@ python-json-logger==2.0.7
 
 # Optional payment integration
 stripe==6.0.0
+httpx==0.24.1
