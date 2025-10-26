@@ -81,116 +81,33 @@ if app and RequestIDMiddleware:
 # Lifespan context manager for proper shutdown
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # Use Redis cache if available
+    # Lifespan startup/shutdown hook — keep lightweight and avoid expensive work here.
+    # Any heavy precomputation (e.g. salary reports) should be queued via background jobs
+    # or triggered by explicit endpoints. Do not reference request-specific variables
+    # such as `month` in this module-level lifespan.
     try:
-        # Prefer package-relative import when running as a module (backend.server)
-        from .cache import cache_get, cache_set  # type: ignore
-    except Exception:
-        # Fallback when running in different import contexts
-        from cache import cache_get, cache_set
-
-    cache_key = f"salary_all:{month}"
-    cached = None
-    try:
-        cached = cache_get(cache_key)
-    except Exception:
-        cached = None
-
-    if cached is not None:
-        return cached
-
-    # Gather all attendance records for the month
-    # month is YYYY-MM
-    try:
-        start = datetime.fromisoformat(f"{month}-01").date()
-    except Exception:
-        raise HTTPException(status_code=400, detail="Invalid month format. Use YYYY-MM")
-
-    # compute end of month (simple way: move to next month and subtract a day)
-    if start.month == 12:
-        next_month = datetime(start.year + 1, 1, 1).date()
-    else:
-        next_month = datetime(start.year, start.month + 1, 1).date()
-
-    end = (next_month - timedelta(days=1))
-
-    # we will iterate employees and compute salary
-    employees = await db.employees.find({}).to_list(None)
-    results = []
-
-    for emp in employees:
-        emp_id = emp.get("employee_id")
-        # find attendance in the month
-        query = {"employee_id": emp_id, "tarih": {"$regex": f"^{month}"}}
-        attendance = await db.attendance.find(query).to_list(None)
-
-        temel = float(emp.get("maas_tabani", 0) or 0)
-        # estimate daily wage as temel / 30
-        gunluk = round(temel / 30.0, 2) if temel else 0.0
-        saatlik = round(gunluk / 9.0, 2)  # assume 9h workday
-
-        calisilan_saat = 0.0
-        calisilan_gun = 0
-        for a in attendance:
-            # consider record as worked day if calisilan_saat > 0 or status == 'cikis'
-            cs = float(a.get("calisilan_saat", 0) or 0)
-            if cs > 0 or a.get("status") == "cikis":
-                calisilan_saat += cs
-                calisilan_gun += 1
-
-        # Previously hakedilen was calculated using days * daily wage.
-        # Change: calculate earned salary as total worked hours * hourly wage.
-        # saatlik was calculated above as: round(gunluk / 9.0, 2)
-        hakedilen = round(saatlik * calisilan_saat, 2)
-
-        # toplam yemek ucreti
-        yemek_records = await db.yemek_ucreti.find({"employee_id": int(emp.get("id", 0))}).to_list(None)
-        gunluk_yemek = float(yemek_records[0].get("gunluk_ucret", 0)) if yemek_records else 0.0
-        toplam_yemek = round(gunluk_yemek * calisilan_gun, 2)
-
-        # avanslar for the month
-        avans_query = {"employee_id": int(emp.get("id", 0)), "tarih": {"$regex": f"^{month}"}}
-        avanslar = await db.avans.find(avans_query).to_list(None)
-        toplam_avans = round(sum([float(a.get("miktar", 0) or 0) for a in avanslar]), 2)
-
-        toplam = round(hakedilen + toplam_yemek - toplam_avans, 2)
-
-        results.append({
-            "employee_id": emp.get("employee_id"),
-            "employee_unique_id": emp.get("id"),
-            "ad": emp.get("ad"),
-            "soyad": emp.get("soyad"),
-            "pozisyon": emp.get("pozisyon"),
-            "temel_maas": temel,
-            "gunluk_maas": gunluk,
-            "saatlik_maas": saatlik,
-            "calisilan_gun": calisilan_gun,
-            "calisilan_saat": round(calisilan_saat, 2),
-            "hakedilen_maas": hakedilen,
-            "gunluk_yemek_ucreti": gunluk_yemek,
-            "toplam_yemek": toplam_yemek,
-            "toplam_avans": toplam_avans,
-            "toplam_maas": toplam,
-            "ay": month
-        })
-
-    # store in cache for future requests
-    try:
-        cache_set(cache_key, results, expire_seconds=60 * 60 * 6)
-    except Exception:
-        pass
-
-    return results
+        yield
+    finally:
+        # perform any graceful shutdown tasks here if needed
+        try:
+            # Motor's AsyncIOMotorClient.close is synchronous; call without await
+            client.close()
+        except Exception:
+            pass
 
 # Add CORS middleware BEFORE routers so browser requests from the frontend are allowed.
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=os.environ.get('CORS_ORIGINS', '*').split(','),
-    allow_methods=["*"],
-    allow_headers=["*"],
-    # Do not allow credentials with a wildcard origin — keep it False for public deploys
-    allow_credentials=False,
-)
+if app:
+    try:
+        app.add_middleware(
+            CORSMiddleware,
+            allow_origins=os.environ.get('CORS_ORIGINS', '*').split(','),
+            allow_methods=["*"],
+            allow_headers=["*"],
+            # Do not allow credentials with a wildcard origin — keep it False for public deploys
+            allow_credentials=False,
+        )
+    except Exception:
+        logger.exception("Failed to add CORS middleware")
 
 # Create router after middleware
 api_router = APIRouter(prefix="/api")
@@ -744,8 +661,7 @@ async def check_user(employee_id: str):
             "rol": employee.get("rol")
         }
     else:
-        # Check if ANY employee exists in database
-        any_employee = await db.employees.find_one({})
+        # No need to fetch a full document; only need total count
         total_count = await db.employees.count_documents({})
         
         return {
@@ -2135,12 +2051,21 @@ async def salary_all(month: str):
         temel = float(emp.get("maas_tabani", 0) or 0)
         gunluk = round(temel / 30.0, 2)
         saatlik = round(gunluk / 9.0, 2)  # assume 9h workday
+        # Attendance in the month: match tarih starting with month
+        # Build a safe list of possible employee identifiers (string forms) for attendance lookup
+        emp_ids = []
+        if emp.get("employee_id") is not None:
+            emp_ids.append(str(emp.get("employee_id")))
+        if emp.get("id") is not None:
+            emp_ids.append(str(emp.get("id")))
+        # dedupe while preserving order
+        emp_ids = list(dict.fromkeys(emp_ids))
 
-        # Attendance in the month
-        # match tarih starting with month
-        att_query = {"employee_id": emp.get("employee_id") if emp.get("employee_id") else str(emp.get("id")), "tarih": {"$regex": f"^{month}"}}
-        # Some attendance records use numeric employee ids as strings; try both patterns
-        attendance_records = await db.attendance.find({"tarih": {"$regex": f"^{month}"}, "employee_id": {"$in": [emp.get("employee_id"), str(emp.get("id")), int(emp.get("id"))]}}).to_list(None)
+        attendance_query = {"tarih": {"$regex": f"^{month}"}}
+        if emp_ids:
+            attendance_query["employee_id"] = {"$in": emp_ids}
+
+        attendance_records = await db.attendance.find(attendance_query).to_list(None)
 
         # Count worked days and sum hours
         calisilan_gun = 0
@@ -2157,22 +2082,21 @@ async def salary_all(month: str):
 
         # Previously hakedilen was calculated using days * daily wage.
         # Change: calculate earned salary as total worked hours * hourly wage.
-        # saatlik was calculated above as: round(gunluk / 9.0, 2)
         hakedilen = round(saatlik * calisilan_saat, 2)
 
         # Yemek ucreti - stored by numeric employee id (employee.id)
-        yemek_doc = await db.yemek_ucreti.find_one({"employee_id": int(emp.get("id"))})
+        yemek_doc = await db.yemek_ucreti.find_one({"employee_id": int(emp.get("id", 0))})
         gunluk_yemek = float(yemek_doc.get("gunluk_ucret", 0)) if yemek_doc else 0.0
         toplam_yemek = round(gunluk_yemek * calisilan_gun, 2)
 
         # Avans - sum avans for this employee in month
-        avans_records = await db.avans.find({"employee_id": int(emp.get("id")), "tarih": {"$regex": f"^{month}"}}).to_list(None)
+        avans_records = await db.avans.find({"employee_id": int(emp.get("id", 0)), "tarih": {"$regex": f"^{month}"}}).to_list(None)
         toplam_avans = round(sum([float(a.get("miktar", 0) or 0) for a in avans_records]), 2)
 
         toplam = round(hakedilen + toplam_yemek - toplam_avans, 2)
 
         record = {
-            "employee_id": int(emp.get("id")),
+            "employee_id": int(emp.get("id", 0)),
             "employee_unique_id": emp.get("employee_id"),
             "ad": emp.get("ad"),
             "soyad": emp.get("soyad"),

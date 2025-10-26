@@ -4,15 +4,14 @@ This module exposes a function `precompute_salary_month` that can be queued by a
 It will call the existing `salary_all` endpoint function from `server.py` and write the result to Redis cache.
 """
 import asyncio
-import os
 import logging
 
 try:
     # Prefer package-relative import when running as a module (backend.tasks)
-    from .cache import cache_set, REDIS_URL  # type: ignore
+    from .cache import cache_set  # type: ignore
 except Exception:
     # Fallback for environments where package layout differs
-    from cache import cache_set, REDIS_URL
+    from cache import cache_set
 
 logger = logging.getLogger(__name__)
 
