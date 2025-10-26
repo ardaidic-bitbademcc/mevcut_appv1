@@ -1,4 +1,5 @@
 from fastapi import FastAPI, APIRouter, HTTPException, status, UploadFile, File
+from fastapi import Request
 from dotenv import load_dotenv
 from starlette.middleware.cors import CORSMiddleware
 from motor.motor_asyncio import AsyncIOMotorClient
@@ -13,6 +14,8 @@ from contextlib import asynccontextmanager
 import io
 from fastapi.responses import StreamingResponse
 import openpyxl
+import json
+import stripe
 
 ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / '.env')
@@ -2216,4 +2219,125 @@ async def sentry_test(raise_exc: bool = False):
 # route is registered. Previously include_router was called earlier which
 # caused routes defined after that call to return 404 (e.g. salary endpoints).
 app.include_router(api_router)
+
+
+# -------------------- Subscription / Payment endpoints --------------------
+
+
+@api_router.get("/subscription/{employee_id}")
+async def get_subscription(employee_id: int):
+    """Return subscription status for a given employee (if any)."""
+    sub = await db.subscriptions.find_one({"employee_id": int(employee_id)})
+    if not sub:
+        return {"employee_id": int(employee_id), "status": "none"}
+    # sanitize
+    return {
+        "employee_id": int(employee_id),
+        "status": sub.get("status", "unknown"),
+        "plan": sub.get("plan"),
+        "stripe_subscription_id": sub.get("stripe_subscription_id")
+    }
+
+
+@api_router.post("/create-checkout-session")
+async def create_checkout_session(payload: dict):
+    """Create a Stripe Checkout Session for a subscription purchase.
+
+    Expected JSON payload:
+      { "employee_id": 6, "price_id": "price_...", "success_url": "https://.../success", "cancel_url": "https://.../cancel" }
+
+    If STRIPE_SECRET is not configured we'll fallback to a mock path that
+    persist a subscription record with status 'active' for testing.
+    """
+    employee_id = int(payload.get("employee_id") or 0)
+    price_id = payload.get("price_id")
+    success_url = payload.get("success_url") or "https://example.com/success"
+    cancel_url = payload.get("cancel_url") or "https://example.com/cancel"
+
+    stripe_key = os.environ.get("STRIPE_SECRET")
+    if not stripe_key:
+        # Mock flow: create a subscription record locally and return a mock url
+        sub_doc = {
+            "employee_id": employee_id,
+            "status": "active",
+            "plan": price_id or "mock_monthly",
+            "created_at": datetime.now(timezone.utc).isoformat(),
+            "stripe_subscription_id": None,
+        }
+        await db.subscriptions.insert_one(sub_doc)
+        return {"mock": True, "message": "Subscription created (mock)", "redirect": success_url}
+
+    try:
+        stripe.api_key = stripe_key
+        # Create a Checkout Session for subscription purchase
+        session = stripe.checkout.Session.create(
+            mode="subscription",
+            line_items=[{"price": price_id, "quantity": 1}],
+            success_url=success_url + "?session_id={CHECKOUT_SESSION_ID}",
+            cancel_url=cancel_url,
+            metadata={"employee_id": str(employee_id)}
+        )
+        return {"session_id": session.id, "session_url": session.url}
+    except Exception as e:
+        logger.exception("Failed to create Stripe checkout session")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@api_router.post("/webhook")
+async def stripe_webhook(request: Request):
+    """Stripe webhook endpoint to receive subscription events.
+
+    Configure STRIPE_WEBHOOK_SECRET in the environment for signature verification.
+    """
+    payload = await request.body()
+    sig_header = request.headers.get("stripe-signature")
+    webhook_secret = os.environ.get("STRIPE_WEBHOOK_SECRET")
+
+    if webhook_secret:
+        try:
+            event = stripe.Webhook.construct_event(payload=payload, sig_header=sig_header, secret=webhook_secret)
+        except Exception as e:
+            logger.error("Webhook signature verification failed: %s", e)
+            raise HTTPException(status_code=400, detail="Invalid webhook signature")
+    else:
+        # If no webhook secret is configured, attempt to parse the payload (unsafe)
+        try:
+            event = json.loads(payload.decode('utf-8'))
+        except Exception as e:
+            logger.error("Failed to parse webhook payload: %s", e)
+            raise HTTPException(status_code=400, detail="Invalid payload")
+
+    # Handle relevant event types
+    kind = event.get("type") if isinstance(event, dict) else getattr(event, 'type', None)
+
+    try:
+        if kind == "checkout.session.completed":
+            session = event.get("data", {}).get("object") if isinstance(event, dict) else event.data.object
+            employee_id = int(session.get("metadata", {}).get("employee_id") or 0)
+            stripe_sub_id = session.get("subscription")
+            # persist subscription
+            await db.subscriptions.update_one(
+                {"employee_id": employee_id},
+                {"$set": {"status": "active", "stripe_subscription_id": stripe_sub_id, "updated_at": datetime.now(timezone.utc).isoformat()}},
+                upsert=True
+            )
+            logger.info("Subscription activated for employee %s via checkout.session.completed", employee_id)
+
+        elif kind == "invoice.payment_failed":
+            invoice = event.get("data", {}).get("object") if isinstance(event, dict) else event.data.object
+            sub_id = invoice.get("subscription")
+            # mark subscription as past_due or unpaid
+            await db.subscriptions.update_one({"stripe_subscription_id": sub_id}, {"$set": {"status": "past_due", "updated_at": datetime.now(timezone.utc).isoformat()}})
+            logger.warning("Subscription %s marked past_due due to invoice.payment_failed", sub_id)
+
+        elif kind == "customer.subscription.deleted":
+            sub = event.get("data", {}).get("object") if isinstance(event, dict) else event.data.object
+            sub_id = sub.get("id")
+            await db.subscriptions.update_one({"stripe_subscription_id": sub_id}, {"$set": {"status": "canceled", "updated_at": datetime.now(timezone.utc).isoformat()}})
+            logger.info("Subscription %s canceled", sub_id)
+
+    except Exception:
+        logger.exception("Error handling webhook event")
+
+    return {"received": True}
 
