@@ -53,6 +53,28 @@ try:
 except Exception:
     app = None  # fallback; import errors will surface later
 
+# Initialize structured logging and request-id middleware
+try:
+    from .logging_config import init_logging, RequestIDMiddleware
+except Exception:
+    try:
+        from logging_config import init_logging, RequestIDMiddleware
+    except Exception:
+        init_logging = None
+        RequestIDMiddleware = None
+
+if init_logging:
+    try:
+        init_logging()
+    except Exception:
+        logger.exception("Failed to initialize structured logging")
+
+if app and RequestIDMiddleware:
+    try:
+        app.add_middleware(RequestIDMiddleware)
+    except Exception:
+        logger.exception("Failed to add RequestIDMiddleware")
+
 # Lifespan context manager for proper shutdown
 @asynccontextmanager
 async def lifespan(app: FastAPI):
