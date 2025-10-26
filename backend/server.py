@@ -2334,7 +2334,7 @@ async def sentry_test(raise_exc: bool = False):
 # Include API router after all routes have been declared so every @api_router
 # route is registered. Previously include_router was called earlier which
 # caused routes defined after that call to return 404 (e.g. salary endpoints).
-app.include_router(api_router)
+# NOTE: router will be included at the end of this file after subscription/webhook handlers
 
 
 # -------------------- Subscription / Payment endpoints --------------------
@@ -2492,4 +2492,8 @@ async def stripe_webhook(request: Request):
         logger.exception("Error handling webhook event")
 
     return {"received": True}
+
+
+# Finally include the API router so all routes are registered
+app.include_router(api_router)
 
