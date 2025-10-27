@@ -2260,6 +2260,16 @@ async def sentry_test(raise_exc: bool = False):
 # caused routes defined after that call to return 404 (e.g. salary endpoints).
 # NOTE: router will be included at the end of this file after subscription/webhook handlers
 
+# Import optional modules that register additional routes (pos, etc.).
+try:
+    # import side-effect modules that call api_router decorators
+    from . import pos  # noqa: F401
+except Exception:
+    try:
+        import pos  # fallback if package context differs
+    except Exception:
+        logger.info("Optional module 'pos' not available or failed to import at startup")
+
 
 # -------------------- Subscription / Payment endpoints --------------------
 

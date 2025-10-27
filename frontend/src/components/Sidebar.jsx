@@ -10,7 +10,7 @@ export default function Sidebar({ activeTab, setActiveTab, permissions, employee
     { id: 'vardiya_turleri', label: '⚙️ Vardiya Türleri', show: permissions.manage_shifts_types },
     { id: 'personel', label: '👥 Personel', show: employee?.rol === 'admin' },
     { id: 'stok', label: '📦 Stok', show: permissions.can_view_stock },
-    { id: 'abonelik', label: '💳 Abonelik', show: true },
+    { id: 'abonelik', label: '💳 Abonelik Bilgileri', show: true },
   ]
 
   return (
@@ -46,7 +46,7 @@ export default function Sidebar({ activeTab, setActiveTab, permissions, employee
   ]
 
   return (
-    <aside className="w-56 bg-white/70 rounded-lg p-4 shadow mr-6 sticky top-6 h-[calc(100vh-3rem)] overflow-y-auto">
+    <aside className="w-56 bg-white/80 rounded-lg p-4 shadow mr-6 sticky top-6 h-[calc(100vh-3rem)] overflow-y-auto">
       <div className="mb-4 text-sm text-gray-600">Gezinme</div>
       <nav className="flex flex-col gap-2">
         {items.filter(i => i.show).map(i => (
