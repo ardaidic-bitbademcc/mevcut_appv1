@@ -10,6 +10,8 @@ class MenuItemCreate(BaseModel):
     name: str
     price: float
     description: Optional[str] = None
+    # Category id (optional)
+    category_id: Optional[int] = None
     # If recipe is provided, this menu item will reduce stock when ordered
     recipe: Optional[List[Dict[str, Any]]] = None  # list of { "stok_urun_id": int, "quantity": float }
     active: bool = True
@@ -71,6 +73,7 @@ async def create_menu_item(payload: MenuItemCreate):
         "name": payload.name,
         "price": float(payload.price),
         "description": payload.description,
+        "category_id": int(payload.category_id) if payload.category_id is not None else None,
         "recipe": payload.recipe or [],
         "active": bool(payload.active),
         "created_at": datetime.now(timezone.utc).isoformat(),
@@ -83,6 +86,148 @@ async def create_menu_item(payload: MenuItemCreate):
 async def list_menu_items(company_id: int = 1):
     items = await db.menu_items.find({}).to_list(None)
     return items
+
+
+# --- Categories endpoints ---
+@api_router.post("/pos/categories")
+async def create_category(payload: Dict[str, Any]):
+    name = payload.get("name")
+    if not name:
+        raise Exception("Category name required")
+    next_id = await get_next_id("pos_categories")
+    doc = {"id": next_id, "name": name, "created_at": datetime.now(timezone.utc).isoformat()}
+    await db.pos_categories.insert_one(doc)
+    return doc
+
+
+@api_router.get("/pos/categories")
+async def list_categories():
+    cats = await db.pos_categories.find({}).to_list(None)
+    return cats
+
+
+@api_router.put("/pos/categories/{category_id}")
+async def update_category(category_id: int, payload: Dict[str, Any]):
+    name = payload.get("name")
+    if not name:
+        raise Exception("Category name required")
+    await db.pos_categories.update_one({"id": category_id}, {"$set": {"name": name}})
+    return await db.pos_categories.find_one({"id": category_id})
+
+
+@api_router.delete("/pos/categories/{category_id}")
+async def delete_category(category_id: int):
+    await db.pos_categories.delete_one({"id": category_id})
+    # Optionally unset category_id on menu items
+    await db.menu_items.update_many({"category_id": category_id}, {"$set": {"category_id": None}})
+    return {"deleted": True}
+
+
+# --- Tables & Zones endpoints ---
+@api_router.post("/pos/zones")
+async def create_zone(payload: Dict[str, Any]):
+    name = payload.get("name")
+    if not name:
+        raise Exception("Zone name required")
+    next_id = await get_next_id("pos_zones")
+    doc = {"id": next_id, "name": name, "created_at": datetime.now(timezone.utc).isoformat()}
+    await db.pos_zones.insert_one(doc)
+    return doc
+
+
+@api_router.get("/pos/zones")
+async def list_zones():
+    zones = await db.pos_zones.find({}).to_list(None)
+    return zones
+
+
+@api_router.put("/pos/zones/{zone_id}")
+async def update_zone(zone_id: int, payload: Dict[str, Any]):
+    name = payload.get("name")
+    await db.pos_zones.update_one({"id": zone_id}, {"$set": {"name": name}})
+    return await db.pos_zones.find_one({"id": zone_id})
+
+
+@api_router.delete("/pos/zones/{zone_id}")
+async def delete_zone(zone_id: int):
+    await db.pos_zones.delete_one({"id": zone_id})
+    # unset zone on tables
+    await db.pos_tables.update_many({"zone_id": zone_id}, {"$set": {"zone_id": None}})
+    return {"deleted": True}
+
+
+@api_router.post("/pos/tables")
+async def create_table(payload: Dict[str, Any]):
+    name = payload.get("name")
+    zone_id = payload.get("zone_id")
+    if not name:
+        raise Exception("Table name required")
+    next_id = await get_next_id("pos_tables")
+    doc = {"id": next_id, "name": name, "zone_id": int(zone_id) if zone_id else None, "created_at": datetime.now(timezone.utc).isoformat()}
+    await db.pos_tables.insert_one(doc)
+    return doc
+
+
+@api_router.get("/pos/tables")
+async def list_tables():
+    tables = await db.pos_tables.find({}).to_list(None)
+    return tables
+
+
+@api_router.put("/pos/tables/{table_id}")
+async def update_table(table_id: int, payload: Dict[str, Any]):
+    update = {}
+    if "name" in payload:
+        update["name"] = payload.get("name")
+    if "zone_id" in payload:
+        update["zone_id"] = int(payload.get("zone_id")) if payload.get("zone_id") is not None else None
+    await db.pos_tables.update_one({"id": table_id}, {"$set": update})
+    return await db.pos_tables.find_one({"id": table_id})
+
+
+@api_router.delete("/pos/tables/{table_id}")
+async def delete_table(table_id: int):
+    await db.pos_tables.delete_one({"id": table_id})
+    return {"deleted": True}
+
+
+# --- Demo seed for POS ---
+@api_router.post("/pos/seed-demo")
+async def seed_pos_demo():
+    # Create categories
+    await db.pos_categories.delete_many({})
+    await db.menu_items.delete_many({})
+    await db.pos_zones.delete_many({})
+    await db.pos_tables.delete_many({})
+
+    c_soft = {"id": 1, "name": "Soft İçecekler", "created_at": datetime.now(timezone.utc).isoformat()}
+    c_coffee = {"id": 2, "name": "Kahve", "created_at": datetime.now(timezone.utc).isoformat()}
+    await db.pos_categories.insert_many([c_soft, c_coffee])
+
+    menu = [
+        {"id": 1, "name": "Kola", "price": 35.0, "category_id": 1, "active": True},
+        {"id": 2, "name": "Su", "price": 10.0, "category_id": 1, "active": True},
+        {"id": 3, "name": "Limonata", "price": 25.0, "category_id": 1, "active": True},
+        {"id": 4, "name": "Americano", "price": 40.0, "category_id": 2, "active": True},
+        {"id": 5, "name": "Latte", "price": 45.0, "category_id": 2, "active": True},
+        {"id": 6, "name": "Filtre Kahve", "price": 30.0, "category_id": 2, "active": True},
+    ]
+    await db.menu_items.insert_many(menu)
+
+    # Zones and tables
+    z1 = {"id": 1, "name": "Bahçe", "created_at": datetime.now(timezone.utc).isoformat()}
+    z2 = {"id": 2, "name": "Salon", "created_at": datetime.now(timezone.utc).isoformat()}
+    await db.pos_zones.insert_many([z1, z2])
+
+    tables = [
+        {"id": 1, "name": "B1", "zone_id": 1},
+        {"id": 2, "name": "B2", "zone_id": 1},
+        {"id": 3, "name": "S1", "zone_id": 2},
+        {"id": 4, "name": "S2", "zone_id": 2},
+    ]
+    await db.pos_tables.insert_many(tables)
+
+    return {"seeded": True}
 
 
 @api_router.post("/pos/order")
