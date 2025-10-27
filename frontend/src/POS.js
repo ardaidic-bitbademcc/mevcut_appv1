@@ -6,22 +6,39 @@ const API = `${BACKEND_URL}/api`;
 
 export default function POS({ companyId = 1 }) {
   const [menu, setMenu] = useState([]);
+  const [categories, setCategories] = useState([]);
+  const [zones, setZones] = useState([]);
+  const [tables, setTables] = useState([]);
+  const [activeCategory, setActiveCategory] = useState(null);
   const [loading, setLoading] = useState(false);
   const [cart, setCart] = useState([]);
-  const [table, setTable] = useState('');
+  const [selectedTable, setSelectedTable] = useState(null);
   const [customer, setCustomer] = useState('');
   const [message, setMessage] = useState('');
+  const [selfService, setSelfService] = useState(false);
+  const [showMenuForm, setShowMenuForm] = useState(false);
+  const [menuForm, setMenuForm] = useState({ name: '', price: '', category_id: '', description: '', recipe: '' });
+  const [showTableManager, setShowTableManager] = useState(false);
 
   useEffect(() => {
-    fetchMenu();
+    fetchAll();
   }, []);
 
-  const fetchMenu = async () => {
+  const fetchAll = async () => {
     try {
-      const res = await axios.get(`${API}/pos/menu-items`);
-      setMenu(res.data || []);
+      const [mRes, cRes, zRes, tRes] = await Promise.all([
+        axios.get(`${API}/pos/menu-items`),
+        axios.get(`${API}/pos/categories`),
+        axios.get(`${API}/pos/zones`),
+        axios.get(`${API}/pos/tables`),
+      ]);
+      setMenu(mRes.data || []);
+      setCategories(cRes.data || []);
+      setZones(zRes.data || []);
+      setTables(tRes.data || []);
+      if ((cRes.data || []).length) setActiveCategory((cRes.data || [])[0].id);
     } catch (err) {
-      console.error('Failed to load menu', err);
+      console.error('Failed to load POS data', err);
       setMessage('Menü yüklenemedi');
     }
   };
@@ -51,12 +68,13 @@ export default function POS({ companyId = 1 }) {
 
   const submitOrder = async () => {
     if (!cart.length) return setMessage('Sepet boş');
+    if (!selfService && !selectedTable) return setMessage('Lütfen bir masa seçin veya self-servis modunu açın');
     setLoading(true);
     setMessage('');
     try {
       const payload = {
         company_id: companyId,
-        table: table || null,
+        table: selfService ? null : (selectedTable ? selectedTable.name : null),
         customer: customer || null,
         items: cart.map(c => ({ menu_item_id: c.menu_item_id, quantity: c.quantity })),
         note: ''
@@ -81,14 +99,78 @@ export default function POS({ companyId = 1 }) {
 
   const total = cart.reduce((s, c) => s + (c.price || 0) * (c.quantity || 1), 0).toFixed(2);
 
+  // Menu form handlers
+  const openMenuForm = () => setShowMenuForm(true);
+  const closeMenuForm = () => { setShowMenuForm(false); setMenuForm({ name: '', price: '', category_id: '', description: '', recipe: '' }); };
+  const submitMenuForm = async () => {
+    if (!menuForm.name || !menuForm.price) return setMessage('Menü adı ve fiyat gereklidir');
+    try {
+      const payload = {
+        name: menuForm.name,
+        price: parseFloat(menuForm.price),
+        category_id: menuForm.category_id ? parseInt(menuForm.category_id) : null,
+        description: menuForm.description || null,
+        recipe: menuForm.recipe ? JSON.parse(menuForm.recipe) : [],
+      };
+      const res = await axios.post(`${API}/pos/menu-item`, payload);
+      setMessage('Menü öğesi oluşturuldu');
+      closeMenuForm();
+      fetchAll();
+    } catch (err) {
+      console.error('Menu create error', err);
+      setMessage(err.response?.data?.detail || err.message || 'Menü oluşturulamadı');
+    }
+  };
+
+  // Zones & tables CRUD
+  const createZone = async (name) => {
+    if (!name) return;
+    try {
+      await axios.post(`${API}/pos/zones`, { name });
+      fetchAll();
+    } catch (err) { console.error(err); setMessage('Bölge oluşturulamadı'); }
+  };
+  const createTable = async (name, zone_id) => {
+    if (!name) return;
+    try {
+      await axios.post(`${API}/pos/tables`, { name, zone_id });
+      fetchAll();
+    } catch (err) { console.error(err); setMessage('Masa oluşturulamadı'); }
+  };
+
+  const deleteTable = async (id) => {
+    try { await axios.delete(`${API}/pos/tables/${id}`); fetchAll(); } catch (err) { console.error(err); setMessage('Masa silinemedi'); }
+  };
+
+  const deleteZone = async (id) => {
+    try { await axios.delete(`${API}/pos/zones/${id}`); fetchAll(); } catch (err) { console.error(err); setMessage('Bölge silinemedi'); }
+  };
+
   return (
     <div className="bg-white rounded-lg shadow p-6">
-      <h2 className="text-xl font-bold mb-4">POS - Sipariş Oluştur</h2>
+      <div className="flex items-center justify-between mb-4">
+        <h2 className="text-xl font-bold">POS - Sipariş Oluştur</h2>
+        <div className="flex items-center gap-3">
+          <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={selfService} onChange={(e) => setSelfService(e.target.checked)} /> Self-Servis</label>
+          <button onClick={() => setShowTableManager(!showTableManager)} className="px-3 py-1 bg-gray-200 rounded">Masa Yönetimi</button>
+          <button onClick={openMenuForm} className="px-3 py-1 bg-indigo-600 text-white rounded">Menü Ekle</button>
+        </div>
+      </div>
+
       {message && <div className="mb-4 p-3 bg-yellow-50 text-yellow-900 rounded">{message}</div>}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <div className="md:col-span-2">
+
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+        <div className="md:col-span-3">
+          {/* Categories tabs */}
+          <div className="flex gap-2 mb-4">
+            {categories.map(cat => (
+              <button key={cat.id} onClick={() => setActiveCategory(cat.id)} className={`px-3 py-1 rounded ${activeCategory === cat.id ? 'bg-indigo-600 text-white' : 'bg-gray-100'}`}>{cat.name}</button>
+            ))}
+            <button onClick={() => setActiveCategory(null)} className={`px-3 py-1 rounded ${activeCategory === null ? 'bg-indigo-600 text-white' : 'bg-gray-100'}`}>Tümü</button>
+          </div>
+
           <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-            {menu.map(item => (
+            {menu.filter(m => activeCategory ? m.category_id === activeCategory : true).map(item => (
               <div key={item.id} className="border rounded p-3 flex flex-col justify-between">
                 <div>
                   <div className="font-semibold">{item.name}</div>
@@ -119,10 +201,16 @@ export default function POS({ companyId = 1 }) {
             {cart.length === 0 && <div className="text-sm text-gray-500">Sepet boş</div>}
           </div>
 
-          <div className="mb-3">
-            <label className="text-sm">Masa / Ad (opsiyonel)</label>
-            <input value={table} onChange={(e) => setTable(e.target.value)} className="w-full px-3 py-2 border rounded mt-1" placeholder="Masa adı veya numarası" />
-          </div>
+          {!selfService && (
+            <div className="mb-3">
+              <label className="text-sm">Masa Seç</label>
+              <select value={selectedTable?.id || ''} onChange={(e) => setSelectedTable(tables.find(t => t.id === parseInt(e.target.value)) || null)} className="w-full px-3 py-2 border rounded mt-1">
+                <option value="">-- Masa Seç --</option>
+                {tables.map(t => <option key={t.id} value={t.id}>{t.name} {t.zone_id ? `(${zones.find(z=>z.id===t.zone_id)?.name||''})` : ''}</option>)}
+              </select>
+            </div>
+          )}
+
           <div className="mb-3">
             <label className="text-sm">Müşteri (opsiyonel)</label>
             <input value={customer} onChange={(e) => setCustomer(e.target.value)} className="w-full px-3 py-2 border rounded mt-1" placeholder="Müşteri adı" />
@@ -134,8 +222,92 @@ export default function POS({ companyId = 1 }) {
             <button onClick={submitOrder} disabled={loading || cart.length === 0} className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 disabled:opacity-50">{loading ? 'Gönderiliyor...' : 'Sipariş Gönder'}</button>
             <button onClick={clearCart} className="px-4 py-2 bg-gray-300 rounded">Temizle</button>
           </div>
+
+          {showTableManager && (
+            <div className="mt-4 p-3 bg-white border rounded">
+              <h4 className="font-semibold mb-2">Masa & Bölge Yönetimi</h4>
+              <div className="mb-2">
+                <div className="text-sm font-medium">Bölgeler</div>
+                <div className="flex gap-2 flex-wrap mt-2">
+                  {zones.map(z => (
+                    <div key={z.id} className="px-3 py-1 bg-gray-100 rounded flex items-center gap-2">
+                      <span>{z.name}</span>
+                      <button onClick={() => deleteZone(z.id)} className="text-red-500">Sil</button>
+                    </div>
+                  ))}
+                  <ZoneForm onCreate={createZone} />
+                </div>
+              </div>
+
+              <div>
+                <div className="text-sm font-medium">Masalar</div>
+                <div className="grid grid-cols-2 gap-2 mt-2">
+                  {tables.map(t => (
+                    <div key={t.id} className="p-2 border rounded flex justify-between items-center">
+                      <div>{t.name} {t.zone_id ? `(${zones.find(z=>z.id===t.zone_id)?.name||''})` : ''}</div>
+                      <div className="flex gap-2">
+                        <button onClick={() => deleteTable(t.id)} className="text-red-500">Sil</button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+                <div className="mt-2">
+                  <TableForm zones={zones} onCreate={createTable} />
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       </div>
+
+      {/* Menu creation modal/box */}
+      {showMenuForm && (
+        <div className="fixed inset-0 bg-black/30 flex items-center justify-center">
+          <div className="bg-white rounded p-6 w-full max-w-lg">
+            <h3 className="font-bold mb-3">Yeni Menü Öğesi</h3>
+            <div className="grid grid-cols-1 gap-3">
+              <input value={menuForm.name} onChange={(e)=>setMenuForm({...menuForm, name: e.target.value})} placeholder="Ad" className="px-3 py-2 border rounded" />
+              <input value={menuForm.price} onChange={(e)=>setMenuForm({...menuForm, price: e.target.value})} placeholder="Fiyat" className="px-3 py-2 border rounded" />
+              <select value={menuForm.category_id} onChange={(e)=>setMenuForm({...menuForm, category_id: e.target.value})} className="px-3 py-2 border rounded">
+                <option value="">Kategori seç (opsiyonel)</option>
+                {categories.map(c=> <option key={c.id} value={c.id}>{c.name}</option>)}
+              </select>
+              <textarea value={menuForm.description} onChange={(e)=>setMenuForm({...menuForm, description: e.target.value})} placeholder="Açıklama (opsiyonel)" className="px-3 py-2 border rounded" />
+              <textarea value={menuForm.recipe} onChange={(e)=>setMenuForm({...menuForm, recipe: e.target.value})} placeholder='Reçete JSON (örn: [{"stok_urun_id":1,"quantity":0.2}])' className="px-3 py-2 border rounded" />
+              <div className="flex gap-2 mt-2">
+                <button onClick={submitMenuForm} className="px-4 py-2 bg-indigo-600 text-white rounded">Kaydet</button>
+                <button onClick={closeMenuForm} className="px-4 py-2 bg-gray-300 rounded">İptal</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
+}
+
+
+function ZoneForm({ onCreate }){
+  const [name, setName] = useState('');
+  return (
+    <div className="flex items-center gap-2">
+      <input value={name} onChange={(e)=>setName(e.target.value)} placeholder="Yeni bölge adı" className="px-2 py-1 border rounded" />
+      <button onClick={()=>{ onCreate(name); setName(''); }} className="px-2 py-1 bg-green-600 text-white rounded">Ekle</button>
+    </div>
+  )
+}
+
+function TableForm({ zones, onCreate }){
+  const [name, setName] = useState('');
+  const [zone, setZone] = useState('');
+  return (
+    <div className="flex gap-2">
+      <input value={name} onChange={(e)=>setName(e.target.value)} placeholder="Masa adı" className="px-2 py-1 border rounded" />
+      <select value={zone} onChange={(e)=>setZone(e.target.value)} className="px-2 py-1 border rounded">
+        <option value="">Bölge (opsiyonel)</option>
+        {zones.map(z=> <option key={z.id} value={z.id}>{z.name}</option>)}
+      </select>
+      <button onClick={()=>{ onCreate(name, zone || null); setName(''); setZone(''); }} className="px-2 py-1 bg-green-600 text-white rounded">Masa Ekle</button>
+    </div>
+  )
 }
