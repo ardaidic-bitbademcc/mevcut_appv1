@@ -9,8 +9,9 @@ export default function Sidebar({ activeTab, setActiveTab, permissions, employee
     { id: 'rol_yonetimi', label: '🔐 Rol Yönetimi', show: permissions.manage_roles },
     { id: 'vardiya_turleri', label: '⚙️ Vardiya Türleri', show: permissions.manage_shifts_types },
     { id: 'personel', label: '👥 Personel', show: employee?.rol === 'admin' },
-    { id: 'stok', label: '📦 Stok', show: permissions.can_view_stock },
-    { id: 'abonelik', label: '💳 Abonelik Bilgileri', show: true },
+  { id: 'stok', label: '📦 Stok', show: permissions.can_view_stock },
+  { id: 'pos', label: '🧾 POS', show: true },
+  { id: 'abonelik', label: '💳 Abonelik Bilgileri', show: true },
   ]
 
   return (

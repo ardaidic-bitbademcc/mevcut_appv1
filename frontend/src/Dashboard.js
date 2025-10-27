@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { LogOut, Plus, Trash2, Edit2, Check, X } from 'lucide-react';
 import axios from 'axios';
 import Subscription from './Subscription';
+import POS from './POS';
 
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL || 'https://mevcut-appv1.onrender.com';
 const API = `${BACKEND_URL}/api`;
@@ -1266,6 +1267,8 @@ export default function Dashboard() {
           {permissions.can_view_stock && (
             <button onClick={() => setActiveTab('stok')} className={`px-6 py-2 rounded-lg font-semibold transition ${activeTab === 'stok' ? 'bg-indigo-600 text-white' : 'text-gray-700 hover:bg-gray-100'}`}>📦 Stok</button>
           )}
+          {/* POS tab */}
+          <button onClick={() => setActiveTab('pos')} className={`px-6 py-2 rounded-lg font-semibold transition ${activeTab === 'pos' ? 'bg-indigo-600 text-white' : 'text-gray-700 hover:bg-gray-100'}`}>🧾 POS</button>
           {/* Subscription tab - visible to admins and managers; adjust as needed */}
           <button onClick={() => setActiveTab('abonelik')} className={`px-6 py-2 rounded-lg font-semibold transition ${activeTab === 'abonelik' ? 'bg-indigo-600 text-white' : 'text-gray-700 hover:bg-gray-100'}`}>💳 Abonelik</button>
         </div>
@@ -1323,6 +1326,12 @@ export default function Dashboard() {
         {activeTab === 'abonelik' && (
           <div>
             <Subscription companyId={companyId || 1} />
+          </div>
+        )}
+
+        {activeTab === 'pos' && (
+          <div>
+            <POS companyId={companyId || 1} />
           </div>
         )}
 
