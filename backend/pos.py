@@ -44,6 +44,7 @@ class Order(BaseModel):
     total: float
     created_at: str
     status: str
+    payments: Optional[List[Dict[str, Any]]] = None
 
 
 def _compute_order_total(items: List[Dict[str, Any]]) -> float:
@@ -306,7 +307,8 @@ async def create_order(payload: OrderCreate):
         "total": total,
         "note": payload.note,
         "status": "open",
-        "created_at": datetime.now(timezone.utc).isoformat()
+        "created_at": datetime.now(timezone.utc).isoformat(),
+        "payments": []
     }
 
     await db.orders.insert_one(order_doc)
@@ -335,3 +337,104 @@ async def print_order(order_id: int):
         return {"success": False, "error": "not_found"}
     ok = _trigger_print(o)
     return {"success": bool(ok)}
+
+
+@api_router.post("/pos/order-pay")
+async def create_order_and_pay(payload: Dict[str, Any]):
+    """Create an order and immediately record a payment.
+
+    Expected payload: { "order": { ...OrderCreate... }, "payment": { "method": "cash"|"card"|..., "amount": float, "details": {...} }}
+    """
+    order_payload = payload.get("order")
+    payment = payload.get("payment")
+    if not order_payload:
+        raise Exception("order payload required")
+
+    oc = OrderCreate(**order_payload)
+
+    # Build full item records and ingredient requirements
+    menu_item_ids = [it.get("menu_item_id") for it in oc.items]
+    menu_docs = await db.menu_items.find({"id": {"$in": menu_item_ids}}).to_list(None)
+    menu_map = {m["id"]: m for m in menu_docs}
+
+    order_items = []
+    ingredient_requirements = {}
+    for it in oc.items:
+        m = menu_map.get(int(it.get("menu_item_id")))
+        if not m or not m.get("active", True):
+            raise Exception(f"Menu item {it.get('menu_item_id')} not found or inactive")
+        qty = int(it.get("quantity" or 1))
+        order_items.append({"menu_item_id": m["id"], "name": m.get("name"), "price": float(m.get("price", 0)), "quantity": qty})
+        recipe = m.get("recipe") or []
+        for ingredient in recipe:
+            sid = int(ingredient.get("stok_urun_id"))
+            need = float(ingredient.get("quantity", 0)) * qty
+            ingredient_requirements[sid] = ingredient_requirements.get(sid, 0) + need
+
+    # Check stock
+    insufficient = []
+    for sid, need in ingredient_requirements.items():
+        doc = await db.stok_urun.find_one({"id": sid})
+        current = float(doc.get("mevcut", doc.get("min_stok", 0))) if doc else 0
+        if current < need:
+            insufficient.append({"stok_urun_id": sid, "needed": need, "available": current})
+    if insufficient:
+        return {"success": False, "error": "insufficient_stock", "details": insufficient}
+
+    # Deduct stock with conditional updates and rollback on failure
+    updated_sides = []
+    try:
+        for sid, need in ingredient_requirements.items():
+            res = await db.stok_urun.update_one({"id": sid, "mevcut": {"$gte": need}}, {"$inc": {"mevcut": -need}})
+            if res.modified_count == 0:
+                insufficient.append({"stok_urun_id": sid, "needed": need, "available": (await db.stok_urun.find_one({"id": sid}) or {}).get("mevcut", 0)})
+                raise RuntimeError("insufficient_or_concurrent_update")
+            updated_sides.append((sid, need))
+    except Exception as e:
+        if updated_sides:
+            for sid, amt in updated_sides:
+                try:
+                    await db.stok_urun.update_one({"id": sid}, {"$inc": {"mevcut": amt}})
+                except Exception:
+                    logger.exception("Failed to rollback stock for %s after order-pay failure", sid)
+        if insufficient:
+            return {"success": False, "error": "insufficient_stock", "details": insufficient}
+        logger.exception("Unexpected error during stock deduction in order-pay: %s", e)
+        return {"success": False, "error": "stock_update_failed", "details": str(e)}
+
+    # Create order
+    next_id = await get_next_id("orders")
+    adisyon_no = next_id
+    total = _compute_order_total(order_items)
+
+    order_doc = {
+        "id": next_id,
+        "adisyon_no": adisyon_no,
+        "company_id": int(oc.company_id or 1),
+        "table": oc.table,
+        "customer": oc.customer,
+        "items": order_items,
+        "total": total,
+        "note": oc.note,
+        "status": "paid" if payment and float(payment.get("amount", 0)) >= total else "open",
+        "created_at": datetime.now(timezone.utc).isoformat(),
+        "payments": []
+    }
+
+    if payment:
+        pay = {
+            "method": payment.get("method"),
+            "amount": float(payment.get("amount", 0)),
+            "details": payment.get("details") or {},
+            "recorded_at": datetime.now(timezone.utc).isoformat()
+        }
+        order_doc["payments"].append(pay)
+
+    await db.orders.insert_one(order_doc)
+
+    try:
+        _trigger_print(order_doc)
+    except Exception:
+        logger.exception("Printing failed for order %s", order_doc.get("id"))
+
+    return {"success": True, "order": order_doc}

@@ -135,7 +135,9 @@ export default function POS({ companyId = 1 }) {
   const createTable = async (name, zone_id) => {
     if (!name) return;
     try {
-      await axios.post(`${API}/pos/tables`, { name, zone_id });
+      const payload = { name };
+      if (zone_id !== null && zone_id !== undefined) payload.zone_id = parseInt(zone_id);
+      await axios.post(`${API}/pos/tables`, payload);
       fetchAll();
     } catch (err) { console.error(err); setMessage('Masa oluşturulamadı'); }
   };
@@ -153,7 +155,9 @@ export default function POS({ companyId = 1 }) {
       <div className="flex items-center justify-between mb-4">
         <h2 className="text-xl font-bold">POS - Sipariş Oluştur</h2>
         <div className="flex items-center gap-3">
-          <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={selfService} onChange={(e) => setSelfService(e.target.checked)} /> Self-Servis</label>
+          <button onClick={() => setSelfService(!selfService)} className={`px-3 py-1 rounded ${selfService ? 'bg-green-600 text-white' : 'bg-gray-100'}`}>
+            {selfService ? 'Self-Servis (Açık)' : 'Self-Servis (Kapalı)'}
+          </button>
           <button onClick={() => setShowTableManager(!showTableManager)} className="px-3 py-1 bg-gray-200 rounded">Masa Yönetimi</button>
           <button onClick={openMenuForm} className="px-3 py-1 bg-indigo-600 text-white rounded">Menü Ekle</button>
         </div>
@@ -163,7 +167,36 @@ export default function POS({ companyId = 1 }) {
 
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
         <div className="md:col-span-3">
-          {/* Categories tabs */}
+          {/* Table layout: zones and table rectangles */}
+          <div className="mb-4">
+            {zones.map(zone => (
+              <div key={zone.id} className="mb-3">
+                <h4 className="font-semibold mb-2">{zone.name}</h4>
+                <div className="flex flex-wrap gap-3">
+                  {tables.filter(t => t.zone_id === zone.id).map(t => (
+                    <div key={t.id} onClick={() => { if (!selfService) setSelectedTable(t); }} className={`w-28 h-16 flex items-center justify-center border rounded cursor-pointer ${selectedTable?.id === t.id ? 'bg-indigo-600 text-white' : 'bg-white'}`}>
+                      {t.name}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ))}
+            {tables.filter(t => !t.zone_id).length > 0 && (
+              <div className="mb-3">
+                <h4 className="font-semibold mb-2">Diğer Masalar</h4>
+                <div className="flex flex-wrap gap-3">
+                  {tables.filter(t => !t.zone_id).map(t => (
+                    <div key={t.id} onClick={() => { if (!selfService) setSelectedTable(t); }} className={`w-28 h-16 flex items-center justify-center border rounded cursor-pointer ${selectedTable?.id === t.id ? 'bg-indigo-600 text-white' : 'bg-white'}`}>
+                      {t.name}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+                </div>
+
+                {/* Categories tabs */}
           <div className="flex gap-2 mb-4">
             {categories.map(cat => (
               <button key={cat.id} onClick={() => setActiveCategory(cat.id)} className={`px-3 py-1 rounded ${activeCategory === cat.id ? 'bg-indigo-600 text-white' : 'bg-gray-100'}`}>{cat.name}</button>
