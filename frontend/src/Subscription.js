@@ -1,8 +1,9 @@
 import React, { useEffect, useState } from 'react';
 import axios from 'axios';
 
-const BACKEND_URL = process.env.REACT_APP_BACKEND_URL || 'https://mevcut-appv1.onrender.com';
-const API = `${BACKEND_URL}/api`;
+// Prefer a relative API path; override with REACT_APP_BACKEND_URL when needed.
+const BACKEND_URL = process.env.REACT_APP_BACKEND_URL || '';
+const API = BACKEND_URL ? `${BACKEND_URL.replace(/\/$/, '')}/api` : '/api';
 
 export default function Subscription({ companyId }) {
   const [subscription, setSubscription] = useState(null);

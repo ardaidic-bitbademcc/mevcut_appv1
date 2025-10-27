@@ -266,9 +266,30 @@ async def create_order(payload: OrderCreate):
     if insufficient:
         return {"success": False, "error": "insufficient_stock", "details": insufficient}
 
-    # Deduct stock (best-effort). Note: for atomicity, real systems should use DB transactions or background compensation.
-    for sid, need in ingredient_requirements.items():
-        await db.stok_urun.update_one({"id": sid}, {"$inc": {"mevcut": -need}})
+    # Deduct stock with conditional updates to avoid negative inventory.
+    # If any conditional update fails, roll back prior updates in this loop.
+    updated_sides = []  # list of (sid, amount) we have decremented
+    try:
+        for sid, need in ingredient_requirements.items():
+            res = await db.stok_urun.update_one({"id": sid, "mevcut": {"$gte": need}}, {"$inc": {"mevcut": -need}})
+            if res.modified_count == 0:
+                # failed to decrement (concurrent change or insufficient stock)
+                insufficient.append({"stok_urun_id": sid, "needed": need, "available": (await db.stok_urun.find_one({"id": sid}) or {}).get("mevcut", 0)})
+                raise RuntimeError("insufficient_or_concurrent_update")
+            updated_sides.append((sid, need))
+    except Exception as e:
+        # Rollback any decremented stock for this order
+        if updated_sides:
+            for sid, amt in updated_sides:
+                try:
+                    await db.stok_urun.update_one({"id": sid}, {"$inc": {"mevcut": amt}})
+                except Exception:
+                    logger.exception("Failed to rollback stock for %s after order failure", sid)
+        if insufficient:
+            return {"success": False, "error": "insufficient_stock", "details": insufficient}
+        # unexpected error
+        logger.exception("Unexpected error during stock deduction: %s", e)
+        return {"success": False, "error": "stock_update_failed", "details": str(e)}
 
     # Create order record
     next_id = await get_next_id("orders")

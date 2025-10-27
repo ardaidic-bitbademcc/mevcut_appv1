@@ -1,8 +1,10 @@
 import React, { useEffect, useState } from 'react';
 import axios from 'axios';
 
-const BACKEND_URL = process.env.REACT_APP_BACKEND_URL || 'https://mevcut-appv1.onrender.com';
-const API = `${BACKEND_URL}/api`;
+// Use relative API by default (works when frontend is served from same host).
+// If you want to override during development, set REACT_APP_BACKEND_URL.
+const BACKEND_URL = process.env.REACT_APP_BACKEND_URL || '';
+const API = BACKEND_URL ? `${BACKEND_URL.replace(/\/$/, '')}/api` : '/api';
 
 export default function POS({ companyId = 1 }) {
   const [menu, setMenu] = useState([]);

@@ -4,8 +4,10 @@ import axios from 'axios';
 import Subscription from './Subscription';
 import POS from './POS';
 
-const BACKEND_URL = process.env.REACT_APP_BACKEND_URL || 'https://mevcut-appv1.onrender.com';
-const API = `${BACKEND_URL}/api`;
+// Prefer a relative API path so local dev (create-react-app) talks to the same host.
+// Set REACT_APP_BACKEND_URL to override (e.g. https://mevcut-appv1.onrender.com)
+const BACKEND_URL = process.env.REACT_APP_BACKEND_URL || '';
+const API = BACKEND_URL ? `${BACKEND_URL.replace(/\/$/, '')}/api` : '/api';
 
 export default function Dashboard() {
   const [user, setUser] = useState(null);
