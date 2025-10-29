@@ -215,20 +215,31 @@ export default function POS({ companyId = 1 }) {
 
   // Zones & tables CRUD
   const createZone = async (name) => {
-    if (!name) return;
+    if (!name) return setMessage('Bölge adı gereklidir');
     try {
       await axios.post(`${API}/pos/zones`, { name });
       fetchAll();
-    } catch (err) { console.error(err); setMessage('Bölge oluşturulamadı'); }
+      setMessage('Bölge oluşturuldu');
+    } catch (err) {
+      console.error('createZone error', err);
+      const detail = err.response?.data?.detail || err.response?.data || err.message;
+      setMessage('Bölge oluşturulamadı: ' + (typeof detail === 'string' ? detail : JSON.stringify(detail)));
+    }
   };
+
   const createTable = async (name, zone_id) => {
-    if (!name) return;
+    if (!name) return setMessage('Masa adı gereklidir');
     try {
       const payload = { name };
       if (zone_id !== null && zone_id !== undefined) payload.zone_id = parseInt(zone_id);
       await axios.post(`${API}/pos/tables`, payload);
       fetchAll();
-    } catch (err) { console.error(err); setMessage('Masa oluşturulamadı'); }
+      setMessage('Masa oluşturuldu');
+    } catch (err) {
+      console.error('createTable error', err);
+      const detail = err.response?.data?.detail || err.response?.data || err.message;
+      setMessage('Masa oluşturulamadı: ' + (typeof detail === 'string' ? detail : JSON.stringify(detail)));
+    }
   };
 
   const deleteTable = async (id) => {
@@ -240,7 +251,7 @@ export default function POS({ companyId = 1 }) {
   };
 
   return (
-    <div className="bg-white rounded-lg shadow p-6">
+  <div className="bg-white rounded-lg shadow p-6 relative overflow-visible">
       <div className="flex items-center justify-between mb-4">
         <h2 className="text-xl font-bold">POS - Sipariş Oluştur</h2>
         <div className="flex items-center gap-3">

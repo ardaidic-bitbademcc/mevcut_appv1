@@ -8,7 +8,9 @@ import POS from './POS';
 // Set REACT_APP_BACKEND_URL to override (e.g. https://mevcut-appv1.onrender.com)
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL || '';
 const API = BACKEND_URL ? `${BACKEND_URL.replace(/\/$/, '')}/api` : '/api';
-const STOCK_ENABLED = process.env.REACT_APP_STOCK_ENABLED !== 'false';
+// Default to disabled to avoid network errors in environments where stok APIs
+// are not healthy. Set REACT_APP_STOCK_ENABLED=true to re-enable.
+const STOCK_ENABLED = process.env.REACT_APP_STOCK_ENABLED === 'true';
 
 export default function Dashboard() {
   const [user, setUser] = useState(null);
@@ -1267,9 +1269,8 @@ export default function Dashboard() {
           {employee?.rol === 'admin' && (
             <button onClick={() => setActiveTab('personel')} className={`px-6 py-2 rounded-lg font-semibold transition ${activeTab === 'personel' ? 'bg-indigo-600 text-white' : 'text-gray-700 hover:bg-gray-100'}`}>👥 Personel</button>
           )}
-          {permissions.can_view_stock && (
-            <button onClick={() => setActiveTab('stok')} className={`px-6 py-2 rounded-lg font-semibold transition ${activeTab === 'stok' ? 'bg-indigo-600 text-white' : 'text-gray-700 hover:bg-gray-100'}`}>📦 Stok</button>
-          )}
+          {/* Always show the Stok tab so users see the 'Yakında' placeholder when the module is disabled */}
+          <button onClick={() => setActiveTab('stok')} className={`px-6 py-2 rounded-lg font-semibold transition ${activeTab === 'stok' ? 'bg-indigo-600 text-white' : 'text-gray-700 hover:bg-gray-100'}`}>📦 Stok</button>
           {/* POS tab */}
           <button onClick={() => setActiveTab('pos')} className={`px-6 py-2 rounded-lg font-semibold transition ${activeTab === 'pos' ? 'bg-indigo-600 text-white' : 'text-gray-700 hover:bg-gray-100'}`}>🧾 POS</button>
           {/* Subscription tab - visible to admins and managers; adjust as needed */}
