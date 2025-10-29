@@ -425,6 +425,7 @@ export default function POS({ companyId = 1 }) {
           )}
         </div>
       </div>
+      </div>
 
       {/* Menu creation modal/box */}
       {showMenuForm && (
