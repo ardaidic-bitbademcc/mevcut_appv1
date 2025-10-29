@@ -3,7 +3,7 @@ from typing import List, Optional, Dict, Any
 from datetime import datetime, timezone
 
 # Import shared objects from server; server imports this module after api_router is defined
-from .server import api_router, db, logger, get_next_id
+from .server import api_router, db, logger, get_next_id, client
 
 
 class MenuItemCreate(BaseModel):
@@ -206,12 +206,14 @@ async def seed_pos_demo():
     await db.pos_categories.insert_many([c_soft, c_coffee])
 
     menu = [
-        {"id": 1, "name": "Kola", "price": 35.0, "category_id": 1, "active": True},
-        {"id": 2, "name": "Su", "price": 10.0, "category_id": 1, "active": True},
-        {"id": 3, "name": "Limonata", "price": 25.0, "category_id": 1, "active": True},
-        {"id": 4, "name": "Americano", "price": 40.0, "category_id": 2, "active": True},
-        {"id": 5, "name": "Latte", "price": 45.0, "category_id": 2, "active": True},
-        {"id": 6, "name": "Filtre Kahve", "price": 30.0, "category_id": 2, "active": True},
+        {"id": 1, "name": "Kola", "price": 35.0, "category_id": 1, "active": True, "kiosk_featured": True},
+        {"id": 2, "name": "Su", "price": 10.0, "category_id": 1, "active": True, "kiosk_featured": True},
+        {"id": 3, "name": "Limonata", "price": 25.0, "category_id": 1, "active": True, "kiosk_featured": False},
+        {"id": 4, "name": "Americano", "price": 40.0, "category_id": 2, "active": True, "kiosk_featured": True},
+        {"id": 5, "name": "Latte", "price": 45.0, "category_id": 2, "active": True, "kiosk_featured": True},
+        {"id": 6, "name": "Filtre Kahve", "price": 30.0, "category_id": 2, "active": True, "kiosk_featured": False},
+        {"id": 7, "name": "Kiosk Menü: Soğuk Çay", "price": 28.0, "category_id": 1, "active": True, "kiosk_featured": True},
+        {"id": 8, "name": "Kiosk Menü: Çikolatalı Süt", "price": 32.0, "category_id": 1, "active": True, "kiosk_featured": True},
     ]
     await db.menu_items.insert_many(menu)
 
@@ -267,31 +269,115 @@ async def create_order(payload: OrderCreate):
     if insufficient:
         return {"success": False, "error": "insufficient_stock", "details": insufficient}
 
-    # Deduct stock with conditional updates to avoid negative inventory.
-    # If any conditional update fails, roll back prior updates in this loop.
-    updated_sides = []  # list of (sid, amount) we have decremented
-    try:
+
+        # Try to perform stock checks, deductions and order insert in a DB transaction
+        # If the MongoDB deployment doesn't support transactions (non-replica set), fall back
+        # to conditional updates with rollback logic below.
+        try:
+            async with client.start_session() as session:
+                async with session.start_transaction():
+                    # check availability inside transaction
+                    for sid, need in ingredient_requirements.items():
+                        doc = await db.stok_urun.find_one({"id": sid}, session=session)
+                        current = float(doc.get("mevcut", doc.get("min_stok", 0))) if doc else 0
+                        if current < need:
+                            raise RuntimeError(f"insufficient_stock_for_{sid}")
+
+                    # deduct stock inside transaction
+                    for sid, need in ingredient_requirements.items():
+                        res = await db.stok_urun.update_one({"id": sid, "mevcut": {"$gte": need}}, {"$inc": {"mevcut": -need}}, session=session)
+                        if res.modified_count == 0:
+                            raise RuntimeError(f"concurrent_update_failed_for_{sid}")
+
+                    # generate next id atomically within transaction
+                    last = await db.orders.find_one({}, sort=[("id", -1)], session=session)
+                    next_id = (last["id"] + 1) if last and "id" in last else 1
+                    adisyon_no = next_id
+                    total = _compute_order_total(order_items)
+
+                    order_doc = {
+                        "id": next_id,
+                        "adisyon_no": adisyon_no,
+                        "company_id": int(payload.company_id or 1),
+                        "table": payload.table,
+                        "customer": payload.customer,
+                        "items": order_items,
+                        "total": total,
+                        "note": payload.note,
+                        "status": "open",
+                        "created_at": datetime.now(timezone.utc).isoformat(),
+                        "payments": []
+                    }
+
+                    await db.orders.insert_one(order_doc, session=session)
+
+            # Transaction committed successfully
+            try:
+                _trigger_print(order_doc)
+            except Exception:
+                logger.exception("Printing failed for order %s", order_doc.get("id"))
+
+            return {"success": True, "order": order_doc}
+        except Exception as tx_e:
+            # Transaction not available or failed — log and fall back to previous approach
+            logger.info("Transaction failed or not supported, falling back to non-transactional flow: %s", tx_e)
+
+        # Fallback: Check stock availability for all required stok_urun
+        insufficient = []
         for sid, need in ingredient_requirements.items():
-            res = await db.stok_urun.update_one({"id": sid, "mevcut": {"$gte": need}}, {"$inc": {"mevcut": -need}})
-            if res.modified_count == 0:
-                # failed to decrement (concurrent change or insufficient stock)
-                insufficient.append({"stok_urun_id": sid, "needed": need, "available": (await db.stok_urun.find_one({"id": sid}) or {}).get("mevcut", 0)})
-                raise RuntimeError("insufficient_or_concurrent_update")
-            updated_sides.append((sid, need))
-    except Exception as e:
-        # Rollback any decremented stock for this order
-        if updated_sides:
-            for sid, amt in updated_sides:
-                try:
-                    await db.stok_urun.update_one({"id": sid}, {"$inc": {"mevcut": amt}})
-                except Exception:
-                    logger.exception("Failed to rollback stock for %s after order failure", sid)
+            doc = await db.stok_urun.find_one({"id": sid})
+            current = float(doc.get("mevcut", doc.get("min_stok", 0))) if doc else 0
+            if current < need:
+                insufficient.append({"stok_urun_id": sid, "needed": need, "available": current})
+
         if insufficient:
             return {"success": False, "error": "insufficient_stock", "details": insufficient}
-        # unexpected error
-        logger.exception("Unexpected error during stock deduction: %s", e)
-        return {"success": False, "error": "stock_update_failed", "details": str(e)}
 
+        # Deduct stock with conditional updates to avoid negative inventory.
+        # If any conditional update fails, roll back prior updates in this loop.
+        updated_sides = []  # list of (sid, amount) we have decremented
+        try:
+            for sid, need in ingredient_requirements.items():
+                res = await db.stok_urun.update_one({"id": sid, "mevcut": {"$gte": need}}, {"$inc": {"mevcut": -need}})
+                if res.modified_count == 0:
+                    # failed to decrement (concurrent change or insufficient stock)
+                    insufficient.append({"stok_urun_id": sid, "needed": need, "available": (await db.stok_urun.find_one({"id": sid}) or {}).get("mevcut", 0)})
+                    raise RuntimeError("insufficient_or_concurrent_update")
+                updated_sides.append((sid, need))
+        except Exception as e:
+            # Rollback any decremented stock for this order
+            if updated_sides:
+                for sid, amt in updated_sides:
+                    try:
+                        await db.stok_urun.update_one({"id": sid}, {"$inc": {"mevcut": amt}})
+                    except Exception:
+                        logger.exception("Failed to rollback stock for %s after order failure", sid)
+            if insufficient:
+                return {"success": False, "error": "insufficient_stock", "details": insufficient}
+            # unexpected error
+            logger.exception("Unexpected error during stock deduction: %s", e)
+            return {"success": False, "error": "stock_update_failed", "details": str(e)}
+
+        # Create order record
+        next_id = await get_next_id("orders")
+        adisyon_no = next_id
+        total = _compute_order_total(order_items)
+
+        order_doc = {
+            "id": next_id,
+            "adisyon_no": adisyon_no,
+            "company_id": int(payload.company_id or 1),
+            "table": payload.table,
+            "customer": payload.customer,
+            "items": order_items,
+            "total": total,
+            "note": payload.note,
+            "status": "open",
+            "created_at": datetime.now(timezone.utc).isoformat(),
+            "payments": []
+        }
+
+        await db.orders.insert_one(order_doc)
     # Create order record
     next_id = await get_next_id("orders")
     adisyon_no = next_id
