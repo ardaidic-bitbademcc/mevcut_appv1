@@ -396,8 +396,7 @@ export default function Dashboard() {
     loadExternal();
   }, [employee]);
 
-  const permissions = getPermissions();
-
+ 
  const handleLogin = async () => {
   setIsLoggingIn(true);
   setLoginMessage('Giriş yapılıyor...');
@@ -918,47 +917,6 @@ export default function Dashboard() {
   table.style.overflow = 'hidden';
 
       const thead = document.createElement('thead');
-      thead.innerHTML = `<tr>
-        <th style="border:1px solid #f0f0f0;padding:6px 8px;background:#fbfbfc;text-align:left;font-weight:600;font-size:12px;color:#111">Personel</th>
-        ${dates.map(d => `<th style="border:1px solid #f0f0f0;padding:6px 6px;background:#fbfbfc;text-align:center;font-weight:600;font-size:11px;color:#111">${d.getDate()}<div style=\"font-size:10px;color:#6b7280;margin-top:3px\">${['Paz','Pzt','Sal','Çar','Per','Cum','Cmt'][d.getDay()]}</div></th>`).join('')}
-      return (
-        <div className="App">
-          <div className="max-w-[1400px] mx-auto p-6">
-            {/* top nav and login omitted for brevity earlier in file */}
-            <div className="mt-6 grid grid-cols-1 md:grid-cols-4 gap-6">
-              <div className="md:col-span-1">
-                <Sidebar activeTab={activeTab} setActiveTab={setActiveTab} permissions={permissions} employee={employee} />
-              </div>
-              <div className="md:col-span-3">
-                {/* Main area: render selected tab or POS subpages */}
-                {activeTab === 'dashboard' && (
-                  <div>/* dashboard content earlier */</div>
-                )}
-
-                {activeTab === 'pos' && (
-                  <POSDashboard permissions={permissions} />
-                )}
-                {activeTab === 'pos_terminal' && (
-                  <Terminal permissions={permissions} companyId={companyId} />
-                )}
-                {activeTab === 'pos_products' && (
-                  <Products permissions={permissions} />
-                )}
-                {activeTab === 'pos_inventory' && (
-                  <Inventory permissions={permissions} />
-                )}
-                {activeTab === 'pos_orders' && (
-                  <Orders permissions={permissions} />
-                )}
-                {activeTab === 'pos_settings' && (
-                  <POSSettings permissions={permissions} />
-                )}
-                {/* multiple other tabs already implemented earlier in this large file */}
-              </div>
-            </div>
-          </div>
-        </div>
-      );
       table.appendChild(tbody);
       container.appendChild(table);
 
