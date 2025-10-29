@@ -2444,5 +2444,15 @@ async def stripe_webhook(request: Request):
 
 
 # Finally include the API router so all routes are registered
+# Import POS routes (module defines endpoints on api_router) if available
+try:
+    # safe import; module will use the api_router defined above
+    from . import pos as _pos_module  # noqa: F401
+except Exception:
+    try:
+        import pos as _pos_module  # noqa: F401
+    except Exception:
+        logger.info('backend.pos module not imported (may be missing)')
+
 app.include_router(api_router)
 

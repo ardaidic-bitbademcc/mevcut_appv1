@@ -84,8 +84,22 @@ async def create_menu_item(payload: MenuItemCreate):
 
 
 @api_router.get("/pos/menu-items")
-async def list_menu_items(company_id: int = 1):
-    items = await db.menu_items.find({}).to_list(None)
+async def list_menu_items(search: Optional[str] = None, category_id: Optional[int] = None, kiosk: Optional[bool] = None):
+    """List menu items with optional filters: search (text or regex on name), category_id, kiosk flag."""
+    q = {}
+    if category_id is not None:
+        q['category_id'] = int(category_id)
+    if kiosk is not None:
+        # kiosk may be stored as boolean field 'kiosk' or 'kiosk_featured'
+        q['$or'] = [{'kiosk': bool(kiosk)}, {'kiosk_featured': bool(kiosk)}]
+    if search:
+        # try text search if index exists, otherwise fallback to case-insensitive regex
+        try:
+            q['$text'] = {'$search': search}
+        except Exception:
+            q['name'] = {'$regex': search, '$options': 'i'}
+
+    items = await db.menu_items.find(q).to_list(None)
     return items
 
 

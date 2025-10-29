@@ -34,6 +34,21 @@ export default function POS({ companyId = 1 }) {
     fetchAll();
   }, []);
 
+  // Listen to global events from Terminal UI (add-item, open-payment)
+  useEffect(() => {
+    const onAdd = (e) => {
+      const item = e.detail;
+      if (item) addToCart(item);
+    };
+    const onOpenPayment = () => setShowPaymentModal(true);
+    window.addEventListener('pos-add-item', onAdd);
+    window.addEventListener('pos-open-payment', onOpenPayment);
+    return () => {
+      window.removeEventListener('pos-add-item', onAdd);
+      window.removeEventListener('pos-open-payment', onOpenPayment);
+    };
+  }, [cart]);
+
   // When kiosk mode toggles, try to enter or exit browser fullscreen for immersive kiosk UX
   useEffect(() => {
     const enterFullscreen = async () => {

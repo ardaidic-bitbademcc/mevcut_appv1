@@ -78,6 +78,7 @@ export default function Dashboard() {
   const [stokSayimData, setStokSayimData] = useState({});
   const [editingStokUrun, setEditingStokUrun] = useState(null);
   const [editingStokKategori, setEditingStokKategori] = useState(null);
+  const [externalPermissions, setExternalPermissions] = useState({});
 
   // Fetch all data from backend
   const fetchData = async () => {
@@ -375,10 +376,25 @@ export default function Dashboard() {
   }, [salaryMonth, activeTab, user]);
 
   const getPermissions = () => {
-    if (!employee?.rol) return {};
-    const userRole = roles.find(r => r.id === employee?.rol);
-    return userRole?.permissions || {};
+    // merge role-based permissions (from roles collection) with external HR adapter permissions
+    const base = (!employee?.rol) ? {} : (roles.find(r => r.id === employee?.rol)?.permissions || {});
+    return { ...(base || {}), ...(externalPermissions || {}) };
   };
+
+  // fetch external HR permissions if adapter endpoint exists
+  useEffect(() => {
+    const loadExternal = async () => {
+      if (!employee?.id) return;
+      try {
+        const { getPermissionsForStaff } = await import('./lib/hrAdapter');
+        const p = await getPermissionsForStaff(employee.id);
+        setExternalPermissions(p || {});
+      } catch (e) {
+        // ignore if adapter backend not present
+      }
+    };
+    loadExternal();
+  }, [employee]);
 
   const permissions = getPermissions();
 
@@ -771,7 +787,7 @@ export default function Dashboard() {
   const generatePDF = async () => {
     if (!weeklyScheduleData) return;
     
-    const { jsPDF } = await import('jspdf');
+    const jsPDF = (await import('jspdf')).jsPDF;
     const doc = new jsPDF();
     
     const employee = weeklyScheduleData.employee;
@@ -946,23 +962,38 @@ export default function Dashboard() {
       table.appendChild(tbody);
       container.appendChild(table);
 
-      document.body.appendChild(container);
+    document.body.appendChild(container);
 
-      const { jsPDF } = await import('jspdf');
-  const doc = new jsPDF('p','pt','a4');
-  const ww = container.scrollWidth || 1200;
-  await doc.html(container, { callback: () => { doc.save(`vardiya_hafta_${employee.ad}_${sd.toISOString().slice(0,10)}.pdf`); container.remove(); }, x: 20, y: 20, windowWidth: ww, html2canvas: { scale: 2, background: '#ffffff', useCORS: true } });
-    } catch (err) {
-      console.error('Weekly PDF error', err);
-      alert('Haftalık PDF oluşturulamadı: ' + (err.response?.data || err.message));
-    }
+    const jsPDF = (await import('jspdf')).jsPDF;
+    const html2canvas = (await import('html2canvas')).default;
+    const doc = new jsPDF('p','pt','a4');
+    const ww = container.scrollWidth || 1200;
+    const fileName = 'vardiya_hafta_' + employee.ad + '_' + sd.toISOString().slice(0,10) + '.pdf';
+    await doc.html(container, { 
+      callback: function() { 
+        doc.save(fileName); 
+        container.remove(); 
+      }, 
+      x: 20, 
+      y: 20, 
+      windowWidth: ww, 
+      html2canvas: { 
+        scale: 2, 
+        background: '#ffffff', 
+        useCORS: true 
+      } 
+    });
+  } catch (err) {
+    console.error('Weekly PDF error', err);
+    alert('Haftalık PDF oluşturulamadı: ' + (err.response?.data || err.message));
+  }
   };
 
   // Generate monthly PDF for selected month (selectedShiftMonth is YYYY-MM)
   const generateMonthlyPDF = async () => {
     try {
       const [year, month] = selectedShiftMonth.split('-').map(Number);
-      const monthStr = `${String(month).padStart(2,'0')}`;
+      const monthStr = String(month).padStart(2, '0');
       const monthFilter = `${year}-${monthStr}`;
       const shifts = shiftCalendar.filter(s => s.tarih && s.tarih.startsWith(monthFilter));
 
@@ -1024,46 +1055,63 @@ export default function Dashboard() {
         th.innerHTML = `${d.getDate()}<div style="font-size:10px;color:#6b7280;margin-top:3px">${['Paz','Pzt','Sal','Çar','Per','Cum','Cmt'][d.getDay()]}</div>`;
         headerRow.appendChild(th);
       });
-      thead.appendChild(headerRow);
-      table.appendChild(thead);
+    thead.appendChild(headerRow);
+    table.appendChild(thead);
 
-      const tbody = document.createElement('tbody');
-      involvedEmployees.forEach(emp => {
-        const tr = document.createElement('tr');
-        const tdName = document.createElement('td');
-        tdName.style.border = '1px solid #ddd'; tdName.style.padding = '6px'; tdName.textContent = `${emp.ad} ${emp.soyad}`;
-        tr.appendChild(tdName);
-        dates.forEach(d => {
-          const key = `${emp.id}_${d.toISOString().slice(0,10)}`;
-          const td = document.createElement('td');
-          td.style.border = '1px solid #ddd'; td.style.padding = '4px'; td.style.textAlign = 'center'; td.style.fontSize = '9px';
-          const s = cellMap[`${emp.id}_${d.toISOString().slice(0,10)}`] || cellMap[`${emp.employee_id}_${d.toISOString().slice(0,10)}`];
-          if (!s) { td.textContent = '-'; }
-          else if (s.type === 'izin') { td.innerHTML = '<span style="color:#c0392b;font-weight:600">İZİN</span>'; }
-          else {
-            const st = s.shift_type || s.shift_type_name || {};
-            const name = st.name || s.shift_type?.name || 'Vardiya';
-            const start = st.start || s.shift_type?.start || '';
-            const end = st.end || s.shift_type?.end || '';
-            td.innerHTML = `${name}<br/><small>${start} - ${end}</small>`;
+    const tbody = document.createElement('tbody');
+    involvedEmployees.forEach(emp => {
+      const tr = document.createElement('tr');
+      const tdName = document.createElement('td');
+      tdName.style.border = '1px solid #ddd'; tdName.style.padding = '6px'; tdName.textContent = `${emp.ad} ${emp.soyad}`;
+      tr.appendChild(tdName);
+      dates.forEach(d => {
+        const key = `${emp.id}_${d.toISOString().slice(0,10)}`;
+        const td = document.createElement('td');
+        td.style.border = '1px solid #ddd'; td.style.padding = '4px'; td.style.textAlign = 'center'; td.style.fontSize = '9px';
+        const s = cellMap[`${emp.id}_${d.toISOString().slice(0,10)}`] || cellMap[`${emp.employee_id}_${d.toISOString().slice(0,10)}`];
+        if (!s) { 
+          td.textContent = '-'; 
+        } else if (s.type === 'izin') { 
+          td.innerHTML = '<span style="color:#c0392b;font-weight:600">İZİN</span>'; 
+        } else { 
+          const shiftType = shiftTypes.find(st => st.id === s.shift_type);
+          if (shiftType) {
+            td.innerHTML = `<span style="color:${shiftType.color}">${shiftType.name}</span>`;
+          } else {
+            td.textContent = 'Vardiya';
           }
-          tr.appendChild(td);
-        });
-        tbody.appendChild(tr);
+        }
+        tr.appendChild(td);
       });
+      tbody.appendChild(tr);
+    });
 
-      table.appendChild(tbody);
-      container.appendChild(table);
-      document.body.appendChild(container);
+    table.appendChild(tbody);
+    container.appendChild(table);
+    document.body.appendChild(container);
 
-      const { jsPDF } = await import('jspdf');
-  const doc = new jsPDF('l','pt','a4');
-  const ww = container.scrollWidth || 1600;
-  await doc.html(container, { callback: () => { doc.save(`vardiya_aylik_${selectedShiftMonth}.pdf`); container.remove(); }, x: 20, y: 20, windowWidth: ww, html2canvas: { scale: 2, background: '#ffffff', useCORS: true } });
-    } catch (err) {
-      console.error('Monthly PDF error', err);
-      alert('Aylık PDF oluşturulamadı: ' + (err.response?.data || err.message));
-    }
+    const { jsPDF } = await import('jspdf');
+    const html2canvas = (await import('html2canvas')).default;
+    const doc = new jsPDF('l','pt','a4');
+    const ww = container.scrollWidth || 1600;
+    await doc.html(container, { 
+      callback: () => { 
+        doc.save(`vardiya_aylik_${selectedShiftMonth}.pdf`); 
+        container.remove(); 
+      }, 
+      x: 20, 
+      y: 20, 
+      windowWidth: ww, 
+      html2canvas: { 
+        scale: 2, 
+        background: '#ffffff', 
+        useCORS: true 
+      } 
+    });
+  } catch (err) {
+    console.error('Monthly PDF error', err);
+    alert('Aylık PDF oluşturulamadı: ' + (err.response?.data || err.message));
+  }
   };
 
   const addAvans = async () => {
