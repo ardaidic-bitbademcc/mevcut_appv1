@@ -8,6 +8,7 @@ import POS from './POS';
 // Set REACT_APP_BACKEND_URL to override (e.g. https://mevcut-appv1.onrender.com)
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL || '';
 const API = BACKEND_URL ? `${BACKEND_URL.replace(/\/$/, '')}/api` : '/api';
+const STOCK_ENABLED = process.env.REACT_APP_STOCK_ENABLED !== 'false';
 
 export default function Dashboard() {
   const [user, setUser] = useState(null);
@@ -2118,7 +2119,14 @@ export default function Dashboard() {
           </div>
         )}
 
-        {activeTab === 'stok' && permissions.can_view_stock && (
+        {activeTab === 'stok' && permissions.can_view_stock && !STOCK_ENABLED && (
+          <div className="bg-white rounded-lg shadow p-6 mb-6">
+            <h2 className="text-xl font-bold mb-2">📦 Stok — Yakında</h2>
+            <div className="text-gray-600">Stok modülü geçici olarak devre dışı bırakıldı. Yakında tekrar aktif olacak.</div>
+          </div>
+        )}
+
+        {activeTab === 'stok' && permissions.can_view_stock && STOCK_ENABLED && (
           <div>
             {/* Stock Export / Import (top of Stok page) */}
             <div className="bg-white rounded-lg shadow p-6 mb-6">
