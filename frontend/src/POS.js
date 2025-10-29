@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import axios from 'axios';
+// POS component: cleaned formatting to fix build-time JSX parsing errors
 
 // Use relative API by default (works when frontend is served from same host).
 // If you want to override during development, set REACT_APP_BACKEND_URL.
@@ -25,6 +26,9 @@ export default function POS({ companyId = 1 }) {
   const [kioskMode, setKioskMode] = useState(false);
   const [menuForm, setMenuForm] = useState({ name: '', price: '', category_id: '', description: '', recipe: '' });
   const [showTableManager, setShowTableManager] = useState(false);
+  const [newZoneName, setNewZoneName] = useState('');
+  const [newTableName, setNewTableName] = useState('');
+  const [newTableZone, setNewTableZone] = useState('');
 
   useEffect(() => {
     fetchAll();
@@ -387,7 +391,10 @@ export default function POS({ companyId = 1 }) {
                       <button onClick={() => deleteZone(z.id)} className="text-red-500">Sil</button>
                     </div>
                   ))}
-                  <ZoneForm onCreate={createZone} />
+                  <div className="flex items-center gap-2">
+                    <input value={newZoneName} onChange={e=>setNewZoneName(e.target.value)} placeholder="Yeni bölge adı" className="px-2 py-1 border rounded" />
+                    <button type="button" onClick={() => { if(newZoneName) { createZone(newZoneName); setNewZoneName(''); } }} className="px-2 py-1 bg-green-600 text-white rounded">Ekle</button>
+                  </div>
                 </div>
               </div>
 
@@ -404,7 +411,14 @@ export default function POS({ companyId = 1 }) {
                   ))}
                 </div>
                 <div className="mt-2">
-                  <TableForm zones={zones} onCreate={createTable} />
+                  <div className="flex gap-2">
+                    <input value={newTableName} onChange={e=>setNewTableName(e.target.value)} placeholder="Masa adı" className="px-2 py-1 border rounded" />
+                    <select value={newTableZone} onChange={e=>setNewTableZone(e.target.value)} className="px-2 py-1 border rounded">
+                      <option value="">Bölge (opsiyonel)</option>
+                      {zones.map(z => <option key={z.id} value={z.id}>{z.name}</option>)}
+                    </select>
+                    <button type="button" onClick={() => { createTable(newTableName, newTableZone || null); setNewTableName(''); setNewTableZone(''); }} className="px-2 py-1 bg-green-600 text-white rounded">Masa Ekle</button>
+                  </div>
                 </div>
               </div>
             </div>
@@ -508,28 +522,3 @@ export default function POS({ companyId = 1 }) {
   );
 }
 
-
-function ZoneForm({ onCreate }){
-  const [name, setName] = useState('');
-  return (
-    <div className="flex items-center gap-2">
-      <input value={name} onChange={(e)=>setName(e.target.value)} placeholder="Yeni bölge adı" className="px-2 py-1 border rounded" />
-  <button type="button" onClick={()=>{ onCreate(name); setName(''); }} className="px-2 py-1 bg-green-600 text-white rounded">Ekle</button>
-    </div>
-  )
-}
-
-function TableForm({ zones, onCreate }){
-  const [name, setName] = useState('');
-  const [zone, setZone] = useState('');
-  return (
-    <div className="flex gap-2">
-      <input value={name} onChange={(e)=>setName(e.target.value)} placeholder="Masa adı" className="px-2 py-1 border rounded" />
-      <select value={zone} onChange={(e)=>setZone(e.target.value)} className="px-2 py-1 border rounded">
-        <option value="">Bölge (opsiyonel)</option>
-        {zones.map(z=> <option key={z.id} value={z.id}>{z.name}</option>)}
-      </select>
-  <button type="button" onClick={()=>{ onCreate(name, zone || null); setName(''); setZone(''); }} className="px-2 py-1 bg-green-600 text-white rounded">Masa Ekle</button>
-    </div>
-  )
-}
