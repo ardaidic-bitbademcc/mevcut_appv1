@@ -30,6 +30,53 @@ export default function POS({ companyId = 1 }) {
     fetchAll();
   }, []);
 
+  // When kiosk mode toggles, try to enter or exit browser fullscreen for immersive kiosk UX
+  useEffect(() => {
+    const enterFullscreen = async () => {
+      try {
+        const el = document.documentElement;
+        if (el.requestFullscreen) await el.requestFullscreen();
+        else if (el.webkitRequestFullscreen) el.webkitRequestFullscreen();
+        else if (el.msRequestFullscreen) el.msRequestFullscreen();
+      } catch (e) {
+        console.warn('Failed to enter fullscreen', e);
+      }
+    };
+
+    const exitFullscreen = async () => {
+      try {
+        if (document.fullscreenElement) {
+          if (document.exitFullscreen) await document.exitFullscreen();
+          else if (document.webkitExitFullscreen) document.webkitExitFullscreen();
+        }
+      } catch (e) {
+        console.warn('Failed to exit fullscreen', e);
+      }
+    };
+
+    if (kioskMode) {
+      enterFullscreen();
+    } else {
+      exitFullscreen();
+    }
+  }, [kioskMode]);
+
+  // Keep kioskMode in sync if user exits fullscreen with ESC or browser controls
+  useEffect(() => {
+    const handler = () => {
+      if (!document.fullscreenElement) {
+        // if fullscreen was exited externally, turn off kioskMode
+        try { setKioskMode(false); } catch (e) { /* ignore */ }
+      }
+    };
+    document.addEventListener('fullscreenchange', handler);
+    document.addEventListener('webkitfullscreenchange', handler);
+    return () => {
+      document.removeEventListener('fullscreenchange', handler);
+      document.removeEventListener('webkitfullscreenchange', handler);
+    };
+  }, []);
+
   const fetchAll = async () => {
     try {
       const [mRes, cRes, zRes, tRes] = await Promise.all([
