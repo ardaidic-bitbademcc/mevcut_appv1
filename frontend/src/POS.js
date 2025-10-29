@@ -279,9 +279,9 @@ export default function POS({ companyId = 1 }) {
                 <h4 className="font-semibold mb-2">{zone.name}</h4>
                 <div className="flex flex-wrap gap-3">
                   {tables.filter(t => t.zone_id === zone.id).map(t => (
-                    <div key={t.id} onClick={() => { if (!selfService) setSelectedTable(t); }} className={`w-28 h-16 flex items-center justify-center border rounded cursor-pointer ${selectedTable?.id === t.id ? 'bg-indigo-600 text-white' : 'bg-white'}`}>
+                    <button key={t.id} type="button" onClick={() => { if (!selfService) setSelectedTable(t); }} className={`w-28 h-16 flex items-center justify-center border rounded cursor-pointer select-none ${selectedTable?.id === t.id ? 'bg-indigo-600 text-white' : 'bg-white'}`}>
                       {t.name}
-                    </div>
+                    </button>
                   ))}
                 </div>
               </div>
@@ -291,9 +291,9 @@ export default function POS({ companyId = 1 }) {
                 <h4 className="font-semibold mb-2">Diğer Masalar</h4>
                 <div className="flex flex-wrap gap-3">
                   {tables.filter(t => !t.zone_id).map(t => (
-                    <div key={t.id} onClick={() => { if (!selfService) setSelectedTable(t); }} className={`w-28 h-16 flex items-center justify-center border rounded cursor-pointer ${selectedTable?.id === t.id ? 'bg-indigo-600 text-white' : 'bg-white'}`}>
+                    <button key={t.id} type="button" onClick={() => { if (!selfService) setSelectedTable(t); }} className={`w-28 h-16 flex items-center justify-center border rounded cursor-pointer select-none ${selectedTable?.id === t.id ? 'bg-indigo-600 text-white' : 'bg-white'}`}>
                       {t.name}
-                    </div>
+                    </button>
                   ))}
                 </div>
               </div>
@@ -304,20 +304,20 @@ export default function POS({ companyId = 1 }) {
                 {/* Categories tabs */}
           <div className="flex gap-2 mb-4">
             {categories.map(cat => (
-              <button key={cat.id} onClick={() => setActiveCategory(cat.id)} className={`px-3 py-1 rounded ${activeCategory === cat.id ? 'bg-indigo-600 text-white' : 'bg-gray-100'}`}>{cat.name}</button>
+              <button type="button" key={cat.id} onClick={() => setActiveCategory(cat.id)} className={`px-3 py-1 rounded ${activeCategory === cat.id ? 'bg-indigo-600 text-white' : 'bg-gray-100'}`}>{cat.name}</button>
             ))}
-            <button onClick={() => setActiveCategory(null)} className={`px-3 py-1 rounded ${activeCategory === null ? 'bg-indigo-600 text-white' : 'bg-gray-100'}`}>Tümü</button>
+            <button type="button" onClick={() => setActiveCategory(null)} className={`px-3 py-1 rounded ${activeCategory === null ? 'bg-indigo-600 text-white' : 'bg-gray-100'}`}>Tümü</button>
           </div>
 
           <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
             {menu.filter(m => activeCategory ? m.category_id === activeCategory : true).map(item => (
-              <div key={item.id} className="border rounded p-3 flex flex-col justify-between">
+              <div key={item.id} className="border rounded p-3 flex flex-col justify-between min-h-[100px]">
                 <div>
-                  <div className="font-semibold">{item.name}</div>
+                  <div className="font-semibold text-lg">{item.name}</div>
                   <div className="text-sm text-gray-600">₺{(item.price || 0).toLocaleString('tr-TR')}</div>
                 </div>
                 <div className="mt-3">
-                  <button onClick={() => addToCart(item)} className="w-full px-3 py-2 bg-indigo-600 text-white rounded">Ekle</button>
+                  <button type="button" onClick={() => addToCart(item)} className="w-full px-3 py-2 bg-indigo-600 text-white rounded text-sm">Ekle</button>
                 </div>
               </div>
             ))}
@@ -326,8 +326,8 @@ export default function POS({ companyId = 1 }) {
           {kioskMode && (
             <div className="mt-6 grid grid-cols-2 md:grid-cols-4 gap-4">
               {menu.filter(m => m.kiosk_featured).map(item => (
-                <button key={item.id} onClick={() => addToCart(item)} className="p-4 bg-white border rounded-lg shadow text-center text-lg font-semibold hover:bg-indigo-50">
-                  <div className="mb-2">{item.name}</div>
+                <button key={item.id} type="button" onClick={() => addToCart(item)} className="p-6 bg-white border rounded-lg shadow text-center text-xl font-semibold hover:bg-indigo-50 min-h-[120px]">
+                  <div className="mb-2 text-lg">{item.name}</div>
                   <div className="text-sm text-gray-600">₺{(item.price || 0).toFixed(2)}</div>
                 </button>
               ))}
