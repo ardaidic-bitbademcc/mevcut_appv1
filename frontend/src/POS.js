@@ -19,6 +19,10 @@ export default function POS({ companyId = 1 }) {
   const [message, setMessage] = useState('');
   const [selfService, setSelfService] = useState(false);
   const [showMenuForm, setShowMenuForm] = useState(false);
+  const [showPaymentModal, setShowPaymentModal] = useState(false);
+  const [paymentMethod, setPaymentMethod] = useState('cash');
+  const [paymentAmount, setPaymentAmount] = useState(0);
+  const [kioskMode, setKioskMode] = useState(false);
   const [menuForm, setMenuForm] = useState({ name: '', price: '', category_id: '', description: '', recipe: '' });
   const [showTableManager, setShowTableManager] = useState(false);
 
@@ -99,6 +103,44 @@ export default function POS({ companyId = 1 }) {
     }
   };
 
+  const openPayment = () => {
+    setPaymentAmount(parseFloat(total) || 0);
+    setShowPaymentModal(true);
+  }
+
+  const payAndCreateOrder = async () => {
+    if (!cart.length) return setMessage('Sepet boş');
+    if (!selfService && !selectedTable) return setMessage('Lütfen bir masa seçin veya self-servis modunu açın');
+    setLoading(true);
+    setMessage('');
+    try {
+      const orderPayload = {
+        company_id: companyId,
+        table: selfService ? null : (selectedTable ? selectedTable.name : null),
+        customer: customer || null,
+        items: cart.map(c => ({ menu_item_id: c.menu_item_id, quantity: c.quantity })),
+        note: ''
+      };
+      const payment = { method: paymentMethod, amount: parseFloat(paymentAmount || 0), details: {} };
+      const res = await axios.post(`${API}/pos/order-pay`, { order: orderPayload, payment });
+      if (res.data && res.data.success) {
+        setMessage('Sipariş ve ödeme kaydedildi. Adisyon: ' + (res.data.order?.adisyon_no || res.data.order?.id));
+        clearCart();
+        setShowPaymentModal(false);
+      } else if (res.data && res.data.error === 'insufficient_stock') {
+        setMessage('Yetersiz stok: ' + JSON.stringify(res.data.details));
+      } else {
+        setMessage('Beklenmeyen yanıt: ' + JSON.stringify(res.data));
+      }
+    } catch (err) {
+      console.error('Pay error', err);
+      const msg = err.response?.data?.detail || err.message || 'Ödeme sırasında hata oluştu';
+      setMessage(msg);
+    } finally {
+      setLoading(false);
+    }
+  }
+
   const total = cart.reduce((s, c) => s + (c.price || 0) * (c.quantity || 1), 0).toFixed(2);
 
   // Menu form handlers
@@ -160,6 +202,9 @@ export default function POS({ companyId = 1 }) {
           </button>
           <button onClick={() => setShowTableManager(!showTableManager)} className="px-3 py-1 bg-gray-200 rounded">Masa Yönetimi</button>
           <button onClick={openMenuForm} className="px-3 py-1 bg-indigo-600 text-white rounded">Menü Ekle</button>
+          <button onClick={() => setKioskMode(!kioskMode)} className={`px-3 py-1 rounded ${kioskMode ? 'bg-yellow-600 text-white' : 'bg-gray-100'}`}>
+            {kioskMode ? 'Kiosk Modu: Açık' : 'Kiosk Modu'}
+          </button>
         </div>
       </div>
 
@@ -217,6 +262,17 @@ export default function POS({ companyId = 1 }) {
               </div>
             ))}
           </div>
+          {/* Kiosk mode large tiles (visible when kioskMode) */}
+          {kioskMode && (
+            <div className="mt-6 grid grid-cols-2 md:grid-cols-4 gap-4">
+              {menu.filter(m => m.kiosk_featured).map(item => (
+                <button key={item.id} onClick={() => addToCart(item)} className="p-4 bg-white border rounded-lg shadow text-center text-lg font-semibold hover:bg-indigo-50">
+                  <div className="mb-2">{item.name}</div>
+                  <div className="text-sm text-gray-600">₺{(item.price || 0).toFixed(2)}</div>
+                </button>
+              ))}
+            </div>
+          )}
         </div>
 
         <div className="bg-gray-50 rounded p-4">
@@ -255,6 +311,7 @@ export default function POS({ companyId = 1 }) {
 
           <div className="flex gap-2">
             <button onClick={submitOrder} disabled={loading || cart.length === 0} className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 disabled:opacity-50">{loading ? 'Gönderiliyor...' : 'Sipariş Gönder'}</button>
+            <button onClick={openPayment} disabled={loading || cart.length === 0} className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50">Ödeme Al</button>
             <button onClick={clearCart} className="px-4 py-2 bg-gray-300 rounded">Temizle</button>
           </div>
 
@@ -313,6 +370,76 @@ export default function POS({ companyId = 1 }) {
                 <button onClick={submitMenuForm} className="px-4 py-2 bg-indigo-600 text-white rounded">Kaydet</button>
                 <button onClick={closeMenuForm} className="px-4 py-2 bg-gray-300 rounded">İptal</button>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+      {/* Payment modal */}
+      {showPaymentModal && (
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
+          <div className="bg-white rounded p-6 w-full max-w-md">
+            <h3 className="font-bold mb-3">Ödeme Al</h3>
+            <div className="space-y-3">
+              <div>
+                <label className="text-sm">Tutar</label>
+                <input type="number" value={paymentAmount} onChange={(e)=>setPaymentAmount(e.target.value)} className="w-full px-3 py-2 border rounded" />
+              </div>
+              <div>
+                <label className="text-sm">Ödeme Yöntemi</label>
+                <select value={paymentMethod} onChange={(e)=>setPaymentMethod(e.target.value)} className="w-full px-3 py-2 border rounded">
+                  <option value="cash">Nakit</option>
+                  <option value="card">Kredi Kartı</option>
+                  <option value="other">Diğer</option>
+                </select>
+              </div>
+              <div className="flex gap-2 mt-4">
+                <button onClick={payAndCreateOrder} className="px-4 py-2 bg-green-600 text-white rounded">Öde ve Kaydet</button>
+                <button onClick={()=>setShowPaymentModal(false)} className="px-4 py-2 bg-gray-300 rounded">İptal</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+      {/* Fullscreen Kiosk Mode Overlay */}
+      {kioskMode && (
+        <div className="fixed inset-0 z-50 bg-white p-4">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-2xl font-bold">Kiosk Modu</h2>
+            <div className="flex items-center gap-2">
+              <button onClick={() => setKioskMode(false)} className="px-3 py-1 bg-red-500 text-white rounded">Çıkış</button>
+              <button onClick={openPayment} className="px-3 py-1 bg-blue-600 text-white rounded" disabled={cart.length === 0}>Ödeme</button>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 h-[calc(100vh-120px)] overflow-auto">
+            {menu.filter(m => m.kiosk_featured || m.kiosk).map(item => (
+              <button key={item.id} onClick={() => addToCart(item)} className="p-6 bg-gray-100 rounded-lg shadow text-center text-xl font-semibold hover:bg-indigo-50">
+                <div className="mb-2">{item.name}</div>
+                <div className="text-sm text-gray-600">₺{(item.price || 0).toFixed(2)}</div>
+              </button>
+            ))}
+          </div>
+
+          {/* Small cart at bottom-right */}
+          <div className="fixed right-4 bottom-4 w-96 bg-white border rounded p-3 shadow-lg">
+            <div className="font-semibold mb-2">Sepet</div>
+            <div className="space-y-2 max-h-48 overflow-auto mb-3">
+              {cart.map(c => (
+                <div key={c.menu_item_id} className="flex items-center justify-between">
+                  <div>
+                    <div className="font-medium">{c.name}</div>
+                    <div className="text-sm text-gray-600">₺{(c.price || 0).toFixed(2)}</div>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <input type="number" value={c.quantity} onChange={(e) => updateQty(c.menu_item_id, parseInt(e.target.value || '0'))} className="w-16 px-2 py-1 border rounded" />
+                  </div>
+                </div>
+              ))}
+            </div>
+            <div className="font-semibold mb-2">Toplam: ₺{total}</div>
+            <div className="flex gap-2">
+              <button onClick={openPayment} disabled={cart.length === 0} className="flex-1 px-3 py-2 bg-blue-600 text-white rounded">Ödeme</button>
+              <button onClick={clearCart} className="px-3 py-2 bg-gray-300 rounded">Temizle</button>
             </div>
           </div>
         </div>
