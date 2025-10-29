@@ -129,7 +129,7 @@ export default function Dashboard() {
   useEffect(() => {
     if (user) {
       fetchData();
-      if (activeTab === 'stok') {
+      if (activeTab === 'stok' && STOCK_ENABLED) {
         fetchStokData();
       }
     }
