@@ -1,4 +1,5 @@
 import React from 'react'
+import { ShoppingCart } from 'lucide-react'
 
 export default function Sidebar({ activeTab, setActiveTab, permissions = {}, employee = {} }) {
   const items = [
@@ -10,7 +11,7 @@ export default function Sidebar({ activeTab, setActiveTab, permissions = {}, emp
     { id: 'vardiya_turleri', label: '⚙️ Vardiya Türleri', show: permissions.manage_shifts_types },
     { id: 'personel', label: '👥 Personel', show: employee?.rol === 'admin' },
     { id: 'stok', label: '📦 Stok', show: permissions.can_view_stock },
-    { id: 'pos', label: '🧾 POS', show: true },
+    { id: 'pos', label: <span className="flex items-center gap-2"><ShoppingCart size={16} /> POS</span>, show: permissions.POS_VIEW ?? true },
     { id: 'abonelik', label: '💳 Abonelik', show: true },
   ];
 

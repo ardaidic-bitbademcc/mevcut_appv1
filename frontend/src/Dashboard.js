@@ -3,6 +3,13 @@ import { LogOut, Plus, Trash2, Edit2, Check, X } from 'lucide-react';
 import axios from 'axios';
 import Subscription from './Subscription';
 import POS from './POS';
+import Sidebar from './components/Sidebar';
+import POSDashboard from './pos/POSDashboard';
+import Terminal from './pos/Terminal';
+import Products from './pos/Products';
+import Inventory from './pos/Inventory';
+import Orders from './pos/Orders';
+import POSSettings from './pos/Settings';
 
 // Prefer a relative API path so local dev (create-react-app) talks to the same host.
 // Set REACT_APP_BACKEND_URL to override (e.g. https://mevcut-appv1.onrender.com)
@@ -372,6 +379,8 @@ export default function Dashboard() {
     const userRole = roles.find(r => r.id === employee?.rol);
     return userRole?.permissions || {};
   };
+
+  const permissions = getPermissions();
 
  const handleLogin = async () => {
   setIsLoggingIn(true);
@@ -896,25 +905,44 @@ export default function Dashboard() {
       thead.innerHTML = `<tr>
         <th style="border:1px solid #f0f0f0;padding:6px 8px;background:#fbfbfc;text-align:left;font-weight:600;font-size:12px;color:#111">Personel</th>
         ${dates.map(d => `<th style="border:1px solid #f0f0f0;padding:6px 6px;background:#fbfbfc;text-align:center;font-weight:600;font-size:11px;color:#111">${d.getDate()}<div style=\"font-size:10px;color:#6b7280;margin-top:3px\">${['Paz','Pzt','Sal','Çar','Per','Cum','Cmt'][d.getDay()]}</div></th>`).join('')}
-      </tr>`;
-      table.appendChild(thead);
+      return (
+        <div className="App">
+          <div className="max-w-[1400px] mx-auto p-6">
+            {/* top nav and login omitted for brevity earlier in file */}
+            <div className="mt-6 grid grid-cols-1 md:grid-cols-4 gap-6">
+              <div className="md:col-span-1">
+                <Sidebar activeTab={activeTab} setActiveTab={setActiveTab} permissions={permissions} employee={employee} />
+              </div>
+              <div className="md:col-span-3">
+                {/* Main area: render selected tab or POS subpages */}
+                {activeTab === 'dashboard' && (
+                  <div>/* dashboard content earlier */</div>
+                )}
 
-      const tbody = document.createElement('tbody');
-      const tr = document.createElement('tr');
-      tr.innerHTML = `<td style="border:1px solid #f0f0f0;padding:8px 10px;background:#fff;font-weight:600">${employee.ad} ${employee.soyad}</td>` +
-        dates.map(d => {
-          const key = d.toISOString().slice(0,10);
-          const s = shiftsByDate[key];
-          if (!s) return `<td style="border:1px solid #f0f0f0;padding:8px;text-align:center;color:#9ca3af">-</td>`;
-          if (s.type === 'izin') return `<td style="border:1px solid #f0f0f0;padding:8px;text-align:center;color:#ef4444;font-weight:700">İZİN</td>`;
-          const st = s.shift_type || s.shift_type_name || {};
-          const name = st.name || s.shift_type?.name || 'Vardiya';
-          const start = st.start || s.shift_type?.start || '';
-          const end = st.end || s.shift_type?.end || '';
-          return `<td style="border:1px solid #f0f0f0;padding:6px 8px;text-align:center"><div style=\"font-weight:600;color:#111\">${name}</div><div style=\"font-size:10px;color:#6b7280\">${start} - ${end}</div></td>`;
-        }).join('');
-      tr.innerHTML = tr.innerHTML;
-      tbody.appendChild(tr);
+                {activeTab === 'pos' && (
+                  <POSDashboard permissions={permissions} />
+                )}
+                {activeTab === 'pos_terminal' && (
+                  <Terminal permissions={permissions} companyId={companyId} />
+                )}
+                {activeTab === 'pos_products' && (
+                  <Products permissions={permissions} />
+                )}
+                {activeTab === 'pos_inventory' && (
+                  <Inventory permissions={permissions} />
+                )}
+                {activeTab === 'pos_orders' && (
+                  <Orders permissions={permissions} />
+                )}
+                {activeTab === 'pos_settings' && (
+                  <POSSettings permissions={permissions} />
+                )}
+                {/* multiple other tabs already implemented earlier in this large file */}
+              </div>
+            </div>
+          </div>
+        </div>
+      );
       table.appendChild(tbody);
       container.appendChild(table);
 

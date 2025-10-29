@@ -86,6 +86,21 @@ async def lifespan(app: FastAPI):
     # or triggered by explicit endpoints. Do not reference request-specific variables
     # such as `month` in this module-level lifespan.
     try:
+        # Ensure POS collections and recommended indexes exist. Non-destructive.
+        try:
+            from .pos_collections import ensure_pos_collections
+        except Exception:
+            try:
+                from pos_collections import ensure_pos_collections
+            except Exception:
+                ensure_pos_collections = None
+
+        if ensure_pos_collections:
+            try:
+                # run but don't block startup if it fails
+                await ensure_pos_collections(db)
+            except Exception:
+                logger.exception('pos_collections.ensure_pos_collections failed')
         yield
     finally:
         # perform any graceful shutdown tasks here if needed
