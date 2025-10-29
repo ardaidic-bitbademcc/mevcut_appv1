@@ -268,8 +268,10 @@ export default function POS({ companyId = 1 }) {
 
       {message && <div className="mb-4 p-3 bg-yellow-50 text-yellow-900 rounded">{message}</div>}
 
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
         <div className="md:col-span-3">
+          {/* make the left area scrollable to avoid content overflowing the page */}
+          <div className="max-h-[65vh] overflow-auto pr-2">
           {/* Table layout: zones and table rectangles */}
           <div className="mb-4">
             {zones.map(zone => (
@@ -412,8 +414,8 @@ export default function POS({ companyId = 1 }) {
 
       {/* Menu creation modal/box */}
       {showMenuForm && (
-        <div className="fixed inset-0 bg-black/30 flex items-center justify-center">
-          <div className="bg-white rounded p-6 w-full max-w-lg">
+        <div className="fixed inset-0 bg-black/30 flex items-center justify-center" style={{ zIndex: 9999 }}>
+          <div className="bg-white rounded p-6 w-full max-w-lg" style={{ zIndex: 10000 }}>
             <h3 className="font-bold mb-3">Yeni Menü Öğesi</h3>
             <div className="grid grid-cols-1 gap-3">
               <input value={menuForm.name} onChange={(e)=>setMenuForm({...menuForm, name: e.target.value})} placeholder="Ad" className="px-3 py-2 border rounded" />
@@ -434,8 +436,8 @@ export default function POS({ companyId = 1 }) {
       )}
       {/* Payment modal */}
       {showPaymentModal && (
-        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
-          <div className="bg-white rounded p-6 w-full max-w-md">
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center" style={{ zIndex: 10020 }}>
+          <div className="bg-white rounded p-6 w-full max-w-md" style={{ zIndex: 10030 }}>
             <h3 className="font-bold mb-3">Ödeme Al</h3>
             <div className="space-y-3">
               <div>
@@ -460,7 +462,7 @@ export default function POS({ companyId = 1 }) {
       )}
       {/* Fullscreen Kiosk Mode Overlay */}
       {kioskMode && (
-        <div className="fixed inset-0 z-50 bg-white p-4">
+        <div className="fixed inset-0 bg-white p-4" style={{ zIndex: 10010 }}>
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-2xl font-bold">Kiosk Modu</h2>
             <div className="flex items-center gap-2">
@@ -512,7 +514,7 @@ function ZoneForm({ onCreate }){
   return (
     <div className="flex items-center gap-2">
       <input value={name} onChange={(e)=>setName(e.target.value)} placeholder="Yeni bölge adı" className="px-2 py-1 border rounded" />
-      <button onClick={()=>{ onCreate(name); setName(''); }} className="px-2 py-1 bg-green-600 text-white rounded">Ekle</button>
+  <button type="button" onClick={()=>{ onCreate(name); setName(''); }} className="px-2 py-1 bg-green-600 text-white rounded">Ekle</button>
     </div>
   )
 }
@@ -527,7 +529,7 @@ function TableForm({ zones, onCreate }){
         <option value="">Bölge (opsiyonel)</option>
         {zones.map(z=> <option key={z.id} value={z.id}>{z.name}</option>)}
       </select>
-      <button onClick={()=>{ onCreate(name, zone || null); setName(''); setZone(''); }} className="px-2 py-1 bg-green-600 text-white rounded">Masa Ekle</button>
+  <button type="button" onClick={()=>{ onCreate(name, zone || null); setName(''); setZone(''); }} className="px-2 py-1 bg-green-600 text-white rounded">Masa Ekle</button>
     </div>
   )
 }
