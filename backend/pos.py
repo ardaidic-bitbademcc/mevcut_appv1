@@ -212,8 +212,11 @@ async def seed_pos_demo():
         {"id": 4, "name": "Americano", "price": 40.0, "category_id": 2, "active": True, "kiosk_featured": True},
         {"id": 5, "name": "Latte", "price": 45.0, "category_id": 2, "active": True, "kiosk_featured": True},
         {"id": 6, "name": "Filtre Kahve", "price": 30.0, "category_id": 2, "active": True, "kiosk_featured": False},
-        {"id": 7, "name": "Kiosk Menü: Soğuk Çay", "price": 28.0, "category_id": 1, "active": True, "kiosk_featured": True},
-        {"id": 8, "name": "Kiosk Menü: Çikolatalı Süt", "price": 32.0, "category_id": 1, "active": True, "kiosk_featured": True},
+        # kiosk specific demo items
+        {"id": 7, "name": "Kiosk Burger", "price": 120.0, "category_id": None, "active": True, "kiosk": True},
+        {"id": 8, "name": "Kiosk Patates", "price": 45.0, "category_id": None, "active": True, "kiosk": True},
+        {"id": 9, "name": "Kiosk İçecek (Küçük)", "price": 25.0, "category_id": None, "active": True, "kiosk": True},
+        {"id": 10, "name": "Kiosk Menü (Burger+Patates)", "price": 155.0, "category_id": None, "active": True, "kiosk": True},
     ]
     await db.menu_items.insert_many(menu)
 
