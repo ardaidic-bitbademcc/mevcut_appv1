@@ -1,6 +1,18 @@
 import React, { useState, useEffect } from 'react';
 import { LogOut, Plus, Trash2, Edit2, Check, X } from 'lucide-react';
 import axios from 'axios';
+import { API, STOCK_ENABLED } from './lib/config';
+import {
+  fetchEmployees,
+  fetchRoles,
+  fetchShiftTypes,
+  fetchAttendance,
+  fetchLeaveRecords,
+  fetchShiftCalendar,
+  fetchTasks,
+} from './lib/api';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import usePermissions from './features/hr/hooks/usePermissions';
 import Subscription from './Subscription';
 import POS from './POS';
 import Sidebar from './components/Sidebar';
@@ -11,13 +23,7 @@ import Inventory from './pos/Inventory';
 import Orders from './pos/Orders';
 import POSSettings from './pos/Settings';
 
-// Prefer a relative API path so local dev (create-react-app) talks to the same host.
-// Set REACT_APP_BACKEND_URL to override (e.g. https://mevcut-appv1.onrender.com)
-const BACKEND_URL = process.env.REACT_APP_BACKEND_URL || '';
-const API = BACKEND_URL ? `${BACKEND_URL.replace(/\/$/, '')}/api` : '/api';
-// Default to disabled to avoid network errors in environments where stok APIs
-// are not healthy. Set REACT_APP_STOCK_ENABLED=true to re-enable.
-const STOCK_ENABLED = process.env.REACT_APP_STOCK_ENABLED === 'true';
+// API and feature flags are centralized in ./lib/config
 
 export default function Dashboard() {
   const [user, setUser] = useState(null);
@@ -78,26 +84,23 @@ export default function Dashboard() {
   const [stokSayimData, setStokSayimData] = useState({});
   const [editingStokUrun, setEditingStokUrun] = useState(null);
   const [editingStokKategori, setEditingStokKategori] = useState(null);
-  const [externalPermissions, setExternalPermissions] = useState({});
+  
 
   // Fetch all data from backend
   const fetchData = async () => {
     try {
-      // Fetch critical collections first
-      const empRes = await axios.get(`${API}/employees`);
-      const roleRes = await axios.get(`${API}/roles`);
-      const shiftTypeRes = await axios.get(`${API}/shift-types`);
-      const attendanceRes = await axios.get(`${API}/attendance`);
+      // Fetch critical collections first (via API wrappers)
+      // employees/roles are now fetched by React Query; only fetch other critical data here
+      const shiftTypeRes = await fetchShiftTypes();
+      const attendanceRes = await fetchAttendance();
 
-      setEmployees(empRes.data);
-      setRoles(roleRes.data);
-      setShiftTypes(shiftTypeRes.data);
-      setAttendance(attendanceRes.data);
+      setShiftTypes(shiftTypeRes);
+      setAttendance(attendanceRes);
 
       // Fetch optional collections separately and tolerate 404s
       try {
-        const leaveRes = await axios.get(`${API}/leave-records`);
-        setLeaveRecords(leaveRes.data);
+        const leaveRes = await fetchLeaveRecords();
+        setLeaveRecords(leaveRes);
       } catch (err) {
         if (err.response?.status === 404) {
           console.warn('leave-records not available on backend; using empty list');
@@ -108,8 +111,8 @@ export default function Dashboard() {
       }
 
       try {
-        const shiftCalRes = await axios.get(`${API}/shift-calendar`);
-        setShiftCalendar(shiftCalRes.data);
+        const shiftCalRes = await fetchShiftCalendar();
+        setShiftCalendar(shiftCalRes);
       } catch (err) {
         if (err.response?.status === 404) {
           console.warn('shift-calendar not available on backend; using empty list');
@@ -120,8 +123,8 @@ export default function Dashboard() {
       }
 
       try {
-        const taskRes = await axios.get(`${API}/tasks`);
-        setTasks(taskRes.data);
+        const taskRes = await fetchTasks();
+        setTasks(taskRes);
       } catch (err) {
         if (err.response?.status === 404) {
           console.warn('tasks endpoint not available; using empty list');
@@ -179,58 +182,55 @@ export default function Dashboard() {
     }
   };
 
-  const downloadStokTemplate = async () => {
-    try {
-      const res = await axios.get(`${API}/stok-template`, { responseType: 'blob' });
-      const url = window.URL.createObjectURL(new Blob([res.data]));
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `stok_template.xlsx`;
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
-      window.URL.revokeObjectURL(url);
-    } catch (err) {
-      console.error('Template download error', err);
-      alert('Template indirme hatası: ' + (err.response?.data || err.message));
-    }
-  };
+  const queryClient = useQueryClient();
 
-  const uploadStokFile = async () => {
-    if (!stokImportFile) return alert('Lütfen bir dosya seçin');
-    try {
-      const fd = new FormData();
-      fd.append('file', stokImportFile);
-      const res = await axios.post(`${API}/stok-import`, fd, { headers: { 'Content-Type': 'multipart/form-data' } });
-      alert(`Başarılı: oluşturulan ${res.data.created}, güncellenen ${res.data.updated}`);
-      setStokImportFile(null);
-      fetchStokData();
-    } catch (err) {
-      console.error('Stok import error', err);
-      alert('Stok import hatası: ' + (err.response?.data?.detail || err.message));
-    }
-  };
+  // React Query: pilot for employees and roles (top-level hooks)
+  useQuery(['employees'], fetchEmployees, {
+    enabled: !!user,
+    onSuccess: (data) => setEmployees(data || []),
+    onError: (err) => console.warn('employees query failed', err?.message || err),
+    staleTime: 1000 * 60 * 5, // 5 minutes
+  });
 
-  const addStokBirim = async () => {
-    if (!newStokBirim.ad || !newStokBirim.kisaltma) {
-      alert('❌ Tüm alanları doldurunuz!');
-      return;
-    }
-    try {
-      await axios.post(`${API}/stok-birim`, newStokBirim);
-      setNewStokBirim({ ad: '', kisaltma: '' });
-      alert('✅ Birim eklendi!');
-      fetchStokData();
-    } catch (error) {
-      alert('❌ ' + (error.response?.data?.detail || error.message));
-    }
-  };
+  useQuery(['roles'], fetchRoles, {
+    enabled: !!user,
+    onSuccess: (data) => setRoles(data || []),
+    onError: (err) => console.warn('roles query failed', err?.message || err),
+    staleTime: 1000 * 60 * 10, // 10 minutes
+  });
 
+  // We'll use React Query for non-critical collections and prefetch them after login so UI isn't blocked
+  useQuery(['shiftTypes'], fetchShiftTypes, {
+    enabled: false,
+    onSuccess: data => setShiftTypes(data || []),
+    onError: err => console.warn('shiftTypes query failed', err?.message || err),
+  });
+
+  useQuery(['attendance'], fetchAttendance, {
+    enabled: false,
+    onSuccess: data => setAttendance(data || []),
+    onError: err => console.warn('attendance query failed', err?.message || err),
+  });
+
+  useQuery(['leaveRecords'], fetchLeaveRecords, {
+    enabled: false,
+    onSuccess: data => setLeaveRecords(data || []),
+    onError: err => console.warn('leaveRecords query failed', err?.message || err),
+  });
+
+  useQuery(['shiftCalendar'], fetchShiftCalendar, {
+    enabled: false,
+    onSuccess: data => setShiftCalendar(data || []),
+    onError: err => console.warn('shiftCalendar query failed', err?.message || err),
+  });
+
+  useQuery(['tasks'], fetchTasks, {
+    enabled: false,
+    onSuccess: data => setTasks(data || []),
+    onError: err => console.warn('tasks query failed', err?.message || err),
+  });
+  
   const addStokKategori = async () => {
-    if (!newStokKategori.ad) {
-      alert('❌ Kategori adı giriniz!');
-      return;
-    }
     try {
       await axios.post(`${API}/stok-kategori`, newStokKategori);
       setNewStokKategori({ ad: '', renk: '#6B7280' });
@@ -375,38 +375,38 @@ export default function Dashboard() {
     }
   }, [salaryMonth, activeTab, user]);
 
-  const getPermissions = () => {
-    // merge role-based permissions (from roles collection) with external HR adapter permissions
-    const base = (!employee?.rol) ? {} : (roles.find(r => r.id === employee?.rol)?.permissions || {});
-    return { ...(base || {}), ...(externalPermissions || {}) };
-  };
-
-  // fetch external HR permissions if adapter endpoint exists
-  useEffect(() => {
-    const loadExternal = async () => {
-      if (!employee?.id) return;
-      try {
-        const { getPermissionsForStaff } = await import('./lib/hrAdapter');
-        const p = await getPermissionsForStaff(employee.id);
-        setExternalPermissions(p || {});
-      } catch (e) {
-        // ignore if adapter backend not present
-      }
-    };
-    loadExternal();
-  }, [employee]);
+  // permissions are provided by usePermissions hook (merges role + external HR adapter)
+  
 
  
  const handleLogin = async () => {
   setIsLoggingIn(true);
   setLoginMessage('Giriş yapılıyor...');
   try {
+    console.time('login_total');
     // Backend /api/login returns the user object directly on success (LoginResponse)
     const response = await axios.post(`${API}/login`, { email: loginData.email, password: loginData.password});
     const userData = response.data;
     // If backend wrapped response differently, try common shapes
     const employeeObj = userData.employee || userData.data || userData;
 
+    // Fetch external HR permissions synchronously as part of login so sidebar/permissions are available immediately
+    let externalPerms = {};
+    try {
+      console.time('hrAdapter_fetch');
+      const { getPermissionsForStaff } = await import('./lib/hrAdapter');
+      externalPerms = await getPermissionsForStaff(employeeObj.id);
+      console.timeEnd('hrAdapter_fetch');
+    } catch (e) {
+      // adapter may not exist; ignore
+      console.warn('hrAdapter fetch skipped or failed', e?.message || e);
+    }
+
+    if (externalPerms && Object.keys(externalPerms).length > 0) {
+      setExternalPermissions(externalPerms);
+    }
+
+    // set user/employee/company quickly so UI can render
     setUser({ id: employeeObj.id, email: employeeObj.email || loginData.email });
     setEmployee(employeeObj);
     setCompanyId(employeeObj.company_id || employeeObj.companyId || 1);
@@ -416,12 +416,60 @@ export default function Dashboard() {
     if (employeeObj.rol === 'kiosk') {
       setActiveTab('kiosk');
     }
+
+    // Start heavier data loads in background so login UI is not blocked
+    // Prefetch non-critical collections into React Query cache so login isn't blocked.
+    // We run in background (do not await from the main login flow), and populate
+    // local state from the cache so the UI can show data immediately when ready.
+    (async () => {
+      try {
+        await Promise.allSettled([
+          queryClient.prefetchQuery(['shiftTypes'], fetchShiftTypes),
+          queryClient.prefetchQuery(['attendance'], fetchAttendance),
+          queryClient.prefetchQuery(['leaveRecords'], fetchLeaveRecords),
+          queryClient.prefetchQuery(['shiftCalendar'], fetchShiftCalendar),
+          queryClient.prefetchQuery(['tasks'], fetchTasks),
+        ]);
+
+        // Populate local state from cache (if prefetch succeeded)
+        const _shiftTypes = queryClient.getQueryData(['shiftTypes']);
+        if (_shiftTypes) setShiftTypes(_shiftTypes);
+        const _attendance = queryClient.getQueryData(['attendance']);
+        if (_attendance) setAttendance(_attendance);
+        const _leaveRecords = queryClient.getQueryData(['leaveRecords']);
+        if (_leaveRecords) setLeaveRecords(_leaveRecords);
+        const _shiftCalendar = queryClient.getQueryData(['shiftCalendar']);
+        if (_shiftCalendar) setShiftCalendar(_shiftCalendar);
+        const _tasks = queryClient.getQueryData(['tasks']);
+        if (_tasks) setTasks(_tasks);
+      } catch (err) {
+        console.warn('Background prefetch failed, falling back to fetchData', err?.message || err);
+        try {
+          await fetchData();
+        } catch (e) {
+          console.warn('Background fetchData failed', e?.message || e);
+        }
+      }
+    })();
+
+    if (activeTab === 'stok' && STOCK_ENABLED) {
+      (async () => {
+        try {
+          await fetchStokData();
+        } catch (err) {
+          console.warn('Background fetchStokData failed', err?.message || err);
+        }
+      })();
+    }
+
+    console.timeEnd('login_total');
   } catch (error) {
     // Normalize error message
     let msg = error.response?.data?.message || error.response?.data?.detail || error.message || 'Bilinmeyen hata';
     if (typeof msg !== 'string') msg = JSON.stringify(msg);
     setLoginMessage(`Giriş yapılamadı: ${msg}`);
     setIsLoggingIn(false);
+    console.timeEnd('login_total');
   }
  };
 
@@ -1192,15 +1240,15 @@ export default function Dashboard() {
           
           {!showRegister ? (
             <>
-              <div className="space-y-4">
-                <input type="email" placeholder="E-mail" value={loginData.email} onChange={(e) => setLoginData({ ...loginData, email: e.target.value })} onKeyPress={(e) => e.key === 'Enter' && handleLogin()} className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2" style={{borderColor: '#2042FF'}} />
-                <input type="password" placeholder="password" value={loginData.password} onChange={(e) => setLoginData({ ...loginData, password: e.target.value })} onKeyPress={(e) => e.key === 'Enter' && handleLogin()} className="w-full px-6 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2" style={{borderColor: '#2042FF'}} />
-                <button onClick={handleLogin} disabled={isLoggingIn} className="w-full px-6 py-3 text-white rounded-lg font-semibold transition-colors" style={{backgroundColor: isLoggingIn ? '#9FB7FF' : '#2042FF'}} onMouseEnter={(e) => e.target.style.backgroundColor = isLoggingIn ? '#9FB7FF' : '#1632CC'} onMouseLeave={(e) => e.target.style.backgroundColor = isLoggingIn ? '#9FB7FF' : '#2042FF'}>{isLoggingIn ? 'Giriş yapılıyor...' : 'Giriş Yap'}</button>
-                <button onClick={() => setShowRegister(true)} disabled={isLoggingIn} className="w-full px-8 py-3 rounded-lg font-semibold transition-colors" style={{backgroundColor: isLoggingIn ? '#E6F6D6' : '#A6FF3D', color: '#101318'}} onMouseEnter={(e) => e.target.style.backgroundColor = isLoggingIn ? '#E6F6D6' : '#95E635'} onMouseLeave={(e) => e.target.style.backgroundColor = isLoggingIn ? '#E6F6D6' : '#A6FF3D'}>Kayıt Ol</button>
+              <form className="space-y-4" onSubmit={(e) => { e.preventDefault(); handleLogin(); }}>
+                <input name="email" type="email" placeholder="E-mail" value={loginData.email} onChange={(e) => setLoginData({ ...loginData, email: e.target.value })} className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2" style={{borderColor: '#2042FF'}} />
+                <input name="password" type="password" placeholder="password" value={loginData.password} onChange={(e) => setLoginData({ ...loginData, password: e.target.value })} className="w-full px-6 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2" style={{borderColor: '#2042FF'}} />
+                <button type="submit" disabled={isLoggingIn} className="w-full px-6 py-3 text-white rounded-lg font-semibold transition-colors" style={{backgroundColor: isLoggingIn ? '#9FB7FF' : '#2042FF'}} onMouseEnter={(e) => e.target.style.backgroundColor = isLoggingIn ? '#9FB7FF' : '#1632CC'} onMouseLeave={(e) => e.target.style.backgroundColor = isLoggingIn ? '#9FB7FF' : '#2042FF'}>{isLoggingIn ? 'Giriş yapılıyor...' : 'Giriş Yap'}</button>
+                <button type="button" onClick={() => setShowRegister(true)} disabled={isLoggingIn} className="w-full px-8 py-3 rounded-lg font-semibold transition-colors" style={{backgroundColor: isLoggingIn ? '#E6F6D6' : '#A6FF3D', color: '#101318'}} onMouseEnter={(e) => e.target.style.backgroundColor = isLoggingIn ? '#E6F6D6' : '#95E635'} onMouseLeave={(e) => e.target.style.backgroundColor = isLoggingIn ? '#E6F6D6' : '#A6FF3D'}>Kayıt Ol</button>
                 {loginMessage && (
                   <div className="mt-3 text-sm text-center text-gray-700">{loginMessage}</div>
                 )}
-              </div>
+              </form>
             </>
           ) : (
             <>
@@ -1264,7 +1312,7 @@ export default function Dashboard() {
     );
   }
 
-  const permissions = getPermissions();
+  const [permissions, { refresh: refreshPermissions, loading: permissionsLoading }] = usePermissions(employee, roles);
   const currentRole = roles.find(r => r.id === employee?.rol);
 
   return (
