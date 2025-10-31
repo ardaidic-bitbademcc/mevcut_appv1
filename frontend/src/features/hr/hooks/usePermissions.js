@@ -1,7 +1,4 @@
 import { useState, useEffect, useCallback } from 'react';
-import { useState, useEffect, useCallback } from 'react';
-import { useState, useEffect, useCallback } from 'react';
-import { useState, useEffect, useCallback } from 'react';
 
 // Hook: merges role-based permissions with external HR adapter permissions.
 // Usage: const [permissions, controls] = usePermissions(employee, roles)
