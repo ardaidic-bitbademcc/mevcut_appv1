@@ -531,13 +531,46 @@ async def login(login_data: LoginRequest):
     
     # Check if password field exists, if not check with default password
     stored_password = employee.get("password")
-    
+
     if stored_password:
-        # Check hashed password
-        password_match = bcrypt.checkpw(
-            login_data.password.encode('utf-8'),
-            stored_password.encode('utf-8')
-        )
+        # Require a provided password for users with stored (hashed) passwords
+        if not login_data.password:
+            logger.warning(f"Password not provided for user with stored password: {employee.get('employee_id')}")
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Password required"
+            )
+
+        # Normalize stored_password to bytes (it may be stored as str or bytes)
+        if isinstance(stored_password, str):
+            stored_pw_bytes = stored_password.encode('utf-8')
+        elif isinstance(stored_password, (bytes, bytearray)):
+            stored_pw_bytes = bytes(stored_password)
+        else:
+            # Fallback: coerce to string then encode
+            stored_pw_bytes = str(stored_password).encode('utf-8')
+
+        # Ensure incoming password is a string and encode
+        try:
+            password_bytes = login_data.password.encode('utf-8')
+        except Exception:
+            logger.exception("Failed to encode provided password")
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Invalid password format"
+            )
+
+        # Check hashed password (bcrypt expects bytes)
+        try:
+            password_match = bcrypt.checkpw(password_bytes, stored_pw_bytes)
+        except Exception:
+            logger.exception("bcrypt.checkpw failed")
+            # Return a 401 rather than allowing an unhandled 500
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Invalid password"
+            )
+
         if not password_match:
             logger.error(f"Password mismatch for user: {employee.get('employee_id')}")
             raise HTTPException(
@@ -567,17 +600,28 @@ async def login(login_data: LoginRequest):
             )
     
     logger.info(f"Login successful for: {employee.get('employee_id')}")
-    
-    # Return user data (without password)
+
+    # Return user data (without password). Use .get to avoid KeyError for older records.
+    # Coerce numeric fields to expected types to avoid response model validation errors
+    try:
+        resp_id = int(employee.get("id", 0))
+    except Exception:
+        resp_id = 0
+
+    try:
+        resp_company_id = int(employee.get("company_id", 1))
+    except Exception:
+        resp_company_id = 1
+
     return LoginResponse(
-        id=employee["id"],
-        email=employee.get("email", f"{employee['employee_id']}@example.com"),
-        ad=employee["ad"],
-        soyad=employee["soyad"],
-        rol=employee["rol"],
-        employee_id=employee["employee_id"],
-        company_id=employee["company_id"],
-        pozisyon=employee.get("pozisyon", "")
+        id=resp_id,
+        email=str(employee.get("email", f"{employee.get('employee_id')}@example.com")),
+        ad=str(employee.get("ad", "")),
+        soyad=str(employee.get("soyad", "")),
+        rol=str(employee.get("rol", "")),
+        employee_id=str(employee.get("employee_id", "")),
+        company_id=resp_company_id,
+        pozisyon=str(employee.get("pozisyon", ""))
     )
 
 # Alternative login endpoint for backward compatibility
