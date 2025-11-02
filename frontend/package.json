@@ -64,6 +64,9 @@
     "build": "node ./node_modules/@craco/craco/dist/bin/craco.js build",
     "test": "node ./node_modules/@craco/craco/dist/bin/craco.js test"
   },
+  "engines": {
+    "node": ">=20.0.0"
+  },
   "browserslist": {
     "production": [
       ">0.2%",
