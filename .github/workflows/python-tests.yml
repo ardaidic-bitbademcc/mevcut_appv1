@@ -43,7 +43,8 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        node-version: [18.x, 20.x]
+        # react-router-dom@7 requires Node >=20; run frontend tests only on Node 20 in CI
+        node-version: [20.x]
 
     steps:
       - name: Checkout repository
