@@ -12,7 +12,8 @@ from datetime import datetime, timezone, timedelta
 import bcrypt
 from contextlib import asynccontextmanager
 import io
-from fastapi.responses import StreamingResponse
+from fastapi.responses import StreamingResponse, FileResponse
+from fastapi.staticfiles import StaticFiles
 import openpyxl
 import json
 import stripe
@@ -126,6 +127,20 @@ if app:
 
 # Create router after middleware
 api_router = APIRouter(prefix="/api")
+
+# If a frontend build exists next to this backend, mount it so the backend
+# can serve the static assets (temporary fallback while hosting is fixed).
+FRONTEND_BUILD_DIR = ROOT_DIR.parent / "frontend" / "build"
+if FRONTEND_BUILD_DIR.exists():
+    try:
+        static_dir = FRONTEND_BUILD_DIR / "static"
+        if static_dir.exists():
+            app.mount("/static", StaticFiles(directory=str(static_dir)), name="static")
+            logger.info("Mounted frontend static directory at /static from %s", static_dir)
+        else:
+            logger.info("Frontend build exists but no static/ subfolder found at %s", FRONTEND_BUILD_DIR)
+    except Exception:
+        logger.exception("Failed to mount frontend static files (temporary SPA fallback)")
 
 # ==================== MODELS ====================
 
@@ -2499,4 +2514,21 @@ except Exception:
         logger.info('backend.pos module not imported (may be missing)')
 
 app.include_router(api_router)
+
+# SPA fallback: serve index.html for any non-/api routes so client-side routing works
+# This is added after api router registration so API routes keep priority.
+try:
+    index_file = FRONTEND_BUILD_DIR / "index.html"
+    if index_file.exists():
+        @app.get("/{full_path:path}")
+        async def _spa_fallback(request: Request, full_path: str):
+            # let API routes return normally
+            if request.url.path.startswith("/api"):
+                raise HTTPException(status_code=404)
+            return FileResponse(str(index_file))
+        logger.info("Registered SPA fallback route serving %s", index_file)
+    else:
+        logger.info("No frontend index.html found at %s; SPA fallback not registered", FRONTEND_BUILD_DIR)
+except Exception:
+    logger.exception("Error while registering SPA fallback route")
 
