@@ -13,12 +13,8 @@ export default async function handler(req, res) {
     const { email, password } = req.body;
     
     console.log('Login attempt:', { email, timestamp: new Date().toISOString() });
-    console.log('MongoDB URI:', MONGODB_URI ? 'Set' : 'Missing');
     
-    const client = new MongoClient(MONGODB_URI);
-    await client.connect();
-    
-    // Quick test - hardcoded demo user
+    // Quick test - hardcoded demo user (before MongoDB connection)
     if (email === 'demo@test.com' && password === 'demo123') {
       return res.status(200).json({
         id: 1,
@@ -29,6 +25,11 @@ export default async function handler(req, res) {
         company_id: 1
       });
     }
+    
+    console.log('MongoDB URI:', MONGODB_URI ? 'Set' : 'Missing');
+    
+    const client = new MongoClient(MONGODB_URI);
+    await client.connect();
 
     const db = client.db('mevcut_db');
     const employee = await db.collection('employees').findOne({ email });
