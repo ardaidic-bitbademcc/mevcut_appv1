@@ -185,46 +185,60 @@ export default function Dashboard() {
   const queryClient = useQueryClient();
 
   // React Query: pilot for employees and roles (top-level hooks)
-  useQuery(['employees'], fetchEmployees, {
+  useQuery({
+    queryKey: ['employees'],
+    queryFn: fetchEmployees,
     enabled: !!user,
+    staleTime: 1000 * 60 * 5, // 5 minutes
     onSuccess: (data) => setEmployees(data || []),
     onError: (err) => console.warn('employees query failed', err?.message || err),
-    staleTime: 1000 * 60 * 5, // 5 minutes
   });
 
-  useQuery(['roles'], fetchRoles, {
+  useQuery({
+    queryKey: ['roles'],
+    queryFn: fetchRoles,
     enabled: !!user,
+    staleTime: 1000 * 60 * 10, // 10 minutes
     onSuccess: (data) => setRoles(data || []),
     onError: (err) => console.warn('roles query failed', err?.message || err),
-    staleTime: 1000 * 60 * 10, // 10 minutes
   });
 
   // We'll use React Query for non-critical collections and prefetch them after login so UI isn't blocked
-  useQuery(['shiftTypes'], fetchShiftTypes, {
+  useQuery({
+    queryKey: ['shiftTypes'],
+    queryFn: fetchShiftTypes,
     enabled: false,
     onSuccess: data => setShiftTypes(data || []),
     onError: err => console.warn('shiftTypes query failed', err?.message || err),
   });
 
-  useQuery(['attendance'], fetchAttendance, {
+  useQuery({
+    queryKey: ['attendance'],
+    queryFn: fetchAttendance,
     enabled: false,
     onSuccess: data => setAttendance(data || []),
     onError: err => console.warn('attendance query failed', err?.message || err),
   });
 
-  useQuery(['leaveRecords'], fetchLeaveRecords, {
+  useQuery({
+    queryKey: ['leaveRecords'],
+    queryFn: fetchLeaveRecords,
     enabled: false,
     onSuccess: data => setLeaveRecords(data || []),
     onError: err => console.warn('leaveRecords query failed', err?.message || err),
   });
 
-  useQuery(['shiftCalendar'], fetchShiftCalendar, {
+  useQuery({
+    queryKey: ['shiftCalendar'],
+    queryFn: fetchShiftCalendar,
     enabled: false,
     onSuccess: data => setShiftCalendar(data || []),
     onError: err => console.warn('shiftCalendar query failed', err?.message || err),
   });
 
-  useQuery(['tasks'], fetchTasks, {
+  useQuery({
+    queryKey: ['tasks'],
+    queryFn: fetchTasks,
     enabled: false,
     onSuccess: data => setTasks(data || []),
     onError: err => console.warn('tasks query failed', err?.message || err),
