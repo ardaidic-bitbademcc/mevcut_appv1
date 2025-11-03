@@ -424,11 +424,11 @@ export default function Dashboard() {
     (async () => {
       try {
         await Promise.allSettled([
-          queryClient.prefetchQuery(['shiftTypes'], fetchShiftTypes),
-          queryClient.prefetchQuery(['attendance'], fetchAttendance),
-          queryClient.prefetchQuery(['leaveRecords'], fetchLeaveRecords),
-          queryClient.prefetchQuery(['shiftCalendar'], fetchShiftCalendar),
-          queryClient.prefetchQuery(['tasks'], fetchTasks),
+          queryClient.prefetchQuery({ queryKey: ['shiftTypes'], queryFn: fetchShiftTypes }),
+          queryClient.prefetchQuery({ queryKey: ['attendance'], queryFn: fetchAttendance }),
+          queryClient.prefetchQuery({ queryKey: ['leaveRecords'], queryFn: fetchLeaveRecords }),
+          queryClient.prefetchQuery({ queryKey: ['shiftCalendar'], queryFn: fetchShiftCalendar }),
+          queryClient.prefetchQuery({ queryKey: ['tasks'], queryFn: fetchTasks }),
         ]);
 
         // Populate local state from cache (if prefetch succeeded)

@@ -1,0 +1,34 @@
+{
+  "url": "https://mevcut-appv1-1.onrender.com",
+  "timestamp": "2025-11-03T20:24:14.820Z",
+  "logs": [
+    {
+      "type": "error",
+      "text": "Failed to load resource: the server responded with a status of 404 ()"
+    }
+  ],
+  "errors": [
+    {
+      "source": "pageerror",
+      "text": "TypeError: u.defaultQueryOptions is not a function\n    at kt (https://mevcut-appv1-1.onrender.com/static/js/main.26e69a13.js:2:614101)\n    at St (https://mevcut-appv1-1.onrender.com/static/js/main.26e69a13.js:2:615923)\n    at It (https://mevcut-appv1-1.onrender.com/static/js/main.26e69a13.js:2:641926)\n    at eo (https://mevcut-appv1-1.onrender.com/static/js/main.26e69a13.js:2:418514)\n    at Ws (https://mevcut-appv1-1.onrender.com/static/js/main.26e69a13.js:2:439207)\n    at ol (https://mevcut-appv1-1.onrender.com/static/js/main.26e69a13.js:2:449546)\n    at uu (https://mevcut-appv1-1.onrender.com/static/js/main.26e69a13.js:2:490282)\n    at lu (https://mevcut-appv1-1.onrender.com/static/js/main.26e69a13.js:2:490210)\n    at su (https://mevcut-appv1-1.onrender.com/static/js/main.26e69a13.js:2:490052)\n    at Yc (https://mevcut-appv1-1.onrender.com/static/js/main.26e69a13.js:2:485764)"
+    },
+    {
+      "source": "console",
+      "text": "Failed to load resource: the server responded with a status of 404 ()"
+    }
+  ],
+  "responses": [
+    {
+      "url": "https://unpkg.com/rrweb@latest/dist/rrweb.min.js",
+      "status": 302,
+      "text": ""
+    },
+    {
+      "url": "https://mevcut-appv1-1.onrender.com/favicon.ico",
+      "status": 404,
+      "text": "Not Found\n"
+    }
+  ],
+  "snapshotFile": "/workspaces/mevcut_appv1/frontend/frontend-page-screenshot.png",
+  "htmlPreview": "<html lang=\"en\"><head><meta charset=\"utf-8\"><meta name=\"viewport\" content=\"width=device-width,initial-scale=1\"><meta name=\"theme-color\" content=\"#000000\"><meta name=\"description\" content=\"A product of mevcut.sh\"><title>Mevcut App | Kayıt Var Huzur Var</title><script type=\"text/javascript\" crossorigin=\"anonymous\" async=\"\" src=\"https://us-assets.i.posthog.com/static/array.js\"></script><script src=\"https://unpkg.com/rrweb@latest/dist/rrweb.min.js\"></script><script src=\"https://d2adkz2s9zrlge.cloudfront.net/rrweb-recorder-20250919-1.js\"></script><script>!function(){try{window.self,window.top}catch(n){}}()</script><script defer=\"defer\" src=\"/static/js/main.26e69a13.js\"></script><link href=\"/static/css/main.56ffff77.css\" rel=\"stylesheet\"></head><body><noscript>You need to enable JavaScript to run this app.</noscript><div id=\"root\"></div><div id=\"custom-tagline\" style=\"position:fixed;bottom:10px;right:10px;font-size:.8rem;color:#666\">mevcut var, huzur var</div><script type=\"text/javascript\" crossorigin=\"anonymous\" src=\"https://us-assets.i.posthog.com/static/web-vitals.js?v=1.285.0\"></script><script type=\"text/javascript\" crossorigin=\"anonymous\" src=\"https://us-assets.i.posthog.com/static/surveys.js?v=1.285.0\"></script><script type=\"text/javascript\" crossorigin=\"anonymous\" src=\"https://us-assets.i.posthog.com/static/lazy-recorder.js?v=1.285.0\"></script><script type=\"text/javascript\" crossorigin=\"anonymous\" src=\"https://us-assets.i.posthog.com/array/phc_yJW1VjHGGwmCbbrtczfqqNxgBDbhlhOWcdzcIJEOTFE/config.js\"></script><script>!function(t,o){var i,e,n,s;o.__SV||(window.posthog=o,o._i=[],o.init=function(p,r,c){function a(t,o){var i=o.split(\".\");2==i.length&&(t=t[i[0]],o=i[1]),t[o]=function(){t.push([o].concat(Array.prototype.slice.call(arguments,0)))}}(n=t.createElement(\"script\")).type=\"text/javascript\",n.crossOrigin=\"anonymous\",n.async=!0,n.src=r.api_host.replace(\".i.posthog.com\",\"-assets.i.posthog.com\")+\"/static/array.js\",(s=t.getElementsByTagName(\"script\")[0]).parentNode.inse"
+}
