@@ -91,11 +91,23 @@ export default function Dashboard() {
     try {
       // Fetch critical collections first (via API wrappers)
       // employees/roles are now fetched by React Query; only fetch other critical data here
-      const shiftTypeRes = await fetchShiftTypes();
-      const attendanceRes = await fetchAttendance();
+      
+      // Temporarily handle 404s gracefully during backend setup
+      try {
+        const shiftTypeRes = await fetchShiftTypes();
+        setShiftTypes(shiftTypeRes);
+      } catch (err) {
+        console.warn('shiftTypes 404 - using empty array:', err?.response?.status);
+        setShiftTypes([]);
+      }
 
-      setShiftTypes(shiftTypeRes);
-      setAttendance(attendanceRes);
+      try {
+        const attendanceRes = await fetchAttendance();
+        setAttendance(attendanceRes);
+      } catch (err) {
+        console.warn('attendance 404 - using empty array:', err?.response?.status);
+        setAttendance([]);
+      }
 
       // Fetch optional collections separately and tolerate 404s
       try {
