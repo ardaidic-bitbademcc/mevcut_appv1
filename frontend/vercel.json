@@ -5,6 +5,10 @@
   "installCommand": "yarn install",
   "rewrites": [
     {
+      "source": "/api/(.*)",
+      "destination": "https://mevcut-appv1-1.onrender.com/api/$1"
+    },
+    {
       "source": "/(.*)",
       "destination": "/index.html"
     }

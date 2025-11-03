@@ -1,5 +1,5 @@
-// Centralized frontend configuration
-const BACKEND_URL = process.env.REACT_APP_BACKEND_URL || 'https://mevcut-appv1-1.onrender.com';
+// Centralized frontend configuration  
+const BACKEND_URL = process.env.REACT_APP_BACKEND_URL || '';
 export const API = BACKEND_URL ? `${BACKEND_URL.replace(/\/$/, '')}/api` : '/api';
 export const STOCK_ENABLED = process.env.REACT_APP_STOCK_ENABLED === 'true';
 
