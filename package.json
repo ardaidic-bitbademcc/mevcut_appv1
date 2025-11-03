@@ -2,6 +2,10 @@
   "name": "mevcut-appv1",
   "version": "1.0.0",
   "license": "MIT",
+  "scripts": {
+    "build": "cd frontend && yarn install && yarn build",
+    "start": "cd backend && python -m uvicorn server:app --host 0.0.0.0 --port $PORT"
+  },
   "dependencies": {
     "puppeteer": "^24.27.0"
   }
