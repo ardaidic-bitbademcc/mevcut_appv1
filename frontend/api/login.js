@@ -12,6 +12,9 @@ export default async function handler(req, res) {
   try {
     const { email, password } = req.body;
     
+    console.log('Login attempt:', { email, timestamp: new Date().toISOString() });
+    console.log('MongoDB URI:', MONGODB_URI ? 'Set' : 'Missing');
+    
     const client = new MongoClient(MONGODB_URI);
     await client.connect();
     
@@ -37,7 +40,14 @@ export default async function handler(req, res) {
     
     res.status(200).json(employeeData);
   } catch (error) {
-    console.error('Login error:', error);
-    res.status(500).json({ error: 'Server error' });
+    console.error('Login error:', {
+      message: error.message,
+      stack: error.stack,
+      name: error.name
+    });
+    res.status(500).json({ 
+      error: 'Server error', 
+      details: process.env.NODE_ENV === 'development' ? error.message : 'Internal server error'
+    });
   }
 }
