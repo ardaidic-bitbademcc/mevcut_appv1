@@ -12,7 +12,7 @@ from datetime import datetime, timezone, timedelta
 import bcrypt
 from contextlib import asynccontextmanager
 import io
-from fastapi.responses import StreamingResponse, FileResponse
+from fastapi.responses import StreamingResponse, FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 import openpyxl
 import json
@@ -2514,6 +2514,30 @@ except Exception:
         logger.info('backend.pos module not imported (may be missing)')
 
 app.include_router(api_router)
+
+# Debug endpoint to check file structure on Render
+@app.get("/debug/files")
+async def debug_files():
+    try:
+        import os
+        cwd = os.getcwd()
+        result = {
+            "cwd": cwd,
+            "root_files": os.listdir(".") if os.path.exists(".") else [],
+            "frontend_exists": os.path.exists("frontend"),
+            "backend_exists": os.path.exists("backend"),
+        }
+        
+        if os.path.exists("frontend"):
+            result["frontend_files"] = os.listdir("frontend")
+            if os.path.exists("frontend/build"):
+                result["frontend_build_files"] = os.listdir("frontend/build")
+                if os.path.exists("frontend/build/static/js"):
+                    result["js_files"] = os.listdir("frontend/build/static/js")
+        
+        return JSONResponse(result)
+    except Exception as e:
+        return JSONResponse({"error": str(e)})
 
 # SPA fallback: serve index.html for any non-/api routes so client-side routing works
 # This is added after api router registration so API routes keep priority.
