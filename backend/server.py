@@ -116,7 +116,7 @@ if app:
     try:
         app.add_middleware(
             CORSMiddleware,
-            allow_origins=os.environ.get('CORS_ORIGINS', '*').split(','),
+            allow_origins=os.environ.get('CORS_ORIGINS', 'https://mevcut-appv1.vercel.app,*').split(','),
             allow_methods=["*"],
             allow_headers=["*"],
             # Do not allow credentials with a wildcard origin — keep it False for public deploys
