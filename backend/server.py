@@ -2513,6 +2513,13 @@ except Exception:
     except Exception:
         logger.info('backend.pos module not imported (may be missing)')
 
+# Staff permissions endpoint for hrAdapter compatibility
+@api_router.get("/staff/{staff_id}/permissions")
+async def get_staff_permissions(staff_id: int):
+    """Return permissions for staff member - currently returns empty dict"""
+    # TODO: Implement actual permissions logic when available
+    return {}
+
 app.include_router(api_router)
 
 # Debug endpoint to check file structure on Render

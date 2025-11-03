@@ -426,8 +426,9 @@ export default function Dashboard() {
       externalPerms = await getPermissionsForStaff(employeeObj.id);
       console.timeEnd('hrAdapter_fetch');
     } catch (e) {
-      // adapter may not exist; ignore
-      console.warn('hrAdapter fetch skipped or failed', e?.message || e);
+      // adapter may not exist or endpoint not available; ignore gracefully
+      console.warn('hrAdapter fetch skipped or failed (expected during backend setup)', e?.response?.status || e?.message || e);
+      console.timeEnd('hrAdapter_fetch');
     }
 
     if (externalPerms && Object.keys(externalPerms).length > 0) {
