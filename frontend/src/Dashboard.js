@@ -451,13 +451,15 @@ export default function Dashboard() {
     // local state from the cache so the UI can show data immediately when ready.
     (async () => {
       try {
-        await Promise.allSettled([
+        // Temporarily disabled prefetch to avoid 404s during backend setup
+        console.log('Prefetch disabled - backend setup in progress');
+        /*await Promise.allSettled([
           queryClient.prefetchQuery({ queryKey: ['shiftTypes'], queryFn: fetchShiftTypes }),
           queryClient.prefetchQuery({ queryKey: ['attendance'], queryFn: fetchAttendance }),
           queryClient.prefetchQuery({ queryKey: ['leaveRecords'], queryFn: fetchLeaveRecords }),
           queryClient.prefetchQuery({ queryKey: ['shiftCalendar'], queryFn: fetchShiftCalendar }),
           queryClient.prefetchQuery({ queryKey: ['tasks'], queryFn: fetchTasks }),
-        ]);
+        ]);*/
 
         // Populate local state from cache (if prefetch succeeded)
         const _shiftTypes = queryClient.getQueryData(['shiftTypes']);
