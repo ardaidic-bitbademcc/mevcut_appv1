@@ -6,7 +6,8 @@ export default async function handler(req, res) {
   }
 
   try {
-    const { email, password } = req.body;
+    console.log('Raw request:', { method: req.method, body: req.body });
+    const { email, password } = req.body || {};
     
     // Demo users
     if (email === 'demo@test.com' && password === 'demo123') {
@@ -40,9 +41,11 @@ export default async function handler(req, res) {
     });
     
   } catch (error) {
+    console.error('Login error:', error);
     return res.status(500).json({ 
       error: 'Server error', 
-      details: error.message
+      details: error.message,
+      stack: error.stack
     });
   }
 }
