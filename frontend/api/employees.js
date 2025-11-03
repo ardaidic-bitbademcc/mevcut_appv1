@@ -1,7 +1,7 @@
 // Vercel Serverless Function - Employees
 import { MongoClient } from 'mongodb';
 
-const MONGODB_URI = process.env.MONGODB_URI || 'mongodb+srv://mevcut:mevcut123@cluster0.mongodb.net/mevcut_db?retryWrites=true&w=majority';
+const MONGODB_URI = process.env.MONGODB_URI || 'mongodb+srv://mevcut_usr:Mevcut123@cluster0.ib7ajzf.mongodb.net/mevcut_db?retryWrites=true&w=majority';
 
 export default async function handler(req, res) {
   if (req.method !== 'GET') {

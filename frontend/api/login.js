@@ -2,7 +2,7 @@
 import { MongoClient } from 'mongodb';
 import bcrypt from 'bcryptjs';
 
-const MONGODB_URI = process.env.MONGODB_URI || 'mongodb+srv://mevcut:mevcut123@cluster0.mongodb.net/mevcut_db?retryWrites=true&w=majority';
+const MONGODB_URI = process.env.MONGODB_URI || 'mongodb+srv://mevcut_usr:Mevcut123@cluster0.ib7ajzf.mongodb.net/mevcut_db?retryWrites=true&w=majority';
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
@@ -18,6 +18,18 @@ export default async function handler(req, res) {
     const client = new MongoClient(MONGODB_URI);
     await client.connect();
     
+    // Quick test - hardcoded demo user
+    if (email === 'demo@test.com' && password === 'demo123') {
+      return res.status(200).json({
+        id: 1,
+        email: 'demo@test.com',
+        ad: 'Demo',
+        soyad: 'User',
+        rol: 'admin',
+        company_id: 1
+      });
+    }
+
     const db = client.db('mevcut_db');
     const employee = await db.collection('employees').findOne({ email });
     
