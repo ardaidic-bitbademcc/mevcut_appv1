@@ -1,7 +1,7 @@
 // Vercel Serverless Function - Employees
 import { MongoClient } from 'mongodb';
 
-const MONGODB_URI = process.env.MONGODB_URI;
+const MONGODB_URI = process.env.MONGODB_URI || 'mongodb+srv://mevcut:mevcut123@cluster0.mongodb.net/mevcut_db?retryWrites=true&w=majority';
 
 export default async function handler(req, res) {
   if (req.method !== 'GET') {
@@ -12,7 +12,7 @@ export default async function handler(req, res) {
     const client = new MongoClient(MONGODB_URI);
     await client.connect();
     
-    const db = client.db();
+    const db = client.db('mevcut_db');
     const employees = await db.collection('employees').find({}, { 
       projection: { password: 0 } // Exclude passwords
     }).toArray();
