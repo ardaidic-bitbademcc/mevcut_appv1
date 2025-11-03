@@ -1,0 +1,17 @@
+Opening https://mevcut-appv1-1.onrender.com
+[response not ok] 302 https://unpkg.com/rrweb@latest/dist/rrweb.min.js
+[pageerror] TypeError: u.defaultQueryOptions is not a function
+    at kt (https://mevcut-appv1-1.onrender.com/static/js/main.26e69a13.js:2:614101)
+    at St (https://mevcut-appv1-1.onrender.com/static/js/main.26e69a13.js:2:615923)
+    at It (https://mevcut-appv1-1.onrender.com/static/js/main.26e69a13.js:2:641926)
+    at eo (https://mevcut-appv1-1.onrender.com/static/js/main.26e69a13.js:2:418514)
+    at Ws (https://mevcut-appv1-1.onrender.com/static/js/main.26e69a13.js:2:439207)
+    at ol (https://mevcut-appv1-1.onrender.com/static/js/main.26e69a13.js:2:449546)
+    at uu (https://mevcut-appv1-1.onrender.com/static/js/main.26e69a13.js:2:490282)
+    at lu (https://mevcut-appv1-1.onrender.com/static/js/main.26e69a13.js:2:490210)
+    at su (https://mevcut-appv1-1.onrender.com/static/js/main.26e69a13.js:2:490052)
+    at Yc (https://mevcut-appv1-1.onrender.com/static/js/main.26e69a13.js:2:485764)
+[console.error] Failed to load resource: the server responded with a status of 404 ()
+[response not ok] 404 https://mevcut-appv1-1.onrender.com/favicon.ico
+Wrote /workspaces/mevcut_appv1/frontend-console-output.json
+Screenshot saved to /workspaces/mevcut_appv1/frontend-page-screenshot.png

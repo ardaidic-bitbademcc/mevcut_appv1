@@ -1,4 +1,7 @@
 {
+  "name": "mevcut-appv1",
+  "version": "1.0.0",
+  "license": "MIT",
   "dependencies": {
     "puppeteer": "^24.27.0"
   }
