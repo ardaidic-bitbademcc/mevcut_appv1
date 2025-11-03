@@ -188,7 +188,7 @@ export default function Dashboard() {
   useQuery({
     queryKey: ['employees'],
     queryFn: fetchEmployees,
-    enabled: !!user,
+    enabled: false, // Temporarily disabled
     staleTime: 1000 * 60 * 5, // 5 minutes
     onSuccess: (data) => setEmployees(data || []),
     onError: (err) => console.warn('employees query failed', err?.message || err),
@@ -197,7 +197,7 @@ export default function Dashboard() {
   useQuery({
     queryKey: ['roles'],
     queryFn: fetchRoles,
-    enabled: !!user,
+    enabled: false, // Temporarily disabled
     staleTime: 1000 * 60 * 10, // 10 minutes
     onSuccess: (data) => setRoles(data || []),
     onError: (err) => console.warn('roles query failed', err?.message || err),
