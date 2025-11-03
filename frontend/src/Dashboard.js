@@ -398,6 +398,8 @@ export default function Dashboard() {
   setLoginMessage('Giriş yapılıyor...');
   try {
     console.time('login_total');
+    console.log('Login API URL:', `${API}/login`);
+    console.log('REACT_APP_BACKEND_URL:', process.env.REACT_APP_BACKEND_URL);
     // Backend /api/login returns the user object directly on success (LoginResponse)
     const response = await axios.post(`${API}/login`, { email: loginData.email, password: loginData.password});
     const userData = response.data;
