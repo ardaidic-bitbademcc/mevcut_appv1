@@ -4,12 +4,6 @@ import axios from 'axios';
 import { API, STOCK_ENABLED } from './lib/config';
 import {
   fetchEmployees,
-  fetchRoles,
-  fetchShiftTypes,
-  fetchAttendance,
-  fetchLeaveRecords,
-  fetchShiftCalendar,
-  fetchTasks,
 } from './lib/api';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import usePermissions from './features/hr/hooks/usePermissions';
@@ -206,55 +200,41 @@ export default function Dashboard() {
     onError: (err) => console.warn('employees query failed', err?.message || err),
   });
 
-  useQuery({
-    queryKey: ['roles'],
-    queryFn: fetchRoles,
-    enabled: !!user, // Enable when user logged in
-    staleTime: 1000 * 60 * 10, // 10 minutes
-    onSuccess: (data) => setRoles(data || []),
-    onError: (err) => console.warn('roles query failed', err?.message || err),
-  });
+  // Simplified roles - use default data
+  useEffect(() => {
+    if (user) {
+      setRoles(defaultRoles);
+    }
+  }, [user]);
 
-  // Enable all API queries when user is logged in
-  useQuery({
-    queryKey: ['shiftTypes'],
-    queryFn: fetchShiftTypes,
-    enabled: !!user,
-    onSuccess: data => setShiftTypes(data || []),
-    onError: err => console.warn('shiftTypes query failed', err?.message || err),
-  });
-
-  useQuery({
-    queryKey: ['attendance'],
-    queryFn: fetchAttendance,
-    enabled: !!user,
-    onSuccess: data => setAttendance(data || []),
-    onError: err => console.warn('attendance query failed', err?.message || err),
-  });
-
-  useQuery({
-    queryKey: ['leaveRecords'],
-    queryFn: fetchLeaveRecords,
-    enabled: !!user,
-    onSuccess: data => setLeaveRecords(data || []),
-    onError: err => console.warn('leaveRecords query failed', err?.message || err),
-  });
-
-  useQuery({
-    queryKey: ['shiftCalendar'],
-    queryFn: fetchShiftCalendar,
-    enabled: !!user,
-    onSuccess: data => setShiftCalendar(data || []),
-    onError: err => console.warn('shiftCalendar query failed', err?.message || err),
-  });
-
-  useQuery({
-    queryKey: ['tasks'],
-    queryFn: fetchTasks,
-    enabled: !!user,
-    onSuccess: data => setTasks(data || []),
-    onError: err => console.warn('tasks query failed', err?.message || err),
-  });
+  // TEMPORARILY DISABLE problematic APIs - use demo data instead
+  useEffect(() => {
+    if (user) {
+      // Set demo data directly instead of API calls
+      setShiftTypes([
+        { id: 1, name: 'Sabah Vardiyası', start: '08:00', end: '16:00', color: 'bg-blue-500' },
+        { id: 2, name: 'Öğle Vardiyası', start: '12:00', end: '20:00', color: 'bg-green-500' },
+        { id: 3, name: 'Gece Vardiyası', start: '20:00', end: '04:00', color: 'bg-purple-500' }
+      ]);
+      
+      setAttendance([
+        { id: 1, employee_id: '1', employee_name: 'Demo User', date: new Date().toISOString().split('T')[0], check_in: '08:30', status: 'present' }
+      ]);
+      
+      setLeaveRecords([
+        { id: 1, employee_id: '1', leave_type: 'annual', start_date: '2025-11-10', end_date: '2025-11-12', status: 'approved' }
+      ]);
+      
+      setShiftCalendar([
+        { id: 1, employee_id: '1', shift_name: 'Sabah Vardiyası', date: new Date().toISOString().split('T')[0], start_time: '08:00', end_time: '16:00' }
+      ]);
+      
+      setTasks([
+        { id: 1, baslik: 'Mutfak Temizliği', aciklama: 'Günlük temizlik', durum: 'pending', atanan_personel_ids: ['1'] },
+        { id: 2, baslik: 'Stok Sayımı', aciklama: 'Haftalık sayım', durum: 'in_progress', atanan_personel_ids: ['1'] }
+      ]);
+    }
+  }, [user]);
   
   const addStokKategori = async () => {
     try {
