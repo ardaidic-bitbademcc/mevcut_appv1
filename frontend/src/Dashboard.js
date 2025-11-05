@@ -1345,17 +1345,34 @@ export default function Dashboard() {
 
   // Temporary fix for missing data
   const defaultRoles = [
-    { id: 'admin', name: 'Administrator' },
-    { id: 'employee', name: 'Çalışan' },
-    { id: 'kiosk', name: 'Kiosk' }
+    { id: 'admin', name: 'Administrator', permissions: { dashboard: true, employees: true, reports: true } },
+    { id: 'employee', name: 'Çalışan', permissions: { dashboard: true, timesheet: true } },
+    { id: 'kiosk', name: 'Kiosk', permissions: { kiosk: true } }
   ];
   const safeRoles = roles.length > 0 ? roles : defaultRoles;
   const safeEmployee = employee || { ad: 'Demo', soyad: 'User', rol: 'admin' };
+  
+  console.log('Dashboard render:', { user: !!user, employee: safeEmployee, roles: safeRoles.length });
 
-  const [permissions, { refresh: refreshPermissions, loading: permissionsLoading }] = usePermissions(safeEmployee, safeRoles);
+  let permissions = {};
+  let permissionsLoading = false;
+  let refreshPermissions = () => {};
+  
+  try {
+    const result = usePermissions(safeEmployee, safeRoles);
+    permissions = result[0] || {};
+    refreshPermissions = result[1]?.refresh || (() => {});
+    permissionsLoading = result[1]?.loading || false;
+  } catch (error) {
+    console.error('usePermissions error:', error);
+    permissions = { dashboard: true, employees: true }; // Safe default
+  }
+  
   const currentRole = safeRoles.find(r => r.id === safeEmployee?.rol);
 
-  return (
+  // Error boundary for render
+  try {
+    return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100">
       <div className="p-8 max-w-7xl mx-auto">
         <div className="flex justify-between items-center mb-8 bg-white/60 backdrop-blur-sm rounded-xl shadow p-4 md:p-6">
@@ -2718,4 +2735,22 @@ export default function Dashboard() {
       </div>
     </div>
   );
+  } catch (renderError) {
+    console.error('Dashboard render error:', renderError);
+    return (
+      <div className="min-h-screen bg-red-50 flex items-center justify-center">
+        <div className="bg-white p-8 rounded-lg shadow-lg max-w-md">
+          <h1 className="text-xl font-bold text-red-600 mb-4">Dashboard Error</h1>
+          <p className="text-gray-700 mb-4">Dashboard yüklenirken hata oluştu:</p>
+          <pre className="text-xs bg-gray-100 p-2 rounded">{renderError.message}</pre>
+          <button 
+            onClick={() => window.location.reload()} 
+            className="mt-4 px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
+          >
+            Yenile
+          </button>
+        </div>
+      </div>
+    );
+  }
 }
