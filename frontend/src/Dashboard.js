@@ -1343,16 +1343,67 @@ export default function Dashboard() {
     );
   }
 
-  // Temporary fix for missing data
+  // Temporary fix for missing data - Admin gets all permissions
   const defaultRoles = [
-    { id: 'admin', name: 'Administrator', permissions: { dashboard: true, employees: true, reports: true } },
-    { id: 'employee', name: 'Çalışan', permissions: { dashboard: true, timesheet: true } },
+    { 
+      id: 'admin', 
+      name: 'Administrator', 
+      permissions: { 
+        // Dashboard & Navigation
+        view_dashboard: true,
+        dashboard: true,
+        
+        // Employee Management
+        employees: true,
+        view_employees: true,
+        manage_employees: true,
+        add_employee: true,
+        edit_employee: true,
+        delete_employee: true,
+        
+        // Reports & Analytics
+        reports: true,
+        view_reports: true,
+        view_salary: true,
+        
+        // Tasks & Assignments
+        view_tasks: true,
+        manage_tasks: true,
+        assign_tasks: true,
+        
+        // Shift & Leave Management
+        manage_shifts: true,
+        manage_shifts_types: true,
+        manage_leave: true,
+        view_attendance: true,
+        
+        // Role & Permission Management
+        manage_roles: true,
+        manage_permissions: true,
+        
+        // Stock & Inventory
+        can_view_stock: true,
+        can_edit_stock: true,
+        can_add_stock: true,
+        can_delete_stock: true,
+        
+        // POS System
+        POS_VIEW: true,
+        POS_EDIT: true,
+        POS_ADMIN: true,
+        
+        // Admin Functions
+        admin_panel: true,
+        system_settings: true
+      } 
+    },
+    { id: 'employee', name: 'Çalışan', permissions: { dashboard: true, timesheet: true, view_tasks: true } },
     { id: 'kiosk', name: 'Kiosk', permissions: { kiosk: true } }
   ];
   const safeRoles = roles.length > 0 ? roles : defaultRoles;
   const safeEmployee = employee || { ad: 'Demo', soyad: 'User', rol: 'admin' };
   
-  console.log('Dashboard render:', { user: !!user, employee: safeEmployee, roles: safeRoles.length });
+  console.log('Dashboard render:', { user: !!user, employee: safeEmployee, roles: safeRoles.length, isAdmin: safeEmployee?.rol === 'admin' });
 
   let permissions = {};
   let permissionsLoading = false;
