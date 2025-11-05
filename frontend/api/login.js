@@ -1,4 +1,8 @@
 // Working login function
+import { MongoClient } from 'mongodb';
+import bcrypt from 'bcryptjs';
+
+const MONGODB_URI = process.env.MONGODB_URI || 'mongodb+srv://ardaidic:X3BQwSJ6A8CragyI@mevcutapp.9xm51lp.mongodb.net/mevcut_db?retryWrites=true&w=majority';
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
@@ -33,6 +37,29 @@ export default async function handler(req, res) {
         company_id: 1,
         success: true
       });
+    }
+
+    // Try MongoDB for real users
+    try {
+      const client = new MongoClient(MONGODB_URI);
+      await client.connect();
+      
+      const db = client.db('mevcut_db');
+      const employee = await db.collection('employees').findOne({ email });
+      
+      if (employee) {
+        // Password verification
+        const isValid = await bcrypt.compare(password, employee.password);
+        if (isValid) {
+          await client.close();
+          const { password: _, ...employeeData } = employee;
+          return res.status(200).json({ ...employeeData, success: true });
+        }
+      }
+      
+      await client.close();
+    } catch (mongoError) {
+      console.log('MongoDB login error:', mongoError.message);
     }
 
     return res.status(401).json({ 

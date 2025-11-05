@@ -1,7 +1,7 @@
 // Vercel Serverless Function - Employees
 import { MongoClient } from 'mongodb';
 
-const MONGODB_URI = process.env.MONGODB_URI || 'mongodb+srv://mevcut_usr:Mevcut123@cluster0.ib7ajzf.mongodb.net/mevcut_db?retryWrites=true&w=majority';
+const MONGODB_URI = process.env.MONGODB_URI || 'mongodb+srv://ardaidic:X3BQwSJ6A8CragyI@mevcutapp.9xm51lp.mongodb.net/mevcut_db?retryWrites=true&w=majority';
 
 export default async function handler(req, res) {
   if (req.method !== 'GET') {
@@ -9,7 +9,26 @@ export default async function handler(req, res) {
   }
 
   try {
-    // Demo employees data
+    // Try MongoDB first, fallback to demo data
+    try {
+      const client = new MongoClient(MONGODB_URI);
+      await client.connect();
+      
+      const db = client.db('mevcut_db');
+      const employees = await db.collection('employees').find({}, { 
+        projection: { password: 0 } // Exclude passwords
+      }).toArray();
+      
+      await client.close();
+      
+      if (employees && employees.length > 0) {
+        return res.status(200).json(employees);
+      }
+    } catch (mongoError) {
+      console.log('MongoDB error, using demo data:', mongoError.message);
+    }
+
+    // Fallback demo employees data
     const demoEmployees = [
       {
         id: 1,
