@@ -209,7 +209,7 @@ export default function Dashboard() {
   useQuery({
     queryKey: ['roles'],
     queryFn: fetchRoles,
-    enabled: false, // Temporarily disabled
+    enabled: !!user, // Enable when user logged in
     staleTime: 1000 * 60 * 10, // 10 minutes
     onSuccess: (data) => setRoles(data || []),
     onError: (err) => console.warn('roles query failed', err?.message || err),
@@ -1354,61 +1354,54 @@ export default function Dashboard() {
     );
   }
 
-  // Temporary fix for missing data - Admin gets all permissions
+  // Default roles when API data is not available
   const defaultRoles = [
-    { 
-      id: 'admin', 
-      name: 'Administrator', 
-      permissions: { 
-        // Dashboard & Navigation
-        view_dashboard: true,
-        dashboard: true,
-        
-        // Employee Management
-        employees: true,
-        view_employees: true,
-        manage_employees: true,
-        add_employee: true,
-        edit_employee: true,
-        delete_employee: true,
-        
-        // Reports & Analytics
-        reports: true,
-        view_reports: true,
-        view_salary: true,
-        
-        // Tasks & Assignments
-        view_tasks: true,
-        manage_tasks: true,
-        assign_tasks: true,
-        
-        // Shift & Leave Management
-        manage_shifts: true,
-        manage_shifts_types: true,
-        manage_leave: true,
-        view_attendance: true,
-        
-        // Role & Permission Management
-        manage_roles: true,
-        manage_permissions: true,
-        
-        // Stock & Inventory
-        can_view_stock: true,
-        can_edit_stock: true,
-        can_add_stock: true,
-        can_delete_stock: true,
-        
-        // POS System
-        POS_VIEW: true,
-        POS_EDIT: true,
-        POS_ADMIN: true,
-        
-        // Admin Functions
-        admin_panel: true,
-        system_settings: true
-      } 
+    {
+      id: 'admin',
+      name: 'Administrator',
+      permissions: {
+        dashboard: true, view_dashboard: true, employees: true, view_employees: true,
+        manage_employees: true, add_employee: true, edit_employee: true, delete_employee: true,
+        reports: true, view_reports: true, view_salary: true, view_tasks: true,
+        manage_tasks: true, assign_tasks: true, manage_shifts: true, manage_shifts_types: true,
+        manage_leave: true, view_attendance: true, manage_roles: true, manage_permissions: true,
+        can_view_stock: true, can_edit_stock: true, can_add_stock: true, can_delete_stock: true,
+        POS_VIEW: true, POS_EDIT: true, POS_ADMIN: true, admin_panel: true, system_settings: true
+      }
     },
-    { id: 'employee', name: 'Çalışan', permissions: { dashboard: true, timesheet: true, view_tasks: true } },
+    {
+      id: 'manager',
+      name: 'Yönetici',
+      permissions: {
+        dashboard: true, view_dashboard: true, employees: true, view_employees: true,
+        manage_employees: true, add_employee: true, edit_employee: true, reports: true,
+        view_reports: true, view_salary: true, view_tasks: true, manage_tasks: true,
+        assign_tasks: true, manage_shifts: true, manage_shifts_types: true, manage_leave: true,
+        view_attendance: true, can_view_stock: true, can_edit_stock: true, POS_VIEW: true, POS_EDIT: true
+      }
+    },
+    {
+      id: 'chef',
+      name: 'Şef',
+      permissions: {
+        dashboard: true, view_dashboard: true, view_employees: true, view_tasks: true,
+        manage_tasks: true, assign_tasks: true, view_attendance: true, can_view_stock: true,
+        can_edit_stock: true, can_add_stock: true, POS_VIEW: true
+      }
+    },
+    {
+      id: 'waiter',
+      name: 'Garson',
+      permissions: {
+        dashboard: true, view_dashboard: true, view_tasks: true, view_attendance: true,
+        can_view_stock: true, POS_VIEW: true, POS_EDIT: true
+      }
+    },
+    { 
+      id: 'employee', 
+      name: 'Çalışan', 
+      permissions: { dashboard: true, view_dashboard: true, view_tasks: true, timesheet: true, view_attendance: true } 
+    },
     { id: 'kiosk', name: 'Kiosk', permissions: { kiosk: true } }
   ];
   const safeRoles = roles.length > 0 ? roles : defaultRoles;
