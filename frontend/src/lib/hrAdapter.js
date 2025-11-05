@@ -33,7 +33,7 @@ export async function verifyPin(staffId, pin) {
 
 export async function getPermissionsForStaff(staffId) {
   try {
-    const res = await axios.get(`${API}/staff/${staffId}/permissions`);
+    const res = await axios.get(`${API}/staff-permissions?staffId=${staffId}`);
     return res.data || {};
   } catch (err) {
     // fallback: empty permissions

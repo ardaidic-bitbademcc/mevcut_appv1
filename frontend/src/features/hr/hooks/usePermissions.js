@@ -5,22 +5,30 @@ export default function usePermissions(employee, roles = []) {
   const [loading, setLoading] = useState(false);
 
   const loadExternal = useCallback(async () => {
-    if (!employee?.id) return;
+    if (!employee?.id) {
+      setExternalPermissions({});
+      return;
+    }
     setLoading(true);
     try {
       const { getPermissionsForStaff } = await import('../../../lib/hrAdapter');
       const p = await getPermissionsForStaff(employee.id);
       setExternalPermissions(p || {});
     } catch (e) {
-      console.warn('usePermissions: hrAdapter fetch failed or not available', e?.message || e);
+      console.error('usePermissions error:', e);
+      setExternalPermissions({});
     } finally {
       setLoading(false);
     }
-  }, [employee]);
+  }, [employee?.id]); // Use employee.id directly instead of whole employee object
 
-  useEffect(() => { loadExternal(); }, [loadExternal]);
+  useEffect(() => { 
+    loadExternal(); 
+  }, [loadExternal]);
 
-  const refresh = async () => { await loadExternal(); };
+  const refresh = async () => { 
+    await loadExternal(); 
+  };
 
   const base = (!employee?.rol) ? {} : (roles.find(r => r.id === employee?.rol)?.permissions || {});
   const merged = { ...(base || {}), ...(externalPermissions || {}) };
