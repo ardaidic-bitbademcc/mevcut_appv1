@@ -9,17 +9,33 @@ export default async function handler(req, res) {
   }
 
   try {
-    const client = new MongoClient(MONGODB_URI);
-    await client.connect();
+    // Demo employees data
+    const demoEmployees = [
+      {
+        id: 1,
+        email: 'demo@test.com',
+        ad: 'Demo',
+        soyad: 'User',
+        rol: 'admin',
+        company_id: 1,
+        employee_id: '1',
+        pozisyon: 'Administrator',
+        maas_tabani: 50000
+      },
+      {
+        id: 3010,
+        employee_id: '3010',
+        email: 'employee3010@company.com',
+        ad: 'Çalışan',
+        soyad: '3010',
+        rol: 'employee',
+        company_id: 1,
+        pozisyon: 'Worker',
+        maas_tabani: 30000
+      }
+    ];
     
-    const db = client.db('mevcut_db');
-    const employees = await db.collection('employees').find({}, { 
-      projection: { password: 0 } // Exclude passwords
-    }).toArray();
-    
-    await client.close();
-    
-    res.status(200).json(employees);
+    res.status(200).json(demoEmployees);
   } catch (error) {
     console.error('Employees error:', error);
     res.status(500).json({ error: 'Server error' });

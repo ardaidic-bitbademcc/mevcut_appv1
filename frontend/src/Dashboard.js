@@ -200,7 +200,7 @@ export default function Dashboard() {
   useQuery({
     queryKey: ['employees'],
     queryFn: fetchEmployees,
-    enabled: false, // Temporarily disabled
+    enabled: !!user, // Enable when user logged in
     staleTime: 1000 * 60 * 5, // 5 minutes
     onSuccess: (data) => setEmployees(data || []),
     onError: (err) => console.warn('employees query failed', err?.message || err),
@@ -1343,8 +1343,17 @@ export default function Dashboard() {
     );
   }
 
-  const [permissions, { refresh: refreshPermissions, loading: permissionsLoading }] = usePermissions(employee, roles);
-  const currentRole = roles.find(r => r.id === employee?.rol);
+  // Temporary fix for missing data
+  const defaultRoles = [
+    { id: 'admin', name: 'Administrator' },
+    { id: 'employee', name: 'Çalışan' },
+    { id: 'kiosk', name: 'Kiosk' }
+  ];
+  const safeRoles = roles.length > 0 ? roles : defaultRoles;
+  const safeEmployee = employee || { ad: 'Demo', soyad: 'User', rol: 'admin' };
+
+  const [permissions, { refresh: refreshPermissions, loading: permissionsLoading }] = usePermissions(safeEmployee, safeRoles);
+  const currentRole = safeRoles.find(r => r.id === safeEmployee?.rol);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100">
@@ -1354,7 +1363,7 @@ export default function Dashboard() {
             <img src="/logo.svg" alt="Mevcut" className="w-10 h-10 rounded-md shadow-sm" />
             <div>
               <h1 className="text-2xl md:text-3xl font-semibold text-gray-900">Mevcut Dashboard</h1>
-              <p className="text-sm text-gray-500">👤 {employee.ad} {employee.soyad} · <span className="font-medium">{currentRole?.name}</span></p>
+              <p className="text-sm text-gray-500">👤 {safeEmployee.ad} {safeEmployee.soyad} · <span className="font-medium">{currentRole?.name}</span></p>
             </div>
           </div>
           <button onClick={handleLogout} className="px-6 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 font-semibold flex items-center gap-2"><LogOut className="w-4 h-4" /> Çıkış</button>
