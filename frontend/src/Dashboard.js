@@ -1294,7 +1294,18 @@ export default function Dashboard() {
                   setRegisterData({ ...registerData, employee_id: value });
                 }} className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500" />
                 <p className="text-xs text-gray-500">* Pozisyon ve maaş bilgisi admin tarafından atanacaktır</p>
-                <button onClick={handleRegister} disabled={isRegistering} className="w-full px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 font-semibold">{isRegistering ? 'Kayıt yapılıyor...' : 'Kayıt Ol'}</button>
+                <button 
+                  onClick={handleRegister} 
+                  disabled={isRegistering} 
+                  className="w-full px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 font-semibold disabled:bg-gray-400"
+                >
+                  {isRegistering ? 'Kayıt yapılıyor...' : 'Kayıt Ol'}
+                </button>
+                <div className="text-xs text-blue-600 bg-blue-50 p-2 rounded">
+                  💡 Demo: Mevcut kullanıcılarla giriş yapabilirsiniz:<br/>
+                  • demo@test.com / demo123<br/>
+                  • employee3010@company.com / 3010
+                </div>
                 <button onClick={() => setShowRegister(false)} disabled={isRegistering} className="w-full px-6 py-3 bg-gray-500 text-white rounded-lg hover:bg-gray-600 font-semibold">Geri Dön</button>
                 {registerMessage && (
                   <div className="mt-3 text-sm text-center text-gray-700">{registerMessage}</div>
