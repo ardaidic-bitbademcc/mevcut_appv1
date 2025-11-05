@@ -80,74 +80,11 @@ export default function Dashboard() {
   const [editingStokKategori, setEditingStokKategori] = useState(null);
   
 
-  // Fetch all data from backend
-  const fetchData = async () => {
-    try {
-      // Fetch critical collections first (via API wrappers)
-      // employees/roles are now fetched by React Query; only fetch other critical data here
-      
-      // Temporarily handle 404s gracefully during backend setup
-      try {
-        const shiftTypeRes = await fetchShiftTypes();
-        setShiftTypes(shiftTypeRes);
-      } catch (err) {
-        console.warn('shiftTypes 404 - using empty array:', err?.response?.status);
-        setShiftTypes([]);
-      }
-
-      try {
-        const attendanceRes = await fetchAttendance();
-        setAttendance(attendanceRes);
-      } catch (err) {
-        console.warn('attendance 404 - using empty array:', err?.response?.status);
-        setAttendance([]);
-      }
-
-      // Fetch optional collections separately and tolerate 404s
-      try {
-        const leaveRes = await fetchLeaveRecords();
-        setLeaveRecords(leaveRes);
-      } catch (err) {
-        if (err.response?.status === 404) {
-          console.warn('leave-records not available on backend; using empty list');
-          setLeaveRecords([]);
-        } else {
-          throw err;
-        }
-      }
-
-      try {
-        const shiftCalRes = await fetchShiftCalendar();
-        setShiftCalendar(shiftCalRes);
-      } catch (err) {
-        if (err.response?.status === 404) {
-          console.warn('shift-calendar not available on backend; using empty list');
-          setShiftCalendar([]);
-        } else {
-          throw err;
-        }
-      }
-
-      try {
-        const taskRes = await fetchTasks();
-        setTasks(taskRes);
-      } catch (err) {
-        if (err.response?.status === 404) {
-          console.warn('tasks endpoint not available; using empty list');
-          setTasks([]);
-        } else {
-          throw err;
-        }
-      }
-    } catch (error) {
-      console.error('Error fetching data:', error);
-      alert('Veri yüklenirken hata oluştu: ' + (error.response?.data?.detail || error.message));
-    }
-  };
+  // REMOVED: fetchData function - now using demo data directly in useEffect
 
   useEffect(() => {
     if (user) {
-      fetchData();
+      // Data is now set directly in the useEffect below - no need to fetch
       if (activeTab === 'stok' && STOCK_ENABLED) {
         fetchStokData();
       }
@@ -454,12 +391,8 @@ export default function Dashboard() {
         const _tasks = queryClient.getQueryData(['tasks']);
         if (_tasks) setTasks(_tasks);
       } catch (err) {
-        console.warn('Background prefetch failed, falling back to fetchData', err?.message || err);
-        try {
-          await fetchData();
-        } catch (e) {
-          console.warn('Background fetchData failed', e?.message || e);
-        }
+        console.warn('Background prefetch failed, using demo data', err?.message || err);
+        // DEMO: Using demo data instead of API calls
       }
     })();
 
@@ -600,7 +533,7 @@ export default function Dashboard() {
       });
       setNewLeave({ employee_id: '', tarih: '', leave_type: 'izin', notlar: '' });
       alert('✅ İzin kaydı başarıyla eklendi!');
-      fetchData();
+      // DEMO: Data refresh disabled
     } catch (error) {
       alert('❌ Hata: ' + (error.response?.data?.detail || error.message));
     }
@@ -609,7 +542,7 @@ export default function Dashboard() {
   const deleteLeave = async (id) => {
     try {
       await axios.delete(`${API}/leave-records/${id}`);
-      fetchData();
+      // DEMO: Data refresh disabled
     } catch (error) {
       alert('❌ Silme hatası: ' + (error.response?.data?.detail || error.message));
     }
