@@ -215,11 +215,11 @@ export default function Dashboard() {
     onError: (err) => console.warn('roles query failed', err?.message || err),
   });
 
-  // We'll use React Query for non-critical collections and prefetch them after login so UI isn't blocked
+  // Enable all API queries when user is logged in
   useQuery({
     queryKey: ['shiftTypes'],
     queryFn: fetchShiftTypes,
-    enabled: false,
+    enabled: !!user,
     onSuccess: data => setShiftTypes(data || []),
     onError: err => console.warn('shiftTypes query failed', err?.message || err),
   });
@@ -227,7 +227,7 @@ export default function Dashboard() {
   useQuery({
     queryKey: ['attendance'],
     queryFn: fetchAttendance,
-    enabled: false,
+    enabled: !!user,
     onSuccess: data => setAttendance(data || []),
     onError: err => console.warn('attendance query failed', err?.message || err),
   });
@@ -235,7 +235,7 @@ export default function Dashboard() {
   useQuery({
     queryKey: ['leaveRecords'],
     queryFn: fetchLeaveRecords,
-    enabled: false,
+    enabled: !!user,
     onSuccess: data => setLeaveRecords(data || []),
     onError: err => console.warn('leaveRecords query failed', err?.message || err),
   });
@@ -243,7 +243,7 @@ export default function Dashboard() {
   useQuery({
     queryKey: ['shiftCalendar'],
     queryFn: fetchShiftCalendar,
-    enabled: false,
+    enabled: !!user,
     onSuccess: data => setShiftCalendar(data || []),
     onError: err => console.warn('shiftCalendar query failed', err?.message || err),
   });
@@ -251,7 +251,7 @@ export default function Dashboard() {
   useQuery({
     queryKey: ['tasks'],
     queryFn: fetchTasks,
-    enabled: false,
+    enabled: !!user,
     onSuccess: data => setTasks(data || []),
     onError: err => console.warn('tasks query failed', err?.message || err),
   });
