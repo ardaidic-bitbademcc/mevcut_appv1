@@ -6,9 +6,9 @@ const MONGODB_URI = process.env.MONGODB_URI || 'mongodb+srv://ardaidic:X3BQwSJ6A
 
 export default async function handler(req, res) {
   const { endpoint } = req.query;
-  const route = Array.isArray(endpoint) ? endpoint.join('/') : endpoint;
+  const route = Array.isArray(endpoint) ? endpoint.join('/') : (endpoint || '');
 
-  console.log(`API Gateway: ${req.method} /${route}`);
+  console.log(`API Gateway: ${req.method} /${route}`, { endpoint });
 
   try {
     // Route to appropriate handler
@@ -27,11 +27,11 @@ export default async function handler(req, res) {
         return handleShiftCalendar(req, res);
       default:
         // Handle staff permissions: staff/[id]/permissions
-        if (route.startsWith('staff/') && route.endsWith('/permissions')) {
+        if (route && route.startsWith('staff/') && route.endsWith('/permissions')) {
           const staffId = route.split('/')[1];
           return handleStaffPermissions(req, res, staffId);
         }
-        return res.status(404).json({ error: 'Endpoint not found', route });
+        return res.status(404).json({ error: 'Endpoint not found', route, endpoint });
     }
   } catch (error) {
     console.error('API Gateway error:', error);
