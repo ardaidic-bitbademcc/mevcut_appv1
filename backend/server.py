@@ -14,6 +14,7 @@ from contextlib import asynccontextmanager
 import io
 from fastapi.responses import StreamingResponse, FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
+import asyncio
 import openpyxl
 import json
 import stripe
@@ -21,10 +22,7 @@ import stripe
 ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / '.env')
 
-# MongoDB connection
-mongo_url = os.environ['MONGO_URL']
-client = AsyncIOMotorClient(mongo_url)
-db = client[os.environ['DB_NAME']]
+from .database import db, client
 
 # Configure logging
 logging.basicConfig(
@@ -142,313 +140,11 @@ if FRONTEND_BUILD_DIR.exists():
     except Exception:
         logger.exception("Failed to mount frontend static files (temporary SPA fallback)")
 
-# ==================== MODELS ====================
-
-# Company Models
-class Company(BaseModel):
-    model_config = ConfigDict(extra="ignore")
-    id: int
-    name: str
-    domain: str  # example.com
-    created_at: str
-
-class CompanyCreate(BaseModel):
-    name: str
-    domain: str
-
-# Employee Models
-class Employee(BaseModel):
-    model_config = ConfigDict(extra="ignore")
-    id: int
-    company_id: Optional[int] = 1
-    ad: str
-    soyad: str
-    pozisyon: str
-    maas_tabani: float
-    rol: str
-    email: str
-    employee_id: str  # 4-digit ID unique within company
-
-class EmployeeCreate(BaseModel):
-    company_id: Optional[int] = 1
-    ad: str
-    soyad: str
-    pozisyon: str
-    maas_tabani: float
-    rol: str
-    email: str
-    employee_id: str
-
-class EmployeeUpdate(BaseModel):
-    ad: Optional[str] = None
-    soyad: Optional[str] = None
-    pozisyon: Optional[str] = None
-    maas_tabani: Optional[float] = None
-    rol: Optional[str] = None
-    email: Optional[str] = None
-    employee_id: Optional[str] = None
-    password: Optional[str] = None
-
-# Role Models
-class RolePermissions(BaseModel):
-    view_dashboard: bool = False
-    view_tasks: bool = False
-    assign_tasks: bool = False
-    rate_tasks: bool = False
-    manage_shifts: bool = False
-    manage_leave: bool = False
-    view_salary: bool = False
-    manage_roles: bool = False
-    manage_shifts_types: bool = False
-    edit_employees: bool = False
-    # Stok İzinleri
-    can_view_stock: bool = False
-    can_add_stock_unit: bool = False
-    can_delete_stock_unit: bool = False
-    can_add_stock_product: bool = False
-    can_edit_stock_product: bool = False
-    can_delete_stock_product: bool = False
-    can_perform_stock_count: bool = False
-    can_manage_categories: bool = False
-
-class Role(BaseModel):
-    model_config = ConfigDict(extra="ignore")
-    id: str
-    name: str
-    permissions: RolePermissions
-
-class RoleUpdate(BaseModel):
-    permissions: RolePermissions
-
-# Shift Type Models
-class ShiftType(BaseModel):
-    model_config = ConfigDict(extra="ignore")
-    id: str
-    name: str
-    start: str
-    end: str
-    color: str
-
-class ShiftTypeCreate(BaseModel):
-    name: str
-    start: str
-    end: str
-    color: str
-
-# Attendance Models
-class Attendance(BaseModel):
-    model_config = ConfigDict(extra="ignore")
-    id: int
-    company_id: Optional[int] = 1
-    employee_id: str
-    ad: str
-    soyad: str
-    tarih: str
-    giris_saati: Optional[str] = None
-    cikis_saati: Optional[str] = None
-    calisilan_saat: float = 0
-    status: str
-
-class AttendanceCheckIn(BaseModel):
-    company_id: Optional[int] = 1
-    employee_id: str
-
-class AttendanceCheckOut(BaseModel):
-    company_id: Optional[int] = 1
-    employee_id: str
-
-# Leave Models
-class LeaveRecord(BaseModel):
-    model_config = ConfigDict(extra="ignore")
-    id: int
-    company_id: Optional[int] = 1
-    employee_id: int
-    tarih: str
-    leave_type: str
-    notlar: str
-
-class LeaveRecordCreate(BaseModel):
-    company_id: Optional[int] = 1
-    employee_id: int
-    tarih: str
-    leave_type: str
-    notlar: str = ""
-
-# Shift Calendar Models
-class ShiftCalendar(BaseModel):
-    model_config = ConfigDict(extra="ignore")
-    id: int
-    company_id: Optional[int] = 1
-    employee_id: int
-    tarih: str
-    shift_type: str
-
-class ShiftCalendarCreate(BaseModel):
-    company_id: Optional[int] = 1
-    employee_id: int
-    tarih: str
-    shift_type: str
-
-# Task Models
-class Task(BaseModel):
-    model_config = ConfigDict(extra="ignore")
-    id: int
-    company_id: Optional[int] = 1
-    baslik: str
-    aciklama: str
-    atanan_personel_ids: List[int] = []  # Multiple assignment
-    olusturan_id: int
-    durum: str = "beklemede"  # beklemede, devam_ediyor, tamamlandi
-    puan: Optional[int] = None
-    olusturma_tarihi: str
-    tamamlanma_tarihi: Optional[str] = None
-    tekrarlayan: bool = False
-    tekrar_periyot: Optional[str] = None  # gunluk, haftalik, aylik
-    tekrar_sayi: Optional[int] = None  # 3 günde bir için 3
-    tekrar_birim: Optional[str] = None  # gun, hafta, ay
-
-class TaskCreate(BaseModel):
-    company_id: Optional[int] = 1
-    baslik: str
-    aciklama: str
-    atanan_personel_ids: List[int] = []  # Multiple assignment
-    tekrarlayan: bool = False
-    tekrar_periyot: Optional[str] = None
-    tekrar_sayi: Optional[int] = None
-    tekrar_birim: Optional[str] = None
-
-# Stok Birim Models
-class StokBirim(BaseModel):
-    model_config = ConfigDict(extra="ignore")
-    id: int
-    company_id: Optional[int] = 1
-    ad: str  # kg, gram, adet, litre vs.
-    kisaltma: str  # kg, gr, adet, lt
-
-class StokBirimCreate(BaseModel):
-    company_id: Optional[int] = 1
-    ad: str
-    kisaltma: str
-
-# Stok Kategori Models
-class StokKategori(BaseModel):
-    model_config = ConfigDict(extra="ignore")
-    id: int
-    company_id: Optional[int] = 1
-    ad: str  # içecek, malzeme, diğer, etc.
-    renk: str  # Hex color code
-
-class StokKategoriCreate(BaseModel):
-    company_id: Optional[int] = 1
-    ad: str
-    renk: str
-
-# Stok Ürün Models
-class StokUrun(BaseModel):
-    model_config = ConfigDict(extra="ignore")
-    id: int
-    company_id: Optional[int] = 1
-    ad: str
-    birim_id: int  # Stok birimi ID'si
-    kategori_id: int  # Kategori ID'si
-    min_stok: float  # Minimum stok miktarı
-
-class StokUrunCreate(BaseModel):
-    company_id: Optional[int] = 1
-    ad: str
-    birim_id: int
-    kategori_id: int
-    min_stok: float = 0.0
-
-class StokUrunUpdate(BaseModel):
-    ad: Optional[str] = None
-    birim_id: Optional[int] = None
-    kategori_id: Optional[int] = None
-    min_stok: Optional[float] = None
-
-# Stok Sayım Models
-class StokSayim(BaseModel):
-    model_config = ConfigDict(extra="ignore")
-    id: int
-    company_id: Optional[int] = 1
-    urun_id: int  # Ürün ID'si
-    miktar: float  # Sayılan miktar
-    tarih: str  # Sayım tarihi
-    sayim_yapan_id: int  # Sayımı yapan kişi
-    notlar: Optional[str] = None
-
-class StokSayimCreate(BaseModel):
-    company_id: Optional[int] = 1
-    urun_id: int
-    miktar: float
-    sayim_yapan_id: int
-    notlar: Optional[str] = None
-
-# Yemek Ücreti Models
-class YemekUcreti(BaseModel):
-    model_config = ConfigDict(extra="ignore")
-    id: int
-    company_id: Optional[int] = 1
-    employee_id: int
-    gunluk_ucret: float
-
-class YemekUcretiCreate(BaseModel):
-    company_id: Optional[int] = 1
-    employee_id: int
-    gunluk_ucret: float
-
-class YemekUcretiUpdate(BaseModel):
-    gunluk_ucret: float
-
-# Avans Models
-class Avans(BaseModel):
-    model_config = ConfigDict(extra="ignore")
-    id: int
-    company_id: Optional[int] = 1
-    employee_id: int
-    miktar: float
-    tarih: str
-    aciklama: str
-    olusturan_id: int
-
-class AvansCreate(BaseModel):
-    company_id: Optional[int] = 1
-    employee_id: int
-    miktar: float
-    aciklama: str = ""
-
-# Login Models
-class LoginRequest(BaseModel):
-    email: Optional[str] = None
-    employee_id: Optional[str] = None
-    password: str = None
-    company_id: Optional[int] = 1
-
-class LoginResponse(BaseModel):
-    id: int
-    email: str
-    ad: str
-    soyad: str
-    rol: str
-    employee_id: str
-    company_id: int
-    pozisyon: str
+from .models import *
+from .routers import employees, tasks, shifts, stock
 
 # ==================== HELPER FUNCTIONS ====================
 
-async def get_next_id(collection_name: str):
-    """Get the next available ID for a collection"""
-    try:
-        # Find the document with the highest ID
-        result = await db[collection_name].find_one(
-            sort=[("id", -1)]
-        )
-        if result and "id" in result:
-            return result["id"] + 1
-        return 1
-    except Exception as e:
-        logger.error(f"Error getting next ID for {collection_name}: {e}")
-        return 1
 
 # ==================== ROUTES ====================
 
@@ -510,413 +206,8 @@ async def test_login():
         "login_info": "Use /api/login with employee_id or email + password"
     }
 
-# Login Route
-@api_router.post("/login", response_model=LoginResponse)
-async def login(login_data: LoginRequest):
-    logger.info(f"Login attempt with data: email={login_data.email}, employee_id={login_data.employee_id}, company_id={login_data.company_id}")
-    
-    # Find employee by email or employee_id
-    if login_data.email:
-        employee = await db.employees.find_one({"email": login_data.email})
-        logger.info(f"Searching by email: {login_data.email}, Found: {employee is not None}")
-    elif login_data.employee_id:
-        employee = await db.employees.find_one({
-            "employee_id": login_data.employee_id,
-            "company_id": login_data.company_id
-        })
-        logger.info(f"Searching by employee_id: {login_data.employee_id}, Found: {employee is not None}")
-    else:
-        logger.warning("No email or employee_id provided")
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Email or employee_id required"
-        )
-    
-    if not employee:
-        logger.error(f"Employee not found for: {login_data.email or login_data.employee_id}")
-        # Try to help debug - check if employee exists without company_id filter
-        if login_data.employee_id:
-            any_employee = await db.employees.find_one({"employee_id": login_data.employee_id})
-            if any_employee:
-                logger.info(f"Found employee with different company_id: {any_employee.get('company_id')}")
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="User not found"
-        )
-    
-    # Check if password field exists, if not check with default password
-    stored_password = employee.get("password")
-
-    if stored_password:
-        # Require a provided password for users with stored (hashed) passwords
-        if not login_data.password:
-            logger.warning(f"Password not provided for user with stored password: {employee.get('employee_id')}")
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Password required"
-            )
-
-        # Normalize stored_password to bytes (it may be stored as str or bytes)
-        if isinstance(stored_password, str):
-            stored_pw_bytes = stored_password.encode('utf-8')
-        elif isinstance(stored_password, (bytes, bytearray)):
-            stored_pw_bytes = bytes(stored_password)
-        else:
-            # Fallback: coerce to string then encode
-            stored_pw_bytes = str(stored_password).encode('utf-8')
-
-        # Ensure incoming password is a string and encode
-        try:
-            password_bytes = login_data.password.encode('utf-8')
-        except Exception:
-            logger.exception("Failed to encode provided password")
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Invalid password format"
-            )
-
-        # Check hashed password (bcrypt expects bytes)
-        try:
-            password_match = bcrypt.checkpw(password_bytes, stored_pw_bytes)
-        except Exception:
-            logger.exception("bcrypt.checkpw failed")
-            # Return a 401 rather than allowing an unhandled 500
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Invalid password"
-            )
-
-        if not password_match:
-            logger.error(f"Password mismatch for user: {employee.get('employee_id')}")
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Invalid password"
-            )
-    else:
-        # For backward compatibility - check plain password or set default
-        logger.warning(f"User {employee.get('employee_id')} has no hashed password, checking defaults")
-        default_passwords = {
-            "1000": "admin123",
-            "1001": "mehmet123",
-            "1002": "zeynep123",
-            "1003": "ayse123",
-            "1004": "ali123",
-            "2001": "arda2024"
-        }
-        
-        expected_password = default_passwords.get(employee.get("employee_id"), f"user{employee.get('employee_id')}")
-        
-        if login_data.password != expected_password:
-            logger.error(f"Default password mismatch for user: {employee.get('employee_id')}")
-            # Do not leak expected/default passwords in API responses
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Invalid password"
-            )
-    
-    logger.info(f"Login successful for: {employee.get('employee_id')}")
-
-    # Return user data (without password). Use .get to avoid KeyError for older records.
-    # Coerce numeric fields to expected types to avoid response model validation errors
-    try:
-        resp_id = int(employee.get("id", 0))
-    except Exception:
-        resp_id = 0
-
-    try:
-        resp_company_id = int(employee.get("company_id", 1))
-    except Exception:
-        resp_company_id = 1
-
-    return LoginResponse(
-        id=resp_id,
-        email=str(employee.get("email", f"{employee.get('employee_id')}@example.com")),
-        ad=str(employee.get("ad", "")),
-        soyad=str(employee.get("soyad", "")),
-        rol=str(employee.get("rol", "")),
-        employee_id=str(employee.get("employee_id", "")),
-        company_id=resp_company_id,
-        pozisyon=str(employee.get("pozisyon", ""))
-    )
-
-# Alternative login endpoint for backward compatibility
-@api_router.post("/auth/login")
-async def auth_login(request: dict):
-    """Alternative login endpoint that accepts any JSON structure"""
-    logger.info(f"Auth login attempt with data: {request}")
-    
-    # Try to extract credentials from various formats
-    employee_id = request.get("employee_id") or request.get("employeeId") or request.get("username")
-    password = request.get("password") or request.get("pin") or ""
-    company_id = request.get("company_id") or request.get("companyId") or 1
-    email = request.get("email")
-    
-    # Convert to LoginRequest format
-    login_data = LoginRequest(
-        email=email,
-        employee_id=employee_id,
-        password=password,
-        company_id=company_id
-    )
-
-    # Convenience: allow auto-login when no password is provided for demo accounts
-    # This is gated by environment variable ALLOW_AUTO_LOGIN=true to avoid accidental insecurity in prod
-    try:
-        allow_auto = os.environ.get("ALLOW_AUTO_LOGIN", "false").lower() == "true"
-    except Exception:
-        allow_auto = False
-
-    if allow_auto and login_data.email and not login_data.password:
-        emp = await db.employees.find_one({"email": login_data.email})
-        if emp and not emp.get("password"):
-            # Return user object without requiring password
-            logger.info(f"Auto-login allowed for {login_data.email}")
-            return LoginResponse(
-                id=emp["id"],
-                email=emp.get("email", f"{emp['employee_id']}@example.com"),
-                ad=emp.get("ad"),
-                soyad=emp.get("soyad"),
-                rol=emp.get("rol"),
-                employee_id=emp.get("employee_id"),
-                company_id=emp.get("company_id", 1),
-                pozisyon=emp.get("pozisyon", "")
-            )
-    
-    try:
-        result = await login(login_data)
-        return result
-    except HTTPException as e:
-        # Return error in a more frontend-friendly format
-        logger.error(f"Login failed: {e.detail}")
-        raise HTTPException(
-            status_code=e.status_code,
-            detail={"error": e.detail, "message": e.detail}
-        )
-
-# Test login with GET (for debugging)
-@api_router.get("/login-test")
-async def login_test(employee_id: str = "1000", password: str = "admin123"):
-    """Test login endpoint with GET method"""
-    login_data = LoginRequest(
-        employee_id=employee_id,
-        password=password,
-        company_id=1
-    )
-    
-    try:
-        result = await login(login_data)
-        return {
-            "success": True,
-            "data": result,
-            "message": "Login successful"
-        }
-    except HTTPException as e:
-        return {
-            "success": False,
-            "error": e.detail,
-            "message": "Login failed",
-            "help": "Try: /api/login-test?employee_id=1000&password=admin123"
-        }
-
-# Check if user exists
-@api_router.get("/check-user/{employee_id}")
-async def check_user(employee_id: str):
-    """Check if a user exists with given employee_id"""
-    employee = await db.employees.find_one({"employee_id": employee_id})
-    
-    if employee:
-        return {
-            "exists": True,
-            "employee_id": employee.get("employee_id"),
-            "name": f"{employee.get('ad')} {employee.get('soyad')}",
-            "email": employee.get("email"),
-            "has_password": bool(employee.get("password")),
-            "company_id": employee.get("company_id"),
-            "rol": employee.get("rol")
-        }
-    else:
-        # No need to fetch a full document; only need total count
-        total_count = await db.employees.count_documents({})
-        
-        return {
-            "exists": False,
-            "employee_id": employee_id,
-            "message": f"User not found. Total users in database: {total_count}",
-            "hint": "Try employee_id: 1000 for admin or run /api/ensure-admin"
-        }
-
-# Simple PIN login for backward compatibility
-@api_router.post("/pin-login")
-async def pin_login(data: dict):
-    """Simple PIN-based login for backward compatibility"""
-    employee_id = data.get("employee_id", "")
-    pin = data.get("pin", "")
-    
-    logger.info(f"PIN login attempt: employee_id={employee_id}")
-    
-    # For simple PIN login, use employee_id as both username and password
-    # Or use predefined PINs
-    predefined_pins = {
-        "1000": "1234",  # Admin
-        "2001": "2024",  # Arda
-        "1001": "1001",  # Others use their ID as PIN
-        "1002": "1002",
-        "1003": "1003",
-        "1004": "1004"
-    }
-    
-    employee = await db.employees.find_one({"employee_id": employee_id})
-    
-    if not employee:
-        logger.error(f"Employee not found: {employee_id}")
-        return {
-            "success": False,
-            "message": "Kullanıcı bulunamadı"
-        }
-    
-    # Check PIN
-    expected_pin = predefined_pins.get(employee_id, employee_id)
-    
-    if pin != expected_pin:
-        logger.error(f"Invalid PIN for {employee_id}: got {pin}, expected {expected_pin}")
-        return {
-            "success": False,
-            "message": "Geçersiz PIN"
-        }
-    
-    # Return user data
-    return {
-        "success": True,
-        "user": {
-            "id": employee["id"],
-            "employee_id": employee["employee_id"],
-            "ad": employee["ad"],
-            "soyad": employee["soyad"],
-            "rol": employee["rol"],
-            "email": employee.get("email", f"{employee['employee_id']}@example.com"),
-            "company_id": employee.get("company_id", 1),
-            "pozisyon": employee.get("pozisyon", "")
-        },
-        "message": "Giriş başarılı"
-    }
-
-# Company Routes
-@api_router.get("/companies", response_model=List[Company])
-async def get_companies():
-    companies = await db.companies.find().to_list(None)
-    return companies
-
-@api_router.post("/companies", response_model=Company)
-async def create_company(company: CompanyCreate):
-    next_id = await get_next_id("companies")
-    new_company = {
-        "id": next_id,
-        "name": company.name,
-        "domain": company.domain,
-        "created_at": datetime.now(timezone.utc).isoformat()
-    }
-    await db.companies.insert_one(new_company)
-    return new_company
-
-# Employee Routes
-@api_router.get("/employees", response_model=List[Employee])
-async def get_employees(company_id: int = 1):
-    employees = await db.employees.find({"company_id": company_id}).to_list(None)
-    return employees
-
-@api_router.post("/employees", response_model=Employee)
-async def create_employee(employee: EmployeeCreate):
-    next_id = await get_next_id("employees")
-    new_employee = {
-        "id": next_id,
-        **employee.dict()
-    }
-    await db.employees.insert_one(new_employee)
-    return new_employee
-
-
-# Simple register endpoint to support frontend registration flow
-@api_router.post("/register")
-async def register(data: dict):
-    """Register a new employee with minimal required fields.
-
-    Expected JSON: { ad, soyad, email, employee_id, company_id(optional) }
-    Returns a success wrapper to match existing frontend expectations.
-    """
-    # Validate required fields
-    required = ["ad", "soyad", "email", "employee_id"]
-    for field in required:
-        if not data.get(field):
-            raise HTTPException(status_code=400, detail=f"Missing field: {field}")
-
-    # Check if user already exists by email or employee_id
-    existing = await db.employees.find_one({
-        "$or": [
-            {"email": data["email"]},
-            {"employee_id": data["employee_id"]}
-        ]
-    })
-
-    if existing:
-        raise HTTPException(status_code=400, detail="User with that email or employee_id already exists")
-
-    next_id = await get_next_id("employees")
-    new_employee = {
-        "id": next_id,
-        "company_id": data.get("company_id", 1),
-        "ad": data["ad"],
-        "soyad": data["soyad"],
-        "pozisyon": data.get("pozisyon", ""),
-        "maas_tabani": data.get("maas_tabani", 0),
-        "rol": data.get("rol", "personel"),
-        "email": data["email"],
-        "employee_id": data["employee_id"]
-        # If a password was provided on registration, hash and store it
-    }
-
-    if data.get("password"):
-        try:
-            hashed = bcrypt.hashpw(data.get("password").encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
-            new_employee["password"] = hashed
-        except Exception as e:
-            logger.error(f"Error hashing password during registration for {data.get('email')}: {e}")
-            raise HTTPException(status_code=500, detail="Error processing password")
-
-    await db.employees.insert_one(new_employee)
-
-    return {"success": True, "employee": new_employee, "message": "Kayıt başarılı"}
-
-@api_router.put("/employees/{employee_id}", response_model=Employee)
-async def update_employee(employee_id: int, employee_update: EmployeeUpdate):
-    update_data = {k: v for k, v in employee_update.dict().items() if v is not None}
-    if not update_data:
-        raise HTTPException(status_code=400, detail="No fields to update")
-    # If password present, hash it before storing
-    if "password" in update_data:
-        try:
-            hashed = bcrypt.hashpw(update_data["password"].encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
-            update_data["password"] = hashed
-        except Exception as e:
-            logger.error(f"Error hashing password for employee {employee_id}: {e}")
-            raise HTTPException(status_code=500, detail="Error processing password")
-    
-    result = await db.employees.update_one(
-        {"id": employee_id},
-        {"$set": update_data}
-    )
-    
-    if result.modified_count == 0:
-        raise HTTPException(status_code=404, detail="Employee not found")
-    
-    updated_employee = await db.employees.find_one({"id": employee_id})
-    return updated_employee
-
-@api_router.delete("/employees/{employee_id}")
-async def delete_employee(employee_id: int):
-    result = await db.employees.delete_one({"id": employee_id})
-    if result.deleted_count == 0:
-        raise HTTPException(status_code=404, detail="Employee not found")
-    return {"message": "Employee deleted successfully"}
+app.include_router(employees.router, prefix="/api", tags=["employees"])
+app.include_router(tasks.router, prefix="/api", tags=["tasks"])
 
 # Role Routes
 @api_router.get("/roles", response_model=List[Role])
@@ -1047,274 +338,7 @@ async def check_out(check_out_data: AttendanceCheckOut):
         "worked_hours": round(worked_hours, 2)
     }
 
-# Task Routes
-@api_router.get("/tasks", response_model=List[Task])
-async def get_tasks(company_id: int = 1, status: Optional[str] = None):
-    query = {"company_id": company_id}
-    if status:
-        query["durum"] = status
-    tasks = await db.tasks.find(query).to_list(None)
-    return tasks
-
-@api_router.post("/tasks", response_model=Task)
-async def create_task(task: TaskCreate, current_user_id: int = 1):
-    next_id = await get_next_id("tasks")
-    new_task = {
-        "id": next_id,
-        **task.dict(),
-        "olusturan_id": current_user_id,
-        "durum": "beklemede",
-        "puan": None,
-        "olusturma_tarihi": datetime.now(timezone.utc).isoformat(),
-        "tamamlanma_tarihi": None
-    }
-    await db.tasks.insert_one(new_task)
-    return new_task
-
-@api_router.put("/tasks/{task_id}/status")
-async def update_task_status(task_id: int, status: str):
-    if status not in ["beklemede", "devam_ediyor", "tamamlandi"]:
-        raise HTTPException(status_code=400, detail="Invalid status")
-    
-    update_data = {"durum": status}
-    if status == "tamamlandi":
-        update_data["tamamlanma_tarihi"] = datetime.now(timezone.utc).isoformat()
-    
-    result = await db.tasks.update_one(
-        {"id": task_id},
-        {"$set": update_data}
-    )
-    
-    if result.modified_count == 0:
-        raise HTTPException(status_code=404, detail="Task not found")
-    
-    return {"message": f"Task status updated to {status}"}
-
-@api_router.put("/tasks/{task_id}/rate")
-async def rate_task(task_id: int, rating: int):
-    if rating < 1 or rating > 5:
-        raise HTTPException(status_code=400, detail="Rating must be between 1 and 5")
-    
-    result = await db.tasks.update_one(
-        {"id": task_id, "durum": "tamamlandi"},
-        {"$set": {"puan": rating}}
-    )
-    
-    if result.modified_count == 0:
-        raise HTTPException(status_code=404, detail="Task not found or not completed")
-    
-    return {"message": f"Task rated with {rating} stars"}
-
-
-# Leave Records Routes
-@api_router.get("/leave-records", response_model=List[LeaveRecord])
-async def get_leave_records(company_id: int = 1):
-    leaves = await db.leave_records.find({"company_id": company_id}).to_list(None)
-    return leaves
-
-
-@api_router.post("/leave-records", response_model=LeaveRecord)
-async def create_leave_record(leave: LeaveRecordCreate):
-    next_id = await get_next_id("leave_records")
-    new_leave = {
-        "id": next_id,
-        **leave.dict()
-    }
-    await db.leave_records.insert_one(new_leave)
-    return new_leave
-
-
-@api_router.delete("/leave-records/{leave_id}")
-async def delete_leave_record(leave_id: int):
-    result = await db.leave_records.delete_one({"id": leave_id})
-    if result.deleted_count == 0:
-        raise HTTPException(status_code=404, detail="Leave record not found")
-    return {"message": "Leave record deleted successfully"}
-
-
-# Shift Calendar Routes
-@api_router.get("/shift-calendar", response_model=List[ShiftCalendar])
-async def get_shift_calendar(company_id: int = 1):
-    shifts = await db.shift_calendar.find({"company_id": company_id}).to_list(None)
-    return shifts
-
-
-@api_router.post("/shift-calendar", response_model=ShiftCalendar)
-async def create_shift_calendar(shift: ShiftCalendarCreate):
-    next_id = await get_next_id("shift_calendar")
-    new_shift = {
-        "id": next_id,
-        **shift.dict()
-    }
-    await db.shift_calendar.insert_one(new_shift)
-    return new_shift
-
-
-@api_router.delete("/shift-calendar/{shift_id}")
-async def delete_shift_calendar(shift_id: int):
-    result = await db.shift_calendar.delete_one({"id": shift_id})
-    if result.deleted_count == 0:
-        raise HTTPException(status_code=404, detail="Shift not found")
-    return {"message": "Shift deleted successfully"}
-
-
-@api_router.get("/shift-calendar/weekly/{employee_id}")
-async def get_weekly_shift_calendar(employee_id: int, start_date: Optional[str] = None):
-    # If start_date provided (YYYY-MM-DD), return that week (start_date to start_date+6)
-    query = {"employee_id": str(employee_id)}
-    all_shifts = await db.shift_calendar.find(query).to_list(None)
-
-    # Preload related data to enrich shift objects in a JSON-serializable way
-    # Collect unique shift_type ids and team member ids
-    shift_type_ids = set()
-    member_employee_ids = set()
-    for s in all_shifts:
-        st = s.get("shift_type")
-        if isinstance(st, (str, int)):
-            shift_type_ids.add(str(st))
-        elif isinstance(st, dict) and st.get("id"):
-            shift_type_ids.add(str(st.get("id")))
-
-        members = s.get("team_members") or s.get("members") or []
-        if isinstance(members, list):
-            for m in members:
-                # members may be employee_id strings or numeric ids or full objects
-                if isinstance(m, dict) and m.get("employee_id"):
-                    member_employee_ids.add(str(m.get("employee_id")))
-                elif isinstance(m, (str, int)):
-                    member_employee_ids.add(str(m))
-
-    # Fetch shift type documents by id (if any)
-    shift_types_map = {}
-    if shift_type_ids:
-        # try to find by id or by name fallback
-        types = await db.shift_types.find({"id": {"$in": list(shift_type_ids)}}).to_list(None)
-        for t in types:
-            shift_types_map[str(t.get("id"))] = {
-                "id": t.get("id"),
-                "name": t.get("name"),
-                "start": t.get("start"),
-                "end": t.get("end"),
-                "color": t.get("color")
-            }
-
-    # Fetch member employee docs
-    employees_map = {}
-    if member_employee_ids:
-        # employee_id is stored as string in employees collection
-        emps = await db.employees.find({"employee_id": {"$in": list(member_employee_ids)}}).to_list(None)
-        for e in emps:
-            employees_map[str(e.get("employee_id"))] = {
-                "id": e.get("id"),
-                "employee_id": e.get("employee_id"),
-                "ad": e.get("ad"),
-                "soyad": e.get("soyad"),
-                "pozisyon": e.get("pozisyon")
-            }
-
-    # Build enriched, safe shift objects
-    def enrich_shift(s):
-        # Base fields
-        st_raw = s.get("shift_type")
-        st_obj = None
-        if isinstance(st_raw, dict):
-            st_obj = {
-                "id": st_raw.get("id"),
-                "name": st_raw.get("name"),
-                "start": st_raw.get("start"),
-                "end": st_raw.get("end"),
-                "color": st_raw.get("color")
-            }
-        elif st_raw is not None:
-            st_obj = shift_types_map.get(str(st_raw))
-
-        members = s.get("team_members") or s.get("members") or []
-        tm = []
-        if isinstance(members, list):
-            for m in members:
-                if isinstance(m, dict):
-                    # already full object
-                    tm.append({
-                        "id": m.get("id"),
-                        "employee_id": m.get("employee_id"),
-                        "ad": m.get("ad"),
-                        "soyad": m.get("soyad"),
-                        "pozisyon": m.get("pozisyon")
-                    })
-                else:
-                    e = employees_map.get(str(m))
-                    if e:
-                        tm.append(e)
-
-        hours = s.get("hours") if s.get("hours") is not None else s.get("calisilan_saat")
-
-        # determine type field expected by frontend: 'izin' or 'vardiya' or 'none'
-        s_type = s.get("type") or s.get("shift_kind")
-        if not s_type:
-            s_type = 'izin' if s.get("is_leave") else ('vardiya' if st_obj else 'none')
-
-        return {
-            "id": s.get("id") or (str(s.get("_id")) if s.get("_id") else None),
-            "_id": str(s.get("_id")) if s.get("_id") is not None else None,
-            "company_id": s.get("company_id"),
-            "employee_id": s.get("employee_id"),
-            "tarih": s.get("tarih"),
-            "type": s_type,
-            "shift_type": st_obj,
-            "shift_type_name": (st_obj and st_obj.get("name")) or (s.get("shift_type_name") or None),
-            "start": s.get("start") or (st_obj and st_obj.get("start")),
-            "end": s.get("end") or (st_obj and st_obj.get("end")),
-            "hours": hours,
-            "team_members": tm,
-            "location": s.get("location") or None,
-            "tags": s.get("tags") or [],
-        }
-
-    safe_shifts = [enrich_shift(s) for s in all_shifts]
-
-    # default response shape for compatibility with frontend expects an object
-    # containing employee, start_date, end_date, shifts
-    employee = await db.employees.find_one({"employee_id": str(employee_id)})
-    safe_employee = None
-    if employee:
-        safe_employee = {
-            "id": employee.get("id"),
-            "employee_id": employee.get("employee_id"),
-            "ad": employee.get("ad"),
-            "soyad": employee.get("soyad"),
-            "company_id": employee.get("company_id"),
-            "pozisyon": employee.get("pozisyon"),
-        }
-
-    if not start_date:
-        return {
-            "employee": safe_employee or {},
-            "start_date": None,
-            "end_date": None,
-            "shifts": safe_shifts,
-        }
-
-    try:
-        sd = datetime.fromisoformat(start_date).date()
-    except Exception:
-        # invalid date format, return all in same shape
-        return {
-            "employee": safe_employee or {},
-            "start_date": None,
-            "end_date": None,
-            "shifts": safe_shifts,
-        }
-
-    end_date = sd + timedelta(days=6)
-    # Filter by tarih field (assumed ISO date string)
-    filtered = [s for s in safe_shifts if s.get('tarih') and sd.isoformat() <= s['tarih'] <= end_date.isoformat()]
-
-    return {
-        "employee": safe_employee or {},
-        "start_date": sd.isoformat(),
-        "end_date": end_date.isoformat(),
-        "shifts": filtered,
-    }
+app.include_router(shifts.router, prefix="/api", tags=["shifts"])
 
 # Admin check/create endpoint
 @api_router.post("/ensure-admin")
@@ -1510,124 +534,7 @@ async def stok_son_durum_alias(company_id: int = 1):
 async def post_stok_sayim_alias(sayim: StokSayimCreate):
     return await create_stok_sayim(sayim)
 
-# Stok Routes
-@api_router.get("/stok/birimler", response_model=List[StokBirim])
-async def get_stok_birimleri(company_id: int = 1):
-    birimler = await db.stok_birim.find({"company_id": company_id}).to_list(None)
-    return birimler
-
-@api_router.post("/stok/birimler", response_model=StokBirim)
-async def create_stok_birim(birim: StokBirimCreate):
-    next_id = await get_next_id("stok_birim")
-    new_birim = {
-        "id": next_id,
-        **birim.dict()
-    }
-    await db.stok_birim.insert_one(new_birim)
-    return new_birim
-
-@api_router.delete("/stok/birimler/{birim_id}")
-async def delete_stok_birim(birim_id: int):
-    # Check if any products use this unit
-    product_count = await db.stok_urun.count_documents({"birim_id": birim_id})
-    if product_count > 0:
-        raise HTTPException(status_code=400, detail="Cannot delete unit that is in use")
-    
-    result = await db.stok_birim.delete_one({"id": birim_id})
-    if result.deleted_count == 0:
-        raise HTTPException(status_code=404, detail="Unit not found")
-    return {"message": "Unit deleted successfully"}
-
-@api_router.get("/stok/kategoriler", response_model=List[StokKategori])
-async def get_stok_kategorileri(company_id: int = 1):
-    kategoriler = await db.stok_kategori.find({"company_id": company_id}).to_list(None)
-    return kategoriler
-
-@api_router.post("/stok/kategoriler", response_model=StokKategori)
-async def create_stok_kategori(kategori: StokKategoriCreate):
-    next_id = await get_next_id("stok_kategori")
-    new_kategori = {
-        "id": next_id,
-        **kategori.dict()
-    }
-    await db.stok_kategori.insert_one(new_kategori)
-    return new_kategori
-
-@api_router.get("/stok/urunler", response_model=List[StokUrun])
-async def get_stok_urunleri(company_id: int = 1):
-    urunler = await db.stok_urun.find({"company_id": company_id}).to_list(None)
-    return urunler
-
-@api_router.post("/stok/urunler", response_model=StokUrun)
-async def create_stok_urun(urun: StokUrunCreate):
-    next_id = await get_next_id("stok_urun")
-    new_urun = {
-        "id": next_id,
-        **urun.dict()
-    }
-    await db.stok_urun.insert_one(new_urun)
-    return new_urun
-
-@api_router.put("/stok/urunler/{urun_id}", response_model=StokUrun)
-async def update_stok_urun(urun_id: int, urun_update: StokUrunUpdate):
-    update_data = {k: v for k, v in urun_update.dict().items() if v is not None}
-    if not update_data:
-        raise HTTPException(status_code=400, detail="No fields to update")
-    
-    result = await db.stok_urun.update_one(
-        {"id": urun_id},
-        {"$set": update_data}
-    )
-    
-    if result.modified_count == 0:
-        raise HTTPException(status_code=404, detail="Product not found")
-    
-    updated_urun = await db.stok_urun.find_one({"id": urun_id})
-    return updated_urun
-
-@api_router.delete("/stok/urunler/{urun_id}")
-async def delete_stok_urun(urun_id: int):
-    result = await db.stok_urun.delete_one({"id": urun_id})
-    if result.deleted_count == 0:
-        raise HTTPException(status_code=404, detail="Product not found")
-    return {"message": "Product deleted successfully"}
-
-
-@api_router.put("/stok/kategoriler/{kategori_id}", response_model=StokKategori)
-async def update_stok_kategori(kategori_id: int, kategori_update: StokKategoriCreate):
-    update_data = {k: v for k, v in kategori_update.dict().items() if v is not None}
-    if not update_data:
-        raise HTTPException(status_code=400, detail="No fields to update")
-
-    result = await db.stok_kategori.update_one(
-        {"id": kategori_id},
-        {"$set": update_data}
-    )
-
-    if result.modified_count == 0:
-        raise HTTPException(status_code=404, detail="Category not found")
-
-    updated_kategori = await db.stok_kategori.find_one({"id": kategori_id})
-    return updated_kategori
-
-@api_router.get("/stok/sayimlar", response_model=List[StokSayim])
-async def get_stok_sayimlari(company_id: int = 1, urun_id: Optional[int] = None):
-    query = {"company_id": company_id}
-    if urun_id:
-        query["urun_id"] = urun_id
-    sayimlar = await db.stok_sayim.find(query).sort("tarih", -1).to_list(None)
-    return sayimlar
-
-@api_router.post("/stok/sayimlar", response_model=StokSayim)
-async def create_stok_sayim(sayim: StokSayimCreate):
-    next_id = await get_next_id("stok_sayim")
-    new_sayim = {
-        "id": next_id,
-        "tarih": datetime.now(timezone.utc).date().isoformat(),
-        **sayim.dict()
-    }
-    await db.stok_sayim.insert_one(new_sayim)
-    return new_sayim
+app.include_router(stock.router, prefix="/api", tags=["stock"])
 
 # Seed data endpoint
 @api_router.post("/seed-data")
@@ -2115,37 +1022,57 @@ async def salary_all(month: str):
     if not month or len(month) < 7:
         raise HTTPException(status_code=400, detail="Invalid month format. Use YYYY-MM")
 
-    # Load employees
-    employees = await db.employees.find({}).to_list(None)
+    # 1. Fetch all data in parallel
+    employees_cursor = db.employees.find({})
+    attendance_cursor = db.attendance.find({"tarih": {"$regex": f"^{month}"}})
+    avans_cursor = db.avans.find({"tarih": {"$regex": f"^{month}"}})
+    yemek_ucreti_cursor = db.yemek_ucreti.find({})
+
+    employees, attendance_records_all, avans_records_all, yemek_ucretleri_all = await asyncio.gather(
+        employees_cursor.to_list(None),
+        attendance_cursor.to_list(None),
+        avans_cursor.to_list(None),
+        yemek_ucreti_cursor.to_list(None),
+    )
+
+    # 2. Process data in memory
+    attendance_by_employee = {}
+    for record in attendance_records_all:
+        emp_id = record.get("employee_id")
+        if emp_id not in attendance_by_employee:
+            attendance_by_employee[emp_id] = []
+        attendance_by_employee[emp_id].append(record)
+
+    avans_by_employee = {}
+    for record in avans_records_all:
+        emp_id = record.get("employee_id")
+        if emp_id not in avans_by_employee:
+            avans_by_employee[emp_id] = []
+        avans_by_employee[emp_id].append(record)
+
+    yemek_ucreti_by_employee = {item['employee_id']: item for item in yemek_ucretleri_all}
+
 
     results = []
-
     for emp in employees:
         # basic fields
         temel = float(emp.get("maas_tabani", 0) or 0)
         gunluk = round(temel / 30.0, 2)
         saatlik = round(gunluk / 9.0, 2)  # assume 9h workday
-        # Attendance in the month: match tarih starting with month
-        # Build a safe list of possible employee identifiers (string forms) for attendance lookup
-        emp_ids = []
-        if emp.get("employee_id") is not None:
-            emp_ids.append(str(emp.get("employee_id")))
-        if emp.get("id") is not None:
-            emp_ids.append(str(emp.get("id")))
-        # dedupe while preserving order
-        emp_ids = list(dict.fromkeys(emp_ids))
 
-        attendance_query = {"tarih": {"$regex": f"^{month}"}}
-        if emp_ids:
-            attendance_query["employee_id"] = {"$in": emp_ids}
+        emp_id_str = emp.get("employee_id")
+        emp_id_int = emp.get("id")
 
-        attendance_records = await db.attendance.find(attendance_query).to_list(None)
+        # Get attendance for this employee from the pre-fetched data
+        attendance_records = attendance_by_employee.get(emp_id_str, [])
+        if not attendance_records and emp_id_int is not None:
+             attendance_records = attendance_by_employee.get(str(emp_id_int), [])
+
 
         # Count worked days and sum hours
         calisilan_gun = 0
         calisilan_saat = 0.0
         for a in attendance_records:
-            # consider record as worked day if calisilan_saat > 0 or status == 'cikis'
             try:
                 cs = float(a.get("calisilan_saat", 0) or 0)
             except Exception:
@@ -2154,24 +1081,22 @@ async def salary_all(month: str):
                 calisilan_gun += 1
                 calisilan_saat += cs
 
-        # Previously hakedilen was calculated using days * daily wage.
-        # Change: calculate earned salary as total worked hours * hourly wage.
         hakedilen = round(saatlik * calisilan_saat, 2)
 
-        # Yemek ucreti - stored by numeric employee id (employee.id)
-        yemek_doc = await db.yemek_ucreti.find_one({"employee_id": int(emp.get("id", 0))})
+        # Get meal allowance from pre-fetched data
+        yemek_doc = yemek_ucreti_by_employee.get(emp_id_int)
         gunluk_yemek = float(yemek_doc.get("gunluk_ucret", 0)) if yemek_doc else 0.0
         toplam_yemek = round(gunluk_yemek * calisilan_gun, 2)
 
-        # Avans - sum avans for this employee in month
-        avans_records = await db.avans.find({"employee_id": int(emp.get("id", 0)), "tarih": {"$regex": f"^{month}"}}).to_list(None)
+        # Get advances from pre-fetched data
+        avans_records = avans_by_employee.get(emp_id_int, [])
         toplam_avans = round(sum([float(a.get("miktar", 0) or 0) for a in avans_records]), 2)
 
         toplam = round(hakedilen + toplam_yemek - toplam_avans, 2)
 
         record = {
-            "employee_id": int(emp.get("id", 0)),
-            "employee_unique_id": emp.get("employee_id"),
+            "employee_id": emp_id_int,
+            "employee_unique_id": emp_id_str,
             "ad": emp.get("ad"),
             "soyad": emp.get("soyad"),
             "pozisyon": emp.get("pozisyon", ""),

@@ -1,15 +1,18 @@
 import pytest
 from fastapi.testclient import TestClient
 
-import backend.server as server
+from backend.server import app
+from backend import database
 
 
 class FakeCursor:
     def __init__(self, docs):
         self._docs = docs
 
-    async def to_list(self, _):
-        return self._docs
+    def to_list(self, length=None):
+        async def mock_to_list():
+            return self._docs
+        return mock_to_list()
 
 
 class FakeCollection:
@@ -48,14 +51,19 @@ def client(monkeypatch):
         "team_members": [{"id": 1001, "employee_id": "1001", "ad": "DemoA", "soyad": "User1", "pozisyon": "Worker"}],
     }
 
+    shift_type = {"id": "st1", "name": "Sabah", "start": "09:00", "end": "18:00"}
+
     fake_db = type("FakeDB", (), {})()
     fake_db.shift_calendar = FakeCollection([shift])
     fake_db.employees = FakeCollection([employee])
+    fake_db.shift_types = FakeCollection([shift_type])
 
-    # monkeypatch server.db to use fake_db
-    monkeypatch.setattr(server, "db", fake_db)
+    # monkeypatch database.db to use fake_db
+    monkeypatch.setattr(database, "db", fake_db)
+    from backend.routers import shifts
+    monkeypatch.setattr(shifts, "db", fake_db)
 
-    client = TestClient(server.app)
+    client = TestClient(app)
     yield client
 
 

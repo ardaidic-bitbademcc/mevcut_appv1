@@ -5,7 +5,7 @@ import { API, STOCK_ENABLED } from './lib/config';
 import {
   fetchEmployees,
 } from './lib/api';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useQueryClient, useQueries } from '@tanstack/react-query';
 import usePermissions from './features/hr/hooks/usePermissions';
 import Subscription from './Subscription';
 import POS from './POS';
@@ -16,6 +16,12 @@ import Products from './pos/Products';
 import Inventory from './pos/Inventory';
 import Orders from './pos/Orders';
 import POSSettings from './pos/Settings';
+import DashboardTab from './components/DashboardTab';
+import TasksTab from './components/TasksTab';
+import ShiftsAndLeaveTab from './components/ShiftsAndLeaveTab';
+import SalaryTab from './components/SalaryTab';
+import PersonnelTab from './components/PersonnelTab';
+import StockTab from './components/StockTab';
 
 // API and feature flags are centralized in ./lib/config
 
@@ -144,34 +150,23 @@ export default function Dashboard() {
     }
   }, [user]);
 
-  // TEMPORARILY DISABLE problematic APIs - use demo data instead
+  const results = useQueries({
+    queries: [
+      { queryKey: ['shiftTypes'], queryFn: () => axios.get(`${API}/shift-types`).then(res => res.data), enabled: !!user },
+      { queryKey: ['attendance'], queryFn: () => axios.get(`${API}/attendance`).then(res => res.data), enabled: !!user },
+      { queryKey: ['leaveRecords'], queryFn: () => axios.get(`${API}/leave-records`).then(res => res.data), enabled: !!user },
+      { queryKey: ['shiftCalendar'], queryFn: () => axios.get(`${API}/shift-calendar`).then(res => res.data), enabled: !!user },
+      { queryKey: ['tasks'], queryFn: () => axios.get(`${API}/tasks`).then(res => res.data), enabled: !!user },
+    ],
+  });
+
   useEffect(() => {
-    if (user) {
-      // Set demo data directly instead of API calls
-      setShiftTypes([
-        { id: 1, name: 'Sabah Vardiyası', start: '08:00', end: '16:00', color: 'bg-blue-500' },
-        { id: 2, name: 'Öğle Vardiyası', start: '12:00', end: '20:00', color: 'bg-green-500' },
-        { id: 3, name: 'Gece Vardiyası', start: '20:00', end: '04:00', color: 'bg-purple-500' }
-      ]);
-      
-      setAttendance([
-        { id: 1, employee_id: '1', employee_name: 'Demo User', date: new Date().toISOString().split('T')[0], check_in: '08:30', status: 'present' }
-      ]);
-      
-      setLeaveRecords([
-        { id: 1, employee_id: '1', leave_type: 'annual', start_date: '2025-11-10', end_date: '2025-11-12', status: 'approved' }
-      ]);
-      
-      setShiftCalendar([
-        { id: 1, employee_id: '1', shift_name: 'Sabah Vardiyası', date: new Date().toISOString().split('T')[0], start_time: '08:00', end_time: '16:00' }
-      ]);
-      
-      setTasks([
-        { id: 1, baslik: 'Mutfak Temizliği', aciklama: 'Günlük temizlik', durum: 'pending', atanan_personel_ids: ['1'] },
-        { id: 2, baslik: 'Stok Sayımı', aciklama: 'Haftalık sayım', durum: 'in_progress', atanan_personel_ids: ['1'] }
-      ]);
-    }
-  }, [user]);
+    if (results[0].data) setShiftTypes(results[0].data);
+    if (results[1].data) setAttendance(results[1].data);
+    if (results[2].data) setLeaveRecords(results[2].data);
+    if (results[3].data) setShiftCalendar(results[3].data);
+    if (results[4].data) setTasks(results[4].data);
+  }, [results]);
   
   const addStokKategori = async () => {
     try {
@@ -1385,53 +1380,7 @@ export default function Dashboard() {
         </div>
 
         {activeTab === 'dashboard' && permissions.view_dashboard && (
-          <div>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-              <div className="bg-white rounded-lg shadow p-6 border-l-4 border-blue-500">
-                <p className="text-gray-600 text-sm">Toplam Personel</p>
-                <p className="text-3xl font-bold text-gray-800">{employees.length}</p>
-              </div>
-              <div className="bg-white rounded-lg shadow p-6 border-l-4 border-green-500">
-                <p className="text-gray-600 text-sm">Bugün Giriş Yapanlar</p>
-                <p className="text-3xl font-bold text-gray-800">{attendance.filter(a => a.tarih === new Date().toISOString().split('T')[0] && (a.status === 'giris' || a.status === 'cikis')).length}</p>
-              </div>
-              <div className="bg-white rounded-lg shadow p-6 border-l-4 border-purple-500">
-                <p className="text-gray-600 text-sm">Çıkış Yapanlar</p>
-                <p className="text-3xl font-bold text-gray-800">{attendance.filter(a => a.tarih === new Date().toISOString().split('T')[0] && a.status === 'cikis').length}</p>
-              </div>
-            </div>
-            <div className="bg-white rounded-lg shadow p-6">
-              <h2 className="text-xl font-bold mb-4">Personel Listesi</h2>
-              <div className="overflow-x-auto">
-              {salaryError && (
-                <div className="mb-4 p-3 bg-red-50 border border-red-200 text-red-700 rounded">
-                  <strong>❌ Maaş verileri getirilemedi:</strong> {salaryError}
-                  <button onClick={() => { setSalaryError(null); fetchSalaryData(); }} className="ml-4 px-2 py-1 bg-red-600 text-white rounded text-sm">Yeniden Dene</button>
-                </div>
-              )}
-                <table className="w-full text-sm">
-                  <thead className="bg-gray-50 border-b">
-                    <tr>
-                      <th className="px-4 py-2 text-left">Ad Soyad</th>
-                      <th className="px-4 py-2 text-left">Rol</th>
-                      <th className="px-4 py-2 text-left">Pozisyon</th>
-                      <th className="px-4 py-2 text-left">Maaş</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {employees.map(emp => (
-                      <tr key={emp.id} className="border-b hover:bg-gray-50">
-                        <td className="px-4 py-2 font-semibold">{emp.ad} {emp.soyad}</td>
-                        <td className="px-4 py-2"><span className="px-2 py-1 bg-indigo-100 text-indigo-700 rounded text-xs font-semibold">{roles.find(r => r.id === emp.rol)?.name}</span></td>
-                        <td className="px-4 py-2">{emp.pozisyon}</td>
-                        <td className="px-4 py-2">₺{emp.maas_tabani.toLocaleString('tr-TR')}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          </div>
+          <DashboardTab employees={employees} attendance={attendance} roles={roles} />
         )}
 
         {activeTab === 'abonelik' && (
@@ -1599,1106 +1548,126 @@ export default function Dashboard() {
         )}
 
         {activeTab === 'vardiya_izin' && (permissions.manage_shifts || permissions.manage_shifts_types || permissions.manage_leave) && (
-          <div>
-            <div className="bg-white rounded-lg shadow p-6 mb-6">
-              <h2 className="text-xl font-bold mb-6">📅 Vardiya Takvimi & İzin</h2>
-
-              {permissions.manage_shifts && (
-                <>
-                  <div className="mb-6 p-4 bg-purple-50 rounded-lg border border-purple-200">
-                    <p className="font-bold mb-3">Vardiya Türü Seçin</p>
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                      {shiftTypes.map(shift => (
-                        <button key={shift.id} onClick={() => setSelectedShiftType(shift.id)} className={`p-3 rounded-lg border-2 font-semibold transition ${selectedShiftType === shift.id ? `${shift.color} text-white border-transparent` : 'bg-white border-gray-300 text-gray-700'}`}>
-                          {shift.name}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-
-                  <div className="mb-6 flex gap-4 items-center">
-                    <input type="month" value={selectedShiftMonth} onChange={(e) => setSelectedShiftMonth(e.target.value)} className="px-4 py-2 border rounded-lg font-semibold" />
-                    <div className="text-sm text-gray-600">İpucu: Takvimde gün seçin, sonra personel seçin ve vardiya atayın</div>
-                  </div>
-
-                  <div className="mb-4 flex gap-3 items-center">
-                    <select value={weeklyPdfEmployeeId} onChange={(e) => setWeeklyPdfEmployeeId(e.target.value)} className="px-3 py-2 border rounded-lg">
-                      <option value="">Haftalık PDF için personel seç</option>
-                      {employees.map(emp => (
-                        <option key={emp.id} value={emp.id}>{emp.ad} {emp.soyad}</option>
-                      ))}
-                    </select>
-                    <input id="weekly-start-date" type="date" className="px-3 py-2 border rounded-lg" />
-                    <button onClick={() => {
-                      const date = document.getElementById('weekly-start-date').value;
-                      if (!weeklyPdfEmployeeId) return alert('Lütfen personel seçin');
-                      if (!date) return alert('Lütfen hafta başlangıç tarihi seçin');
-                      generateWeeklyPDFFor(weeklyPdfEmployeeId, date);
-                    }} className="px-4 py-2 bg-indigo-600 text-white rounded hover:bg-indigo-700">Haftalık PDF İndir</button>
-                    <button onClick={generateMonthlyPDF} className="px-4 py-2 bg-gray-700 text-white rounded hover:bg-gray-800">Aylık PDF İndir</button>
-                  </div>
-
-                  <div className="bg-gray-50 rounded-lg p-4">
-                    <div className="grid grid-cols-7 gap-0 mb-2">
-                      {['Pzr', 'Pzt', 'Sal', 'Çar', 'Per', 'Cum', 'Cmt'].map(day => (
-                        <div key={day} className="text-center font-bold text-sm py-2 bg-indigo-100 text-indigo-800">{day}</div>
-                      ))}
-                    </div>
-                    {renderShiftCalendar()}
-                  </div>
-
-                  <div className="mt-6 bg-blue-50 p-4 rounded-lg border border-blue-200">
-                    <h3 className="font-bold mb-3">Vardiya Atama</h3>
-                    <div className="space-y-4">
-                      <div>
-                        <label className="block font-semibold mb-2">Personel Seç (Birden fazla seçebilirsiniz):</label>
-                        <div className="grid grid-cols-2 gap-2 max-h-40 overflow-y-auto border rounded-lg p-3 bg-white">
-                          {employees.map(emp => (
-                            <label key={emp.id} className="flex items-center gap-2 cursor-pointer hover:bg-gray-50 p-2 rounded">
-                              <input
-                                type="checkbox"
-                                checked={selectedEmployeesForShift.includes(emp.id)}
-                                onChange={(e) => {
-                                  if (e.target.checked) {
-                                    setSelectedEmployeesForShift([...selectedEmployeesForShift, emp.id]);
-                                  } else {
-                                    setSelectedEmployeesForShift(selectedEmployeesForShift.filter(id => id !== emp.id));
-                                  }
-                                }}
-                                className="w-4 h-4"
-                              />
-                              <span className="text-sm">{emp.ad} {emp.soyad}</span>
-                            </label>
-                          ))}
-                        </div>
-                        {selectedEmployeesForShift.length > 0 && (
-                          <p className="text-sm text-green-600 mt-2">✓ {selectedEmployeesForShift.length} personel seçildi</p>
-                        )}
-                      </div>
-                      
-                      <input type="date" className="w-full px-4 py-2 border rounded-lg" id="shift-date-input" />
-                      
-                      <button onClick={() => {
-                        const date = document.getElementById('shift-date-input').value;
-                        if (selectedEmployeesForShift.length === 0) {
-                          alert('❌ En az bir personel seçiniz!');
-                          return;
-                        }
-                        if (!date) {
-                          alert('❌ Tarih seçiniz!');
-                          return;
-                        }
-                        
-                        // Assign shift to all selected employees
-                        Promise.all(selectedEmployeesForShift.map(empId => addShiftToCalendar(empId, date)))
-                          .then(() => {
-                            setSelectedEmployeesForShift([]);
-                            document.getElementById('shift-date-input').value = '';
-                            alert(`✅ ${selectedEmployeesForShift.length} personele vardiya atandı!`);
-                          })
-                          .catch(err => {
-                            alert('❌ Hata: ' + err.message);
-                          });
-                      }} className="w-full px-6 py-3 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 font-semibold">
-                        Seçili Personellere Vardiya Ata ({selectedEmployeesForShift.length})
-                      </button>
-                    </div>
-                  </div>
-                </>
-              )}
-            </div>
-
-            {permissions.manage_leave && (
-              <div className="bg-white rounded-lg shadow p-6">
-                <h2 className="text-xl font-bold mb-4">🗓️ İzin Kaydı Ekle</h2>
-                <div className="grid grid-cols-1 md:grid-cols-5 gap-4 mb-4">
-                  <select value={newLeave.employee_id} onChange={(e) => setNewLeave({ ...newLeave, employee_id: e.target.value })} className="px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500">
-                    <option value="">Personel Seç</option>
-                    {employees.map(emp => (
-                      <option key={emp.id} value={emp.id}>{emp.ad} {emp.soyad}</option>
-                    ))}
-                  </select>
-                  <input type="date" value={newLeave.tarih} onChange={(e) => setNewLeave({ ...newLeave, tarih: e.target.value })} className="px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500" />
-                  <select value={newLeave.leave_type} onChange={(e) => setNewLeave({ ...newLeave, leave_type: e.target.value })} className="px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500">
-                    <option value="izin">İzin</option>
-                    <option value="hastalik">Hastalık</option>
-                  </select>
-                  <input type="text" placeholder="Notlar" value={newLeave.notlar} onChange={(e) => setNewLeave({ ...newLeave, notlar: e.target.value })} className="px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500" />
-                  <button onClick={addLeave} className="px-6 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 font-semibold flex items-center justify-center"><Plus className="w-4 h-4" /></button>
-                </div>
-
-                <h3 className="font-bold text-lg mb-4">İzin Kayıtları</h3>
-                <div className="space-y-2">
-                  {leaveRecords.map(leave => {
-                    const emp = employees.find(e => e.id === leave.employee_id);
-                    return (
-                      <div key={leave.id} className={`p-3 rounded-lg flex justify-between items-center ${leave.leave_type === 'izin' ? 'bg-yellow-50 border border-yellow-200' : 'bg-red-50 border border-red-200'}`}>
-                        <div>
-                          <p className="font-semibold text-sm">{emp?.ad} {emp?.soyad} - {leave.tarih}</p>
-                          <p className="text-xs text-gray-600">{leave.leave_type === 'izin' ? '🗓️ İzin' : '🏥 Hastalık'} - {leave.notlar}</p>
-                        </div>
-                        <button onClick={() => deleteLeave(leave.id)} className="px-3 py-1 bg-red-500 text-white rounded text-xs hover:bg-red-600 font-semibold"><Trash2 className="w-3 h-3" /></button>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-            )}
-
-            {/* Stock Export / Import removed from vardiya; moved into stok tab */}
-          </div>
+          <ShiftsAndLeaveTab
+            employees={employees}
+            shiftTypes={shiftTypes}
+            shiftCalendar={shiftCalendar}
+            leaveRecords={leaveRecords}
+            selectedShiftMonth={selectedShiftMonth}
+            setSelectedShiftMonth={setSelectedShiftMonth}
+            selectedShiftType={selectedShiftType}
+            setSelectedShiftType={setSelectedShiftType}
+            selectedEmployeesForShift={selectedEmployeesForShift}
+            setSelectedEmployeesForShift={setSelectedEmployeesForShift}
+            newLeave={newLeave}
+            setNewLeave={setNewLeave}
+            addLeave={addLeave}
+            deleteLeave={deleteLeave}
+            addShiftToCalendar={addShiftToCalendar}
+            removeShiftFromCalendar={removeShiftFromCalendar}
+            generateWeeklyPDFFor={generateWeeklyPDFFor}
+            generateMonthlyPDF={generateMonthlyPDF}
+            weeklyPdfEmployeeId={weeklyPdfEmployeeId}
+            setWeeklyPdfEmployeeId={setWeeklyPdfEmployeeId}
+            permissions={permissions}
+          />
         )}
 
         {activeTab === 'gorevler' && permissions.view_tasks && (
-          <div className="bg-white rounded-lg shadow p-6">
-            <h2 className="text-xl font-bold mb-6">✅ Görevler</h2>
-            
-            {permissions.assign_tasks && (
-              <div className="bg-blue-50 p-6 rounded-lg border border-blue-200 mb-6">
-                <h3 className="font-bold mb-4">Yeni Görev Oluştur</h3>
-                <div className="space-y-4">
-                  <input type="text" placeholder="Görev Başlığı" value={newTask.baslik} onChange={(e) => setNewTask({ ...newTask, baslik: e.target.value })} className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500" />
-                  <textarea placeholder="Görev Açıklaması" value={newTask.aciklama} onChange={(e) => setNewTask({ ...newTask, aciklama: e.target.value })} className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500" rows="3" />
-                  <div>
-                    <label className="block font-semibold mb-2">Personel Seç (Birden fazla seçebilirsiniz):</label>
-                    <div className="grid grid-cols-2 gap-2 max-h-40 overflow-y-auto border rounded-lg p-3 bg-gray-50">
-                      {employees.map(emp => (
-                        <label key={emp.id} className="flex items-center gap-2 cursor-pointer hover:bg-white p-2 rounded">
-                          <input
-                            type="checkbox"
-                            checked={newTask.atanan_personel_ids.includes(emp.id)}
-                            onChange={(e) => {
-                              if (e.target.checked) {
-                                setNewTask({ ...newTask, atanan_personel_ids: [...newTask.atanan_personel_ids, emp.id] });
-                              } else {
-                                setNewTask({ ...newTask, atanan_personel_ids: newTask.atanan_personel_ids.filter(id => id !== emp.id) });
-                              }
-                            }}
-                            className="w-4 h-4"
-                          />
-                          <span className="text-sm">{emp.ad} {emp.soyad}</span>
-                        </label>
-                      ))}
-                    </div>
-                    {newTask.atanan_personel_ids.length > 0 && (
-                      <p className="text-sm text-green-600 mt-2">✓ {newTask.atanan_personel_ids.length} personel seçildi</p>
-                    )}
-                  </div>
-                  <div>
-                    <label className="flex items-center gap-2 cursor-pointer">
-                      <input
-                        type="checkbox"
-                        checked={newTask.tekrarlayan}
-                        onChange={(e) => setNewTask({ ...newTask, tekrarlayan: e.target.checked })}
-                        className="w-4 h-4"
-                      />
-                      <span className="font-semibold">🔄 Tekrarlayan Görev</span>
-                    </label>
-                    {newTask.tekrarlayan && (
-                      <div className="mt-2 space-y-3">
-                        <div className="flex gap-2 items-center">
-                          <input
-                            type="number"
-                            min="1"
-                            value={newTask.tekrar_sayi}
-                            onChange={(e) => setNewTask({ ...newTask, tekrar_sayi: parseInt(e.target.value) || 1 })}
-                            className="w-20 px-3 py-2 border rounded-lg"
-                          />
-                          <select value={newTask.tekrar_birim} onChange={(e) => setNewTask({ ...newTask, tekrar_birim: e.target.value })} className="flex-1 px-4 py-2 border rounded-lg">
-                            <option value="gun">Gün</option>
-                            <option value="hafta">Hafta</option>
-                            <option value="ay">Ay</option>
-                          </select>
-                          <span className="text-sm text-gray-600">de bir</span>
-                        </div>
-                        <p className="text-xs text-gray-600">
-                          Örnek: <span className="font-semibold">{newTask.tekrar_sayi} {newTask.tekrar_birim === 'gun' ? 'günde' : newTask.tekrar_birim === 'hafta' ? 'haftada' : 'ayda'} bir</span> tekrar edilecek
-                        </p>
-                      </div>
-                    )}
-                  </div>
-                  <button onClick={addTask} className="w-full px-6 py-3 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 font-semibold flex items-center justify-center gap-2"><Plus className="w-4 h-4" /> Görev Oluştur</button>
-                </div>
-              </div>
-            )}
-
-            <div className="space-y-4">
-              {tasks.filter(task => {
-                // Admin ve Şef tüm görevleri görebilir
-                if (permissions.assign_tasks) return true;
-                // Personel sadece kendine atanan görevleri görebilir
-                return task.atanan_personel_ids && task.atanan_personel_ids.includes(employee.id);
-              }).map(task => {
-                const atananPersoneller = employees.filter(e => task.atanan_personel_ids && task.atanan_personel_ids.includes(e.id));
-                const isAssignedToMe = task.atanan_personel_ids && task.atanan_personel_ids.includes(employee.id);
-                return (
-                  <div key={task.id} className="border-2 border-gray-200 rounded-lg p-4 hover:shadow-md transition">
-                    <div className="flex justify-between items-start mb-2">
-                      <div className="flex-1">
-                        <h3 className="text-lg font-bold text-gray-800">{task.baslik}</h3>
-                        <p className="text-sm text-gray-600 mt-1">{task.aciklama}</p>
-                      </div>
-                      <div className="flex gap-2">
-                        {permissions.rate_tasks && task.durum === 'tamamlandi' && !task.puan && (
-                          <select onChange={(e) => {
-                            const puan = parseInt(e.target.value);
-                            if (puan) updateTask(task.id, { puan });
-                          }} className="px-2 py-1 border rounded text-sm">
-                            <option value="">Puan Ver</option>
-                            {[1, 2, 3, 4, 5].map(p => <option key={p} value={p}>{p} ⭐</option>)}
-                          </select>
-                        )}
-                        {permissions.assign_tasks && (
-                          <button onClick={() => deleteTask(task.id)} className="px-3 py-1 bg-red-500 text-white rounded text-xs hover:bg-red-600"><Trash2 className="w-3 h-3" /></button>
-                        )}
-                      </div>
-                    </div>
-                    <div className="flex flex-wrap gap-2 mt-3">
-                      <span className={`px-3 py-1 rounded-full text-xs font-semibold ${task.durum === 'beklemede' ? 'bg-yellow-100 text-yellow-800' : task.durum === 'devam_ediyor' ? 'bg-blue-100 text-blue-800' : 'bg-green-100 text-green-800'}`}>
-                        {task.durum === 'beklemede' ? 'Beklemede' : task.durum === 'devam_ediyor' ? 'Devam Ediyor' : 'Tamamlandı'}
-                      </span>
-                      {atananPersoneller.length > 0 && (
-                        <div className="flex flex-wrap gap-1">
-                          {atananPersoneller.map(person => (
-                            <span key={person.id} className={`px-3 py-1 rounded-full text-xs font-semibold ${person.id === employee.id ? 'bg-green-100 text-green-800' : 'bg-purple-100 text-purple-800'}`}>
-                              {person.id === employee.id ? '👤 Sen' : `${person.ad} ${person.soyad}`}
-                            </span>
-                          ))}
-                        </div>
-                      )}
-                      {task.puan && (
-                        <span className="px-3 py-1 bg-orange-100 text-orange-800 rounded-full text-xs font-semibold">Puan: {task.puan} ⭐</span>
-                      )}
-                      {task.tekrarlayan && (
-                        <span className="px-3 py-1 bg-indigo-100 text-indigo-800 rounded-full text-xs font-semibold">🔄 Tekrarlayan</span>
-                      )}
-                    </div>
-                    {isAssignedToMe && task.durum !== 'tamamlandi' && (
-                      <div className="mt-3 flex gap-2">
-                        {task.durum === 'beklemede' && (
-                          <button onClick={() => updateTask(task.id, { durum: 'devam_ediyor' })} className="px-4 py-2 bg-blue-500 text-white rounded text-sm hover:bg-blue-600">Başlat</button>
-                        )}
-                        {task.durum === 'devam_ediyor' && (
-                          <button onClick={() => updateTask(task.id, { durum: 'tamamlandi' })} className="px-4 py-2 bg-green-500 text-white rounded text-sm hover:bg-green-600">Tamamla</button>
-                        )}
-                      </div>
-                    )}
-                  </div>
-                );
-              })}
-              {tasks.filter(task => {
-                if (permissions.assign_tasks) return true;
-                return task.atanan_personel_ids && task.atanan_personel_ids.includes(employee.id);
-              }).length === 0 && (
-                <div className="text-center py-8 text-gray-500">
-                  <p>Henüz görev yok</p>
-                </div>
-              )}
-            </div>
-          </div>
+          <TasksTab
+            tasks={tasks}
+            employees={employees}
+            newTask={newTask}
+            setNewTask={setNewTask}
+            addTask={addTask}
+            updateTask={updateTask}
+            deleteTask={deleteTask}
+            permissions={permissions}
+            employee={employee}
+          />
         )}
 
         {activeTab === 'maas' && permissions.view_salary && (
-          <div>
-            <div className="bg-white rounded-lg shadow p-6 mb-6">
-              <div className="flex justify-between items-center mb-6">
-                <h2 className="text-xl font-bold">💰 Maaş Yönetimi</h2>
-                <div className="flex gap-3">
-                  {(employee?.rol === 'admin' || employee?.rol === 'sistem_yoneticisi') && (
-                    <>
-                      <button onClick={() => setShowAvansModal(true)} className="px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 font-semibold flex items-center gap-2"><Plus className="w-4 h-4" /> Avans Ekle</button>
-                      <button onClick={() => setShowYemekModal(true)} className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 font-semibold flex items-center gap-2"><Plus className="w-4 h-4" /> Yemek Ücreti Ayarla</button>
-                    </>
-                  )}
-                </div>
-              </div>
-              
-              <div className="mb-6">
-                <label className="block font-semibold mb-2">Ay Seçin:</label>
-                <input type="month" value={salaryMonth} onChange={(e) => setSalaryMonth(e.target.value)} className="px-4 py-2 border rounded-lg font-semibold" />
-              </div>
-              
-              <div className="overflow-x-auto">
-                <table className="w-full text-sm">
-                  <thead className="bg-gray-50 border-b">
-                    <tr>
-                      <th className="px-4 py-2 text-left">Personel</th>
-                      <th className="px-4 py-2 text-left">Pozisyon</th>
-                      <th className="px-4 py-2 text-right">Temel Maaş</th>
-                      <th className="px-4 py-2 text-right">Günlük</th>
-                      <th className="px-4 py-2 text-right">Saatlik</th>
-                      <th className="px-4 py-2 text-center">Gün</th>
-                      <th className="px-4 py-2 text-right">Hak Eden</th>
-                      <th className="px-4 py-2 text-right">Yemek</th>
-                      <th className="px-4 py-2 text-right">Avans</th>
-                      <th className="px-4 py-2 text-right">Net Maaş</th>
-                      <th className="px-4 py-2 text-center">Detay</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {salaryData.map((record, idx) => (
-                      <tr key={idx} className={`border-b hover:bg-gray-50 ${record.toplam_maas < 0 ? 'bg-red-50' : ''}`}>
-                        <td className="px-4 py-2 font-semibold">{record.ad} {record.soyad}</td>
-                        <td className="px-4 py-2">{record.pozisyon}</td>
-                        <td className="px-4 py-2 text-right">₺{record.temel_maas.toLocaleString('tr-TR')}</td>
-                        <td className="px-4 py-2 text-right text-xs text-gray-600">₺{record.gunluk_maas.toLocaleString('tr-TR')}</td>
-                        <td className="px-4 py-2 text-right text-xs text-gray-600">₺{record.saatlik_maas.toLocaleString('tr-TR')}</td>
-                        <td className="px-4 py-2 text-center font-semibold">{record.calisilan_gun}</td>
-                        <td className="px-4 py-2 text-right font-semibold text-blue-600">₺{record.hakedilen_maas.toLocaleString('tr-TR')}</td>
-                        <td className="px-4 py-2 text-right text-green-600">+₺{record.toplam_yemek.toLocaleString('tr-TR')}</td>
-                        <td className="px-4 py-2 text-right text-red-600">-₺{record.toplam_avans.toLocaleString('tr-TR')}</td>
-                        <td className={`px-4 py-2 text-right font-bold text-lg ${record.toplam_maas < 0 ? 'text-red-600' : 'text-green-600'}`}>₺{record.toplam_maas.toLocaleString('tr-TR')}</td>
-                        <td className="px-4 py-2 text-center">
-                          <button onClick={() => setSelectedEmployeeForDetail(record)} className="px-3 py-1 bg-indigo-500 text-white rounded text-xs hover:bg-indigo-600">Detay</button>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-
-            {/* Avans Modal */}
-            {showAvansModal && (
-              <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-                <div className="bg-white rounded-lg p-6 w-full max-w-md">
-                  <h3 className="text-xl font-bold mb-4">Avans Ekle</h3>
-                  <div className="space-y-4">
-                    <select value={newAvans.employee_id} onChange={(e) => setNewAvans({ ...newAvans, employee_id: e.target.value })} className="w-full px-4 py-2 border rounded-lg">
-                      <option value="">Personel Seç</option>
-                      {employees.map(emp => (
-                        <option key={emp.id} value={emp.id}>{emp.ad} {emp.soyad}</option>
-                      ))}
-                    </select>
-                    <input type="number" placeholder="Avans Miktarı (₺)" value={newAvans.miktar} onChange={(e) => setNewAvans({ ...newAvans, miktar: e.target.value })} className="w-full px-4 py-2 border rounded-lg" />
-                    <input type="date" value={newAvans.tarih} onChange={(e) => setNewAvans({ ...newAvans, tarih: e.target.value })} className="w-full px-4 py-2 border rounded-lg" />
-                    <textarea placeholder="Açıklama" value={newAvans.aciklama} onChange={(e) => setNewAvans({ ...newAvans, aciklama: e.target.value })} className="w-full px-4 py-2 border rounded-lg" rows="3" />
-                  </div>
-                  <div className="flex gap-3 mt-6">
-                    <button onClick={addAvans} className="flex-1 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 font-semibold">Kaydet</button>
-                    <button onClick={() => setShowAvansModal(false)} className="flex-1 px-4 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 font-semibold">İptal</button>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* Yemek Ücreti Modal */}
-            {showYemekModal && (
-              <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-                <div className="bg-white rounded-lg p-6 w-full max-w-md">
-                  <h3 className="text-xl font-bold mb-4">Günlük Yemek Ücreti Ayarla</h3>
-                  <div className="space-y-4">
-                    <select value={yemekUpdate.employee_id} onChange={(e) => setYemekUpdate({ ...yemekUpdate, employee_id: e.target.value })} className="w-full px-4 py-2 border rounded-lg">
-                      <option value="">Personel Seç</option>
-                      {employees.map(emp => (
-                        <option key={emp.id} value={emp.id}>{emp.ad} {emp.soyad}</option>
-                      ))}
-                    </select>
-                    <input type="number" placeholder="Günlük Yemek Ücreti (₺)" value={yemekUpdate.gunluk_ucret} onChange={(e) => setYemekUpdate({ ...yemekUpdate, gunluk_ucret: e.target.value })} className="w-full px-4 py-2 border rounded-lg" />
-                    <p className="text-sm text-gray-600">Personelin her çalışma günü için ödenen yemek ücreti</p>
-                  </div>
-                  <div className="flex gap-3 mt-6">
-                    <button onClick={updateYemekUcreti} className="flex-1 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 font-semibold">Kaydet</button>
-                    <button onClick={() => setShowYemekModal(false)} className="flex-1 px-4 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 font-semibold">İptal</button>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* Detail Modal */}
-            {selectedEmployeeForDetail && (
-              <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-                <div className="bg-white rounded-lg p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto">
-                  <div className="flex justify-between items-center mb-4">
-                    <h3 className="text-2xl font-bold">{selectedEmployeeForDetail.ad} {selectedEmployeeForDetail.soyad} - Maaş Detayı</h3>
-                    <button onClick={() => setSelectedEmployeeForDetail(null)} className="text-gray-500 hover:text-gray-700"><X className="w-6 h-6" /></button>
-                  </div>
-                  
-                  <div className="space-y-4">
-                    <div className="bg-blue-50 p-4 rounded-lg">
-                      <h4 className="font-bold mb-2">📊 Temel Bilgiler</h4>
-                      <div className="grid grid-cols-2 gap-2 text-sm">
-                        <div>Pozisyon: <span className="font-semibold">{selectedEmployeeForDetail.pozisyon}</span></div>
-                        <div>Ay: <span className="font-semibold">{selectedEmployeeForDetail.ay}</span></div>
-                        <div>Temel Maaş: <span className="font-semibold">₺{selectedEmployeeForDetail.temel_maas.toLocaleString('tr-TR')}</span></div>
-                        <div>Günlük Maaş: <span className="font-semibold">₺{selectedEmployeeForDetail.gunluk_maas.toLocaleString('tr-TR')}</span></div>
-                        <div>Saatlik Maaş: <span className="font-semibold">₺{selectedEmployeeForDetail.saatlik_maas.toLocaleString('tr-TR')}</span></div>
-                        <div>Mesai Süresi: <span className="font-semibold">9 saat/gün</span></div>
-                      </div>
-                    </div>
-
-                    <div className="bg-green-50 p-4 rounded-lg">
-                      <h4 className="font-bold mb-2">💵 Kazançlar</h4>
-                      <div className="space-y-2 text-sm">
-                        <div className="flex justify-between">
-                          <span>Çalışılan Gün:</span>
-                          <span className="font-semibold">{selectedEmployeeForDetail.calisilan_gun} gün</span>
-                        </div>
-                        <div className="flex justify-between">
-                          <span>Çalışılan Saat:</span>
-                          <span className="font-semibold">{selectedEmployeeForDetail.calisilan_saat} saat</span>
-                        </div>
-                        <div className="flex justify-between border-t pt-2">
-                          <span>Hak Edilen Maaş:</span>
-                          <span className="font-semibold text-blue-600">₺{selectedEmployeeForDetail.hakedilen_maas.toLocaleString('tr-TR')}</span>
-                        </div>
-                        <div className="flex justify-between">
-                          <span>Yemek Ücreti ({selectedEmployeeForDetail.gunluk_yemek_ucreti}₺ x {selectedEmployeeForDetail.calisilan_gun} gün):</span>
-                          <span className="font-semibold text-green-600">+₺{selectedEmployeeForDetail.toplam_yemek.toLocaleString('tr-TR')}</span>
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className="bg-red-50 p-4 rounded-lg">
-                      <h4 className="font-bold mb-2">💳 Kesintiler</h4>
-                      <div className="space-y-2 text-sm">
-                        <div className="flex justify-between">
-                          <span>Toplam Avans:</span>
-                          <span className="font-semibold text-red-600">-₺{selectedEmployeeForDetail.toplam_avans.toLocaleString('tr-TR')}</span>
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className={`p-4 rounded-lg ${selectedEmployeeForDetail.toplam_maas < 0 ? 'bg-red-100' : 'bg-green-100'}`}>
-                      <h4 className="font-bold mb-2">💰 Net Maaş</h4>
-                      <div className="text-2xl font-bold text-center">
-                        <span className={selectedEmployeeForDetail.toplam_maas < 0 ? 'text-red-600' : 'text-green-600'}>
-                          ₺{selectedEmployeeForDetail.toplam_maas.toLocaleString('tr-TR')}
-                        </span>
-                      </div>
-                      {selectedEmployeeForDetail.toplam_maas < 0 && (
-                        <p className="text-center text-sm text-red-600 mt-2">⚠️ Personelin borcu var!</p>
-                      )}
-                    </div>
-
-                    {/* Avans Geçmişi */}
-                    <div className="bg-gray-50 p-4 rounded-lg">
-                      <h4 className="font-bold mb-2">📋 Avans Geçmişi ({selectedEmployeeForDetail.ay})</h4>
-                      <div className="space-y-2">
-                        {avansData.filter(a => a.employee_id === selectedEmployeeForDetail.employee_id && a.tarih.startsWith(selectedEmployeeForDetail.ay)).map(avans => (
-                          <div key={avans.id} className="flex justify-between items-center bg-white p-2 rounded text-sm">
-                            <div>
-                              <div className="font-semibold">₺{avans.miktar.toLocaleString('tr-TR')}</div>
-                              <div className="text-xs text-gray-600">{avans.tarih} - {avans.aciklama}</div>
-                            </div>
-                            {(employee?.rol === 'admin' || employee?.rol === 'sistem_yoneticisi') && (
-                              <button onClick={() => { deleteAvans(avans.id); setSelectedEmployeeForDetail(null); }} className="px-2 py-1 bg-red-500 text-white rounded text-xs hover:bg-red-600"><Trash2 className="w-3 h-3" /></button>
-                            )}
-                          </div>
-                        ))}
-                        {avansData.filter(a => a.employee_id === selectedEmployeeForDetail.employee_id && a.tarih.startsWith(selectedEmployeeForDetail.ay)).length === 0 && (
-                          <p className="text-sm text-gray-500 text-center">Avans kaydı yok</p>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                  
-                  <button onClick={() => setSelectedEmployeeForDetail(null)} className="mt-6 w-full px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 font-semibold">Kapat</button>
-                </div>
-              </div>
-            )}
-          </div>
+          <SalaryTab
+            salaryData={salaryData}
+            salaryError={salaryError}
+            fetchSalaryData={fetchSalaryData}
+            salaryMonth={salaryMonth}
+            setSalaryMonth={setSalaryMonth}
+            employees={employees}
+            newAvans={newAvans}
+            setNewAvans={setNewAvans}
+            addAvans={addAvans}
+            deleteAvans={deleteAvans}
+            yemekUpdate={yemekUpdate}
+            setYemekUpdate={setYemekUpdate}
+            updateYemekUcreti={updateYemekUcreti}
+            avansData={avansData}
+            showAvansModal={showAvansModal}
+            setShowAvansModal={setShowAvansModal}
+            showYemekModal={showYemekModal}
+            setShowYemekModal={setShowYemekModal}
+            selectedEmployeeForDetail={selectedEmployeeForDetail}
+            setSelectedEmployeeForDetail={setSelectedEmployeeForDetail}
+            employee={employee}
+          />
         )}
 
         {activeTab === 'personel' && employee?.rol === 'admin' && (
-          <div>
-            <div className="bg-white rounded-lg shadow p-6 mb-6">
-              <h2 className="text-xl font-bold mb-4">➕ Yeni Personel Ekle</h2>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <input type="text" placeholder="Ad" value={newEmployee.ad} onChange={(e) => setNewEmployee({ ...newEmployee, ad: e.target.value })} className="px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500" />
-                <input type="text" placeholder="Soyad" value={newEmployee.soyad} onChange={(e) => setNewEmployee({ ...newEmployee, soyad: e.target.value })} className="px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500" />
-                <input type="email" placeholder="E-mail" value={newEmployee.email} onChange={(e) => setNewEmployee({ ...newEmployee, email: e.target.value })} className="px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500" />
-                <input type="text" placeholder="Personel ID (4 haneli rakam)" maxLength="4" value={newEmployee.employee_id} onChange={(e) => {
-                  const value = e.target.value.replace(/\D/g, '');
-                  setNewEmployee({ ...newEmployee, employee_id: value });
-                }} className="px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500" />
-                <input type="text" placeholder="Pozisyon" value={newEmployee.pozisyon} onChange={(e) => setNewEmployee({ ...newEmployee, pozisyon: e.target.value })} className="px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500" />
-                <input type="number" placeholder="Maaş (₺)" value={newEmployee.maas_tabani} onChange={(e) => setNewEmployee({ ...newEmployee, maas_tabani: e.target.value })} className="px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500" />
-                <select value={newEmployee.rol} onChange={(e) => setNewEmployee({ ...newEmployee, rol: e.target.value })} className="px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500">
-                  {roles.map(role => (
-                    <option key={role.id} value={role.id}>{role.name}</option>
-                  ))}
-                </select>
-              </div>
-              <button onClick={addEmployee} className="mt-4 w-full px-6 py-3 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 font-semibold flex items-center justify-center gap-2"><Plus className="w-4 h-4" /> Personel Ekle</button>
-            </div>
-
-            <div className="bg-white rounded-lg shadow p-6">
-              <h2 className="text-xl font-bold mb-4">📋 Personel Listesi</h2>
-              <div className="overflow-x-auto">
-                <table className="w-full text-sm">
-                  <thead className="bg-gray-50 border-b">
-                    <tr>
-                      <th className="px-4 py-2 text-left">ID</th>
-                      <th className="px-4 py-2 text-left">Ad Soyad</th>
-                      <th className="px-4 py-2 text-left">E-mail</th>
-                      <th className="px-4 py-2 text-left">Pozisyon</th>
-                      <th className="px-4 py-2 text-left">Maaş (₺)</th>
-                      <th className="px-4 py-2 text-left">Rol</th>
-                      <th className="px-4 py-2 text-left">İşlemler</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {employees.map(emp => (
-                      <tr key={emp.id} className={editingEmployee === emp.id ? 'bg-blue-50' : 'border-b hover:bg-gray-50'}>
-                        {editingEmployee === emp.id ? (
-                          <>
-                            <td className="px-4 py-2">
-                              <input type="text" maxLength="4" value={editData.employee_id} onChange={(e) => {
-                                const value = e.target.value.replace(/\D/g, '');
-                                setEditData({ ...editData, employee_id: value });
-                              }} className="w-full px-2 py-1 border rounded" />
-                            </td>
-                            <td className="px-4 py-2">
-                              <input type="text" value={editData.ad} onChange={(e) => setEditData({ ...editData, ad: e.target.value })} className="w-full px-2 py-1 border rounded mb-1" />
-                              <input type="text" value={editData.soyad} onChange={(e) => setEditData({ ...editData, soyad: e.target.value })} className="w-full px-2 py-1 border rounded" />
-                            </td>
-                            <td className="px-4 py-2">
-                              <input type="email" value={editData.email} onChange={(e) => setEditData({ ...editData, email: e.target.value })} className="w-full px-2 py-1 border rounded" />
-                            </td>
-                            <td className="px-4 py-2">
-                              <input type="text" value={editData.pozisyon} onChange={(e) => setEditData({ ...editData, pozisyon: e.target.value })} className="w-full px-2 py-1 border rounded" />
-                            </td>
-                            <td className="px-4 py-2">
-                              <input type="number" value={editData.maas_tabani} onChange={(e) => setEditData({ ...editData, maas_tabani: e.target.value })} className="w-full px-2 py-1 border rounded" />
-                            </td>
-                            <td className="px-4 py-2">
-                              <select value={editData.rol} onChange={(e) => setEditData({ ...editData, rol: e.target.value })} className="w-full px-2 py-1 border rounded">
-                                {roles.map(role => (
-                                  <option key={role.id} value={role.id}>{role.name}</option>
-                                ))}
-                              </select>
-                            </td>
-                            <td className="px-4 py-2 flex gap-2">
-                              <button onClick={saveEmployee} className="px-3 py-1 bg-green-500 text-white rounded text-xs hover:bg-green-600 font-semibold flex items-center gap-1"><Check className="w-3 h-3" /> Kaydet</button>
-                              <button onClick={() => setEditingEmployee(null)} className="px-3 py-1 bg-gray-500 text-white rounded text-xs hover:bg-gray-600 font-semibold flex items-center gap-1"><X className="w-3 h-3" /> İptal</button>
-                            </td>
-                          </>
-                        ) : (
-                          <>
-                            <td className="px-4 py-2 font-bold text-indigo-600">{emp.employee_id}</td>
-                            <td className="px-4 py-2 font-semibold">{emp.ad} {emp.soyad}</td>
-                            <td className="px-4 py-2">{emp.email}</td>
-                            <td className="px-4 py-2">{emp.pozisyon}</td>
-                            <td className="px-4 py-2">₺{emp.maas_tabani.toLocaleString('tr-TR')}</td>
-                            <td className="px-4 py-2"><span className="px-2 py-1 bg-indigo-100 text-indigo-700 rounded text-xs font-semibold">{roles.find(r => r.id === emp.rol)?.name}</span></td>
-                            <td className="px-4 py-2 flex gap-2">
-                              <button onClick={() => startEditEmployee(emp)} className="px-3 py-1 bg-blue-500 text-white rounded text-xs hover:bg-blue-600 font-semibold flex items-center gap-1"><Edit2 className="w-3 h-3" /> Düzenle</button>
-                              <button onClick={() => deleteEmployee(emp.id)} className="px-3 py-1 bg-red-500 text-white rounded text-xs hover:bg-red-600 font-semibold flex items-center gap-1"><Trash2 className="w-3 h-3" /> Sil</button>
-                            </td>
-                          </>
-                        )}
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-
-            <div className="bg-white rounded-lg shadow p-6 mt-6">
-              <h2 className="text-xl font-bold mb-4">📋 Kiosk Giriş-Çıkış Geçmişi</h2>
-              <div className="overflow-x-auto">
-                <table className="w-full text-sm">
-                  <thead className="bg-gray-50 border-b">
-                    <tr>
-                      <th className="px-4 py-2 text-left">Personel</th>
-                      <th className="px-4 py-2 text-left">ID</th>
-                      <th className="px-4 py-2 text-left">Tarih</th>
-                      <th className="px-4 py-2 text-left">Giriş</th>
-                      <th className="px-4 py-2 text-left">Çıkış</th>
-                      <th className="px-4 py-2 text-left">Çalışılan Saat</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {attendance.map(att => (
-                      <tr key={att.id} className="border-b hover:bg-gray-50">
-                        <td className="px-4 py-2 font-semibold">{att.ad} {att.soyad}</td>
-                        <td className="px-4 py-2 font-bold text-indigo-600">{att.employee_id}</td>
-                        <td className="px-4 py-2">{att.tarih}</td>
-                        <td className="px-4 py-2">{att.giris_saati ? new Date(att.giris_saati).toLocaleTimeString('tr-TR') : '-'}</td>
-                        <td className="px-4 py-2">{att.cikis_saati ? new Date(att.cikis_saati).toLocaleTimeString('tr-TR') : '-'}</td>
-                        <td className="px-4 py-2 font-semibold">{att.calisilan_saat > 0 ? `${att.calisilan_saat}h` : '-'}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {activeTab === 'stok' && permissions.can_view_stock && !STOCK_ENABLED && (
-          <div className="bg-white rounded-lg shadow p-6 mb-6">
-            <h2 className="text-xl font-bold mb-2">📦 Stok — Yakında</h2>
-            <div className="text-gray-600">Stok modülü geçici olarak devre dışı bırakıldı. Yakında tekrar aktif olacak.</div>
-          </div>
+          <PersonnelTab
+            employees={employees}
+            roles={roles}
+            newEmployee={newEmployee}
+            setNewEmployee={setNewEmployee}
+            addEmployee={addEmployee}
+            editingEmployee={editingEmployee}
+            setEditingEmployee={setEditingEmployee}
+            editData={editData}
+            setEditData={setEditData}
+            saveEmployee={saveEmployee}
+            deleteEmployee={deleteEmployee}
+            startEditEmployee={startEditEmployee}
+            attendance={attendance}
+          />
         )}
 
         {activeTab === 'stok' && permissions.can_view_stock && STOCK_ENABLED && (
-          <div>
-            {/* Stock Export / Import (top of Stok page) */}
-            <div className="bg-white rounded-lg shadow p-6 mb-6">
-              <h2 className="text-xl font-bold mb-4">📥/📤 Stok - Excel İşlemleri</h2>
-              <div className="flex flex-col md:flex-row gap-4 items-start">
-                <div className="flex gap-2">
-                  <button onClick={downloadStok} className="px-4 py-2 bg-indigo-600 text-white rounded hover:bg-indigo-700">Stok İndir (.xlsx)</button>
-                  <button onClick={downloadStokTemplate} className="px-4 py-2 bg-gray-600 text-white rounded hover:bg-gray-700">Şablon İndir</button>
-                </div>
-                <div className="flex items-center gap-2">
-                  <input type="file" accept=".xlsx,.xls" onChange={(e) => setStokImportFile(e.target.files?.[0] || null)} />
-                  <button onClick={uploadStokFile} className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700">Toplu Yükle</button>
-                </div>
-              </div>
-            </div>
-            {permissions.can_manage_categories && (
-              // Category Management
-              <div className="bg-white rounded-lg shadow p-6 mb-6">
-                <h2 className="text-xl font-bold mb-4">🏷️ Kategori Yönetimi</h2>
-                <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-4">
-                  <input 
-                    type="text" 
-                    placeholder="Kategori Adı (ör: Sebze)" 
-                    value={newStokKategori.ad} 
-                    onChange={(e) => setNewStokKategori({ ...newStokKategori, ad: e.target.value })} 
-                    className="px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500" 
-                  />
-                  <input 
-                    type="color" 
-                    value={newStokKategori.renk} 
-                    onChange={(e) => setNewStokKategori({ ...newStokKategori, renk: e.target.value })} 
-                    className="px-2 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 h-11" 
-                    title="Kategori Rengi"
-                  />
-                  <button 
-                    onClick={addStokKategori} 
-                    className="px-6 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 font-semibold flex items-center justify-center gap-2"
-                  >
-                    <Plus className="w-4 h-4" /> Kategori Ekle
-                  </button>
-                </div>
-                <div className="overflow-x-auto">
-                  <table className="w-full text-sm">
-                    <thead className="bg-gray-50 border-b">
-                      <tr>
-                        <th className="px-4 py-2 text-left">ID</th>
-                        <th className="px-4 py-2 text-left">Kategori Adı</th>
-                        <th className="px-4 py-2 text-left">Renk</th>
-                        <th className="px-4 py-2 text-left">İşlemler</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {stokKategoriler.map(kategori => (
-                        <tr key={kategori.id} className="border-b hover:bg-gray-50">
-                          {editingStokKategori?.id === kategori.id ? (
-                            <>
-                              <td className="px-4 py-2 font-bold text-indigo-600">{kategori.id}</td>
-                              <td className="px-4 py-2">
-                                <input 
-                                  type="text" 
-                                  value={editingStokKategori.ad} 
-                                  onChange={(e) => setEditingStokKategori({ ...editingStokKategori, ad: e.target.value })} 
-                                  className="w-full px-2 py-1 border rounded text-sm"
-                                />
-                              </td>
-                              <td className="px-4 py-2">
-                                <input 
-                                  type="color" 
-                                  value={editingStokKategori.renk} 
-                                  onChange={(e) => setEditingStokKategori({ ...editingStokKategori, renk: e.target.value })} 
-                                  className="w-16 h-8 border rounded"
-                                />
-                              </td>
-                              <td className="px-4 py-2 flex gap-2">
-                                <button 
-                                  onClick={updateStokKategori} 
-                                  className="px-3 py-1 bg-green-500 text-white rounded text-xs hover:bg-green-600 font-semibold"
-                                >
-                                  Kaydet
-                                </button>
-                                <button 
-                                  onClick={() => setEditingStokKategori(null)} 
-                                  className="px-3 py-1 bg-gray-500 text-white rounded text-xs hover:bg-gray-600 font-semibold"
-                                >
-                                  İptal
-                                </button>
-                              </td>
-                            </>
-                          ) : (
-                            <>
-                              <td className="px-4 py-2 font-bold text-indigo-600">{kategori.id}</td>
-                              <td className="px-4 py-2 font-semibold">{kategori.ad}</td>
-                              <td className="px-4 py-2">
-                                <div className="flex items-center gap-2">
-                                  <div style={{backgroundColor: kategori.renk}} className="w-8 h-8 rounded border"></div>
-                                  <span className="text-xs text-gray-600">{kategori.renk}</span>
-                                </div>
-                              </td>
-                              <td className="px-4 py-2 flex gap-2">
-                                <button 
-                                  onClick={() => startEditStokKategori(kategori)} 
-                                  className="px-3 py-1 bg-blue-500 text-white rounded text-xs hover:bg-blue-600 font-semibold flex items-center gap-1"
-                                >
-                                  <Edit2 className="w-3 h-3" /> Düzenle
-                                </button>
-                                <button 
-                                  onClick={() => deleteStokKategori(kategori.id)} 
-                                  className="px-3 py-1 bg-red-500 text-white rounded text-xs hover:bg-red-600 font-semibold flex items-center gap-1"
-                                >
-                                  <Trash2 className="w-3 h-3" /> Sil
-                                </button>
-                              </td>
-                            </>
-                          )}
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-            )}
-
-            {/* Units Management */}
-            <div className="bg-white rounded-lg shadow p-6 mb-6">
-              <h2 className="text-xl font-bold mb-4">📏 Birim Yönetimi</h2>
-              {permissions.can_add_stock_unit && (
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
-                  <input 
-                    type="text" 
-                    placeholder="Birim Adı (ör: Kilogram)" 
-                    value={newStokBirim.ad} 
-                    onChange={(e) => setNewStokBirim({ ...newStokBirim, ad: e.target.value })} 
-                    className="px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500" 
-                  />
-                  <input 
-                    type="text" 
-                    placeholder="Kısaltma (ör: kg)" 
-                    value={newStokBirim.kisaltma} 
-                    onChange={(e) => setNewStokBirim({ ...newStokBirim, kisaltma: e.target.value })} 
-                    className="px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500" 
-                  />
-                  <button 
-                    onClick={addStokBirim} 
-                    className="px-6 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 font-semibold flex items-center justify-center gap-2"
-                  >
-                    <Plus className="w-4 h-4" /> Birim Ekle
-                  </button>
-                </div>
-              )}
-              <div className="overflow-x-auto">
-                <table className="w-full text-sm">
-                  <thead className="bg-gray-50 border-b">
-                    <tr>
-                      <th className="px-4 py-2 text-left">ID</th>
-                      <th className="px-4 py-2 text-left">Birim Adı</th>
-                      <th className="px-4 py-2 text-left">Kısaltma</th>
-                      {permissions.can_delete_stock_unit && <th className="px-4 py-2 text-left">İşlem</th>}
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {stokBirimler.map(birim => (
-                      <tr key={birim.id} className="border-b hover:bg-gray-50">
-                        <td className="px-4 py-2 font-bold text-indigo-600">{birim.id}</td>
-                        <td className="px-4 py-2 font-semibold">{birim.ad}</td>
-                        <td className="px-4 py-2">{birim.kisaltma}</td>
-                        {permissions.can_delete_stock_unit && (
-                          <td className="px-4 py-2">
-                            <button 
-                              onClick={() => deleteStokBirim(birim.id)} 
-                              className="px-3 py-1 bg-red-500 text-white rounded text-xs hover:bg-red-600 font-semibold flex items-center gap-1"
-                            >
-                              <Trash2 className="w-3 h-3" /> Sil
-                            </button>
-                          </td>
-                        )}
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-
-            {/* Products Management */}
-            <div className="bg-white rounded-lg shadow p-6 mb-6">
-              <h2 className="text-xl font-bold mb-4">📦 Ürün Yönetimi</h2>
-              {permissions.can_add_stock_product && (
-                <div className="grid grid-cols-1 md:grid-cols-5 gap-4 mb-4">
-                  <input 
-                    type="text" 
-                    placeholder="Ürün Adı" 
-                    value={newStokUrun.ad} 
-                    onChange={(e) => setNewStokUrun({ ...newStokUrun, ad: e.target.value })} 
-                    className="px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500" 
-                  />
-                  <select 
-                    value={newStokUrun.birim_id} 
-                    onChange={(e) => setNewStokUrun({ ...newStokUrun, birim_id: e.target.value })} 
-                    className="px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                  >
-                    <option value="">Birim Seçin</option>
-                    {stokBirimler.map(birim => (
-                      <option key={birim.id} value={birim.id}>{birim.ad} ({birim.kisaltma})</option>
-                    ))}
-                  </select>
-                  <select 
-                    value={newStokUrun.kategori_id} 
-                    onChange={(e) => setNewStokUrun({ ...newStokUrun, kategori_id: e.target.value })} 
-                    className="px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                  >
-                    <option value="">Kategori Seçin</option>
-                    {stokKategoriler.map(kategori => (
-                      <option key={kategori.id} value={kategori.id}>{kategori.ad}</option>
-                    ))}
-                  </select>
-                  <input 
-                    type="number" 
-                    placeholder="Min Stok" 
-                    value={newStokUrun.min_stok} 
-                    onChange={(e) => setNewStokUrun({ ...newStokUrun, min_stok: e.target.value })} 
-                    className="px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500" 
-                  />
-                  <button 
-                    onClick={addStokUrun} 
-                    className="px-6 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 font-semibold flex items-center justify-center gap-2"
-                  >
-                    <Plus className="w-4 h-4" /> Ürün Ekle
-                  </button>
-                </div>
-              )}
-              <div className="overflow-x-auto">
-                <table className="w-full text-sm">
-                  <thead className="bg-gray-50 border-b">
-                    <tr>
-                      <th className="px-4 py-2 text-left">ID</th>
-                      <th className="px-4 py-2 text-left">Ürün Adı</th>
-                      <th className="px-4 py-2 text-left">Birim</th>
-                      <th className="px-4 py-2 text-left">Kategori</th>
-                      <th className="px-4 py-2 text-left">Min Stok</th>
-                      {(permissions.can_edit_stock_product || permissions.can_delete_stock_product) && (
-                        <th className="px-4 py-2 text-left">İşlemler</th>
-                      )}
-                    </tr>
-                  </thead>
-                      <tbody>
-                        {stokUrunler.map(urun => (
-                          <tr key={urun.id} className="border-b hover:bg-gray-50">
-                            {editingStokUrun?.id === urun.id ? (
-                              <>
-                                <td className="px-4 py-2 font-bold text-indigo-600">{urun.id}</td>
-                                <td className="px-4 py-2">
-                                  <input 
-                                    type="text" 
-                                    value={editingStokUrun.ad} 
-                                    onChange={(e) => setEditingStokUrun({ ...editingStokUrun, ad: e.target.value })} 
-                                    className="w-full px-2 py-1 border rounded text-sm"
-                                  />
-                                </td>
-                                <td className="px-4 py-2">
-                                  <select 
-                                    value={editingStokUrun.birim_id} 
-                                    onChange={(e) => setEditingStokUrun({ ...editingStokUrun, birim_id: e.target.value })} 
-                                    className="w-full px-2 py-1 border rounded text-sm"
-                                  >
-                                    {stokBirimler.map(birim => (
-                                      <option key={birim.id} value={birim.id}>{birim.kisaltma}</option>
-                                    ))}
-                                  </select>
-                                </td>
-                                <td className="px-4 py-2">
-                                  <select 
-                                    value={editingStokUrun.kategori_id} 
-                                    onChange={(e) => setEditingStokUrun({ ...editingStokUrun, kategori_id: e.target.value })} 
-                                    className="w-full px-2 py-1 border rounded text-sm"
-                                  >
-                                    {stokKategoriler.map(kategori => (
-                                      <option key={kategori.id} value={kategori.id}>{kategori.ad}</option>
-                                    ))}
-                                  </select>
-                                </td>
-                                <td className="px-4 py-2">
-                                  <input 
-                                    type="number" 
-                                    value={editingStokUrun.min_stok} 
-                                    onChange={(e) => setEditingStokUrun({ ...editingStokUrun, min_stok: e.target.value })} 
-                                    className="w-full px-2 py-1 border rounded text-sm"
-                                  />
-                                </td>
-                                <td className="px-4 py-2 flex gap-2">
-                                  <button 
-                                    onClick={updateStokUrun} 
-                                    className="px-3 py-1 bg-green-500 text-white rounded text-xs hover:bg-green-600 font-semibold"
-                                  >
-                                    Kaydet
-                                  </button>
-                                  <button 
-                                    onClick={() => setEditingStokUrun(null)} 
-                                    className="px-3 py-1 bg-gray-500 text-white rounded text-xs hover:bg-gray-600 font-semibold"
-                                  >
-                                    İptal
-                                  </button>
-                                </td>
-                              </>
-                            ) : (
-                              <>
-                                <td className="px-4 py-2 font-bold text-indigo-600">{urun.id}</td>
-                                <td className="px-4 py-2 font-semibold">{urun.ad}</td>
-                                <td className="px-4 py-2">{stokBirimler.find(b => b.id === urun.birim_id)?.kisaltma}</td>
-                                <td className="px-4 py-2">
-                                  {(() => {
-                                    const kategori = stokKategoriler.find(k => k.id === urun.kategori_id);
-                                    return kategori ? (
-                                      <span 
-                                        className="px-2 py-1 rounded text-xs font-semibold text-white"
-                                        style={{backgroundColor: kategori.renk}}
-                                      >
-                                        {kategori.ad}
-                                      </span>
-                                    ) : <span className="text-gray-400">-</span>;
-                                  })()}
-                                </td>
-                                <td className="px-4 py-2">{urun.min_stok}</td>
-                                {(permissions.can_edit_stock_product || permissions.can_delete_stock_product) && (
-                                  <td className="px-4 py-2 flex gap-2">
-                                    {permissions.can_edit_stock_product && (
-                                      <button 
-                                        onClick={() => startEditStokUrun(urun)} 
-                                        className="px-3 py-1 bg-blue-500 text-white rounded text-xs hover:bg-blue-600 font-semibold flex items-center gap-1"
-                                      >
-                                        <Edit2 className="w-3 h-3" /> Düzenle
-                                      </button>
-                                    )}
-                                    {permissions.can_delete_stock_product && (
-                                      <button 
-                                        onClick={() => deleteStokUrun(urun.id)} 
-                                        className="px-3 py-1 bg-red-500 text-white rounded text-xs hover:bg-red-600 font-semibold flex items-center gap-1"
-                                      >
-                                        <Trash2 className="w-3 h-3" /> Sil
-                                      </button>
-                                    )}
-                                  </td>
-                                )}
-                              </>
-                            )}
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                </div>
-
-                {/* Current Stock Status */}
-                <div className="bg-white rounded-lg shadow p-6">
-                  <h2 className="text-xl font-bold mb-4">📊 Mevcut Stok Durumu</h2>
-                  <div className="overflow-x-auto">
-                    <table className="w-full text-sm">
-                      <thead className="bg-gray-50 border-b">
-                        <tr>
-                          <th className="px-4 py-2 text-left">Ürün</th>
-                          <th className="px-4 py-2 text-left">Kategori</th>
-                          <th className="px-4 py-2 text-left">Mevcut Miktar</th>
-                          <th className="px-4 py-2 text-left">Min Stok</th>
-                          <th className="px-4 py-2 text-left">Durum</th>
-                          <th className="px-4 py-2 text-left">Son Sayım</th>
-                          {permissions.can_perform_stock_count && <th className="px-4 py-2 text-left">İşlem</th>}
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {stokDurum.map(item => (
-                          <tr key={item.urun.id} className={`border-b hover:bg-gray-50 ${item.durum === 'kritik' ? 'bg-red-50' : ''}`}>
-                            <td className="px-4 py-2 font-semibold">{item.urun.ad}</td>
-                            <td className="px-4 py-2">
-                              {item.kategori ? (
-                                <span 
-                                  className="px-2 py-1 rounded text-xs font-semibold text-white"
-                                  style={{backgroundColor: item.kategori.renk}}
-                                >
-                                  {item.kategori.ad}
-                                </span>
-                              ) : <span className="text-gray-400">-</span>}
-                            </td>
-                            <td className="px-4 py-2 font-bold">{item.stok_miktar} {item.birim?.kisaltma}</td>
-                            <td className="px-4 py-2">{item.urun.min_stok} {item.birim?.kisaltma}</td>
-                            <td className="px-4 py-2">
-                              <span className={`px-2 py-1 rounded text-xs font-semibold ${
-                                item.durum === 'kritik' ? 'bg-red-500 text-white' : 'bg-green-100 text-green-700'
-                              }`}>
-                                {item.durum === 'kritik' ? '⚠️ KRİTİK' : '✅ Normal'}
-                              </span>
-                            </td>
-                            <td className="px-4 py-2 text-xs text-gray-600">
-                              {item.son_sayim ? item.son_sayim.tarih : 'Henüz sayım yok'}
-                            </td>
-                            {permissions.can_perform_stock_count && (
-                              <td className="px-4 py-2">
-                                <button 
-                                  onClick={() => {
-                                    setStokSayimData({ [item.urun.id]: item.stok_miktar });
-                                    setShowStokSayimModal(true);
-                                  }}
-                                  className="px-3 py-1 bg-indigo-500 text-white rounded text-xs hover:bg-indigo-600 font-semibold"
-                                >
-                                  Sayım Yap
-                                </button>
-                              </td>
-                            )}
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                </div>
-
-            {/* Stock Count Modal */}
-            {showStokSayimModal && (
-              <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-                <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[80vh] overflow-y-auto">
-                  <div className="sticky top-0 bg-white border-b px-6 py-4">
-                    <h3 className="text-xl font-bold">📦 Stok Sayımı</h3>
-                  </div>
-                  <div className="px-6 py-4">
-                    <p className="text-gray-600 mb-4">Sayım yapmak istediğiniz ürünler için miktarları girin:</p>
-                    <div className="space-y-3">
-                      {stokDurum.map(item => (
-                        <div key={item.urun.id} className="flex items-center gap-4 border-b pb-3">
-                          <div className="flex-1">
-                            <p className="font-semibold">{item.urun.ad}</p>
-                            <p className="text-xs text-gray-500">Mevcut: {item.stok_miktar} {item.birim?.kisaltma}</p>
-                          </div>
-                          <div className="flex items-center gap-2">
-                            <input 
-                              type="number" 
-                              step="0.01"
-                              placeholder="Yeni miktar"
-                              value={stokSayimData[item.urun.id] || ''}
-                              onChange={(e) => setStokSayimData({ ...stokSayimData, [item.urun.id]: e.target.value })}
-                              className="w-32 px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                            />
-                            <span className="text-sm text-gray-600">{item.birim?.kisaltma}</span>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                  <div className="sticky bottom-0 bg-gray-50 px-6 py-4 flex gap-3">
-                    <button 
-                      onClick={saveStokSayim}
-                      className="flex-1 px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 font-semibold"
-                    >
-                      ✅ Sayımı Kaydet
-                    </button>
-                    <button 
-                      onClick={() => {
-                        setShowStokSayimModal(false);
-                        setStokSayimData({});
-                      }}
-                      className="px-6 py-3 bg-gray-500 text-white rounded-lg hover:bg-gray-600 font-semibold"
-                    >
-                      İptal
-                    </button>
-                  </div>
-                </div>
-              </div>
-            )}
-          </div>
+          <StockTab
+            permissions={permissions}
+            stokKategoriler={stokKategoriler}
+            stokBirimler={stokBirimler}
+            stokUrunler={stokUrunler}
+            stokDurum={stokDurum}
+            newStokKategori={newStokKategori}
+            setNewStokKategori={setNewStokKategori}
+            addStokKategori={addStokKategori}
+            deleteStokKategori={deleteStokKategori}
+            startEditStokKategori={startEditStokKategori}
+            editingStokKategori={editingStokKategori}
+            setEditingStokKategori={setEditingStokKategori}
+            updateStokKategori={updateStokKategori}
+            newStokBirim={newStokBirim}
+            setNewStokBirim={setNewStokBirim}
+            addStokBirim={addStokBirim}
+            deleteStokBirim={deleteStokBirim}
+            newStokUrun={newStokUrun}
+            setNewStokUrun={setNewStokUrun}
+            addStokUrun={addStokUrun}
+            editingStokUrun={editingStokUrun}
+            startEditStokUrun={startEditStokUrun}
+            updateStokUrun={updateStokUrun}
+            setEditingStokUrun={setEditingStokUrun}
+            deleteStokUrun={deleteStokUrun}
+            stokSayimData={stokSayimData}
+            setStokSayimData={setStokSayimData}
+            showStokSayimModal={showStokSayimModal}
+            setShowStokSayimModal={setShowStokSayimModal}
+            saveStokSayim={saveStokSayim}
+            downloadStok={downloadStok}
+            uploadStokFile={uploadStokFile}
+            setStokImportFile={setStokImportFile}
+            downloadStokTemplate={downloadStokTemplate}
+          />
         )}
       </div>
     </div>
