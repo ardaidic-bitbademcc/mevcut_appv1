@@ -335,22 +335,8 @@ export default function Dashboard() {
     // If backend wrapped response differently, try common shapes
     const employeeObj = userData.employee || userData.data || userData;
 
-    // Fetch external HR permissions synchronously as part of login so sidebar/permissions are available immediately
-    let externalPerms = {};
-    try {
-      console.time('hrAdapter_fetch');
-      const { getPermissionsForStaff } = await import('./lib/hrAdapter');
-      externalPerms = await getPermissionsForStaff(employeeObj.id);
-      console.timeEnd('hrAdapter_fetch');
-    } catch (e) {
-      // adapter may not exist or endpoint not available; ignore gracefully
-      console.warn('hrAdapter fetch skipped or failed (expected during backend setup)', e?.response?.status || e?.message || e);
-      console.timeEnd('hrAdapter_fetch');
-    }
-
-    if (externalPerms && Object.keys(externalPerms).length > 0) {
-      setExternalPermissions(externalPerms);
-    }
+    // Removed synchronous fetch of external permissions;
+    // usePermissions hook will fetch this data automatically when `employee` state is set.
 
     // set user/employee/company quickly so UI can render
     setUser({ id: employeeObj.id, email: employeeObj.email || loginData.email });
