@@ -1,0 +1,2 @@
+yarn run v1.22.22
+$ node ./node_modules/@craco/craco/dist/bin/craco.js start

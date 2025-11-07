@@ -78,13 +78,40 @@ export default function Dashboard() {
   const [stokSayimData, setStokSayimData] = useState({});
   const [editingStokUrun, setEditingStokUrun] = useState(null);
   const [editingStokKategori, setEditingStokKategori] = useState(null);
-  
-
-  // REMOVED: fetchData function - now using demo data directly in useEffect
+  const fetchData = async () => {
+    try {
+      const [
+        employeesRes,
+        rolesRes,
+        shiftTypesRes,
+        attendanceRes,
+        leaveRes,
+        shiftCalendarRes,
+        tasksRes
+      ] = await Promise.all([
+        axios.get(`${API}/employees`),
+        axios.get(`${API}/roles`),
+        axios.get(`${API}/shift-types`),
+        axios.get(`${API}/attendance`),
+        axios.get(`${API}/leave-records`),
+        axios.get(`${API}/shift-calendar`),
+        axios.get(`${API}/tasks`)
+      ]);
+      setEmployees(employeesRes.data);
+      setRoles(rolesRes.data);
+      setShiftTypes(shiftTypesRes.data);
+      setAttendance(attendanceRes.data);
+      setLeaveRecords(leaveRes.data);
+      setShiftCalendar(shiftCalendarRes.data);
+      setTasks(tasksRes.data);
+    } catch (error) {
+      console.error('Veri getirme hatası:', error);
+    }
+  };
 
   useEffect(() => {
     if (user) {
-      // Data is now set directly in the useEffect below - no need to fetch
+      fetchData();
       if (activeTab === 'stok' && STOCK_ENABLED) {
         fetchStokData();
       }
@@ -144,34 +171,6 @@ export default function Dashboard() {
     }
   }, [user]);
 
-  // TEMPORARILY DISABLE problematic APIs - use demo data instead
-  useEffect(() => {
-    if (user) {
-      // Set demo data directly instead of API calls
-      setShiftTypes([
-        { id: 1, name: 'Sabah Vardiyası', start: '08:00', end: '16:00', color: 'bg-blue-500' },
-        { id: 2, name: 'Öğle Vardiyası', start: '12:00', end: '20:00', color: 'bg-green-500' },
-        { id: 3, name: 'Gece Vardiyası', start: '20:00', end: '04:00', color: 'bg-purple-500' }
-      ]);
-      
-      setAttendance([
-        { id: 1, employee_id: '1', employee_name: 'Demo User', date: new Date().toISOString().split('T')[0], check_in: '08:30', status: 'present' }
-      ]);
-      
-      setLeaveRecords([
-        { id: 1, employee_id: '1', leave_type: 'annual', start_date: '2025-11-10', end_date: '2025-11-12', status: 'approved' }
-      ]);
-      
-      setShiftCalendar([
-        { id: 1, employee_id: '1', shift_name: 'Sabah Vardiyası', date: new Date().toISOString().split('T')[0], start_time: '08:00', end_time: '16:00' }
-      ]);
-      
-      setTasks([
-        { id: 1, baslik: 'Mutfak Temizliği', aciklama: 'Günlük temizlik', durum: 'pending', atanan_personel_ids: ['1'] },
-        { id: 2, baslik: 'Stok Sayımı', aciklama: 'Haftalık sayım', durum: 'in_progress', atanan_personel_ids: ['1'] }
-      ]);
-    }
-  }, [user]);
   
   const addStokKategori = async () => {
     try {
@@ -335,22 +334,8 @@ export default function Dashboard() {
     // If backend wrapped response differently, try common shapes
     const employeeObj = userData.employee || userData.data || userData;
 
-    // Fetch external HR permissions synchronously as part of login so sidebar/permissions are available immediately
-    let externalPerms = {};
-    try {
-      console.time('hrAdapter_fetch');
-      const { getPermissionsForStaff } = await import('./lib/hrAdapter');
-      externalPerms = await getPermissionsForStaff(employeeObj.id);
-      console.timeEnd('hrAdapter_fetch');
-    } catch (e) {
-      // adapter may not exist or endpoint not available; ignore gracefully
-      console.warn('hrAdapter fetch skipped or failed (expected during backend setup)', e?.response?.status || e?.message || e);
-      console.timeEnd('hrAdapter_fetch');
-    }
-
-    if (externalPerms && Object.keys(externalPerms).length > 0) {
-      setExternalPermissions(externalPerms);
-    }
+    // Removed synchronous fetch of external permissions;
+    // usePermissions hook will fetch this data automatically when `employee` state is set.
 
     // set user/employee/company quickly so UI can render
     setUser({ id: employeeObj.id, email: employeeObj.email || loginData.email });

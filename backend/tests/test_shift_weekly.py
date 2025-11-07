@@ -51,6 +51,7 @@ def client(monkeypatch):
     fake_db = type("FakeDB", (), {})()
     fake_db.shift_calendar = FakeCollection([shift])
     fake_db.employees = FakeCollection([employee])
+    fake_db.shift_types = FakeCollection([{"id": "st1", "name": "Sabah", "start": "09:00", "end": "18:00"}])
 
     # monkeypatch server.db to use fake_db
     monkeypatch.setattr(server, "db", fake_db)
